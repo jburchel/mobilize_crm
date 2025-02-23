@@ -1,0 +1,44 @@
+
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>People</h2>
+    <form method="POST" action="/add_person">
+        <div class="form-group">
+            <label>Name: <input name="name" required></label>
+            <label>Email: <input type="email" name="email"></label>
+            <label>Phone: <input name="phone"></label>
+            <label>Address: <input name="address"></label>
+            <label>Church: 
+                <select name="church_id">
+                    <option value="">None</option>
+                    {% for church in churches %}
+                    <option value="{{ church.id }}">{{ church.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>Role: <input name="role"></label>
+            <button type="submit">Add Person</button>
+        </div>
+    </form>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Church</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for person in people %}
+            <tr>
+                <td><a href="{{ url_for('people_bp.person_detail', person_id=person.id) }}">{{ person.name }}</a></td>
+                <td>{{ person.email }}</td>
+                <td>{{ person.role }}</td>
+                <td>{{ person.church.name if person.church else 'None' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

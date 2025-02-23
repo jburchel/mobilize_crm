@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>Communications</h2>
+    <form method="POST" action="/send_communication">
+        <div class="form-group">
+            <label>Type: 
+                <select name="type">
+                    <option>Email</option>
+                    <option>Note</option>
+                </select>
+            </label>
+            <label>Message: <textarea name="message" required></textarea></label>
+            <label>Person: 
+                <select name="person_id">
+                    <option value="">None</option>
+                    {% for person in people %}
+                    <option value="{{ person.id }}">{{ person.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>Church: 
+                <select name="church_id">
+                    <option value="">None</option>
+                    {% for church in churches %}
+                    <option value="{{ church.id }}">{{ church.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <button type="submit">Send/Log</button>
+        </div>
+    </form>
+    <table>
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Message</th>
+                <th>Date</th>
+                <th>To</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for comm in communications %}
+            <tr>
+                <td>{{ comm.type }}</td>
+                <td>{{ comm.message }}</td>
+                <td>{{ comm.date }}</td>
+                <td>{{ comm.person.name if comm.person else (comm.church.name if comm.church else 'None') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

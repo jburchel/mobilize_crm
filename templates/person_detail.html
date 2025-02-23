@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Person Detail{% endblock %}
+
+{% block content %}
+    <h2>Person Detail</h2>
+    <dl>
+        <dt>Name</dt>
+        <dd>{{ person.name }}</dd>
+        <dt>Email</dt>
+        <dd>{{ person.email }}</dd>
+        <dt>Phone</dt>
+        <dd>{{ person.phone }}</dd>
+        <dt>Address</dt>
+        <dd>{{ person.address }}</dd>
+        <dt>Role</dt>
+        <dd>{{ person.role }}</dd>
+        <dt>Church</dt>
+        {% if person.church %}
+            <dd><a href="{{ url_for('churches_bp.church_detail', church_id=person.church.id) }}">{{ person.church.name }}</a></dd>
+        {% else %}
+            <dd>None</dd>
+        {% endif %}
+    </dl>
+
+    <h2>Edit Person</h2>
+    <form method="POST" action="/edit_person/{{ person.id }}">
+        <div class="form-group">
+            <label>Name: <input name="name" value="{{ person.name }}" required></label>
+            <label>Email: <input type="email" name="email" value="{{ person.email }}"></label>
+            <label>Phone: <input name="phone" value="{{ person.phone }}"></label>
+            <label>Address: <input name="address" value="{{ person.address }}"></label>
+            <label>Church:
+                <select name="church_id">
+                    <option value="">None</option>
+                    {% for church in churches %}
+                    <option value="{{ church.id }}" {% if person.church_id == church.id %}selected{% endif %}>{{ church.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>Role: <input name="role" value="{{ person.role }}"></label>
+            <button type="submit">Save Changes</button>
+        </div>
+    </form>
+
+    <p><a href="{{ url_for('people_bp.people') }}">Back to People</a></p>
+{% endblock %}
