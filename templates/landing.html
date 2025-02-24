@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+
+{% block title %}Welcome to Mobilize CRM{% endblock %}
+
+{% block content %}
+<div class="landing-page">
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Welcome to Mobilize CRM</h1>
+            <p class="lead">Crossover Global's Complete Mobilization CRM</p>
+        </div>
+    </section>
+
+    <section class="features">
+        
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>Centralized Management</h3>
+                <p>Manage all your church relationships and communications in one place</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🤝</div>
+                <h3>Relationship Focused</h3>
+                <p>Build and maintain strong connections with churches and their leaders</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📅</div>
+                <h3>Task Management</h3>
+                <p>Stay organized with our intuitive task tracking system</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📱</div>
+                <h3>Contact Integration</h3>
+                <p>Seamlessly integrate with your Google contacts</p>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+.landing-page {
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+.hero {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: var(--white-color);
+    padding: 4rem 2rem;  /* Reduced from 6rem to 4rem */
+    text-align: center;
+    margin-bottom: 2rem;  /* Reduced from 3rem to 2rem */
+    position: relative;
+}
+
+.hero-content {
+    max-width: 800px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
+}
+
+.hero h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;  /* Reduced from 1.5rem to 1rem */
+    color: var(--white-color);
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.lead {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;  /* Reduced from 2rem to 1rem */
+    opacity: 1;
+    color: var(--white-color);
+}
+
+.features {
+    padding: 4rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: var(--white-color);
+}
+
+.features h2 {
+    text-align: center;
+    margin-bottom: 3rem;
+    font-size: 2rem;
+    color: var(--primary-color);
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2rem;
+    padding: 0 1rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.feature-card {
+    background: var(--white-color);
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(24, 57, 99, 0.1);
+    text-align: center;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(24, 57, 99, 0.1);
+    min-width: 250px;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(24, 57, 99, 0.15);
+    border-color: var(--secondary-color);
+}
+
+.feature-icon {
+    font-size: 3rem;
+    margin-bottom: 1.5rem;
+    display: inline-block;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.feature-card h3 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.feature-card p {
+    color: var(--neutral-color);
+    line-height: 1.6;
+    font-size: 1.1rem;
+}
+
+@media (max-width: 1200px) {
+    .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .hero {
+        padding: 4rem 1.5rem;
+    }
+    
+    .hero h1 {
+        font-size: 2.5rem;
+    }
+    
+    .lead {
+        font-size: 1.25rem;
+    }
+    
+    .features-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .feature-card {
+        padding: 2rem;
+    }
+}
+</style>
+{% endblock %}

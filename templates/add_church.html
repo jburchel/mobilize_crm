@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="form-container">
+    <h2>Add New Church</h2>
+    <form method="POST" action="{{ url_for('churches_bp.add_church') }}">
+        <div class="form-group">
+            <h3>Basic Information</h3>
+            <label>Name*: <input name="church_name" required></label>
+            <label>Location: <input name="location"></label>
+            <label>Street Address: <input name="street_address"></label>
+            <label>City: <input name="city"></label>
+            <label>State: <input name="state" maxlength="2"></label>
+            <label>ZIP Code: <input name="zip_code"></label>
+            <label>Phone: <input name="phone"></label>
+            <label>Email: <input type="email" name="email"></label>
+            <label>Website: <input type="url" name="website"></label>
+            <label>Denomination: <input name="denomination"></label>
+            <label>Congregation Size: <input type="number" name="congregation_size"></label>
+            <label>Year Founded: <input type="number" name="year_founded"></label>
+        </div>
+
+        <div class="form-group">
+            <h3>Senior Pastor Information</h3>
+            <label>First Name: <input name="senior_pastor_first_name"></label>
+            <label>Last Name: <input name="senior_pastor_last_name"></label>
+            <label>Phone: <input name="senior_pastor_phone"></label>
+            <label>Email: <input type="email" name="senior_pastor_email"></label>
+        </div>
+
+        <div class="form-group">
+            <h3>Missions Pastor Information</h3>
+            <label>First Name: <input name="missions_pastor_first_name"></label>
+            <label>Last Name: <input name="missions_pastor_last_name"></label>
+            <label>Phone: <input name="mission_pastor_phone"></label>
+            <label>Email: <input type="email" name="mission_pastor_email"></label>
+        </div>
+
+        <div class="form-group">
+            <h3>Primary Contact Information</h3>
+            <label>First Name: <input name="primary_contact_first_name"></label>
+            <label>Last Name: <input name="primary_contact_last_name"></label>
+            <label>Phone: <input name="primary_contact_phone"></label>
+            <label>Email: <input type="email" name="primary_contact_email"></label>
+            <label>Main Contact: 
+                <select name="main_contact_id">
+                    <option value="">None</option>
+                    {% for person in people %}
+                    <option value="{{ person.id }}">{{ person.get_name() }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+        </div>
+
+        <div class="form-group">
+            <h3>Additional Information</h3>
+            <label>Church Pipeline:
+                <select name="church_pipeline">
+                    <option value="PROMOTION">Promotion</option>
+                    <option value="INFORMATION">Information</option>
+                    <option value="INVITATION">Invitation</option>
+                    <option value="CONFIRMATION">Confirmation</option>
+                    <option value="EN42">EN42</option>
+                    <option value="AUTOMATION">Automation</option>
+                </select>
+            </label>
+            <label>Priority:
+                <select name="priority">
+                    <option value="MEDIUM" selected>Medium</option>
+                    <option value="URGENT">Urgent</option>
+                    <option value="HIGH">High</option>
+                    <option value="LOW">Low</option>
+                </select>
+            </label>
+            <label>Assigned To:
+                <select name="assigned_to">
+                    <option value="UNASSIGNED" selected>Unassigned</option>
+                    <option value="BILL JONES">Bill Jones</option>
+                    <option value="JASON MODOMO">Jason Modomo</option>
+                    <option value="KEN KATAYAMA">Ken Katayama</option>
+                    <option value="MATTHEW RULE">Matthew Rule</option>
+                    <option value="CHIP ATKINSON">Chip Atkinson</option>
+                    <option value="RACHEL LIVELY">Rachel Lively</option>
+                    <option value="JIM BURCHEL">Jim Burchel</option>
+                    <option value="JILL WALKER">Jill Walker</option>
+                    <option value="KARINA RAMPIN">Karina Rampin</option>
+                </select>
+            </label>
+            <label>Source:
+                <select name="source">
+                    <option value="UNKNOWN" selected>Unknown</option>
+                    <option value="WEBFORM">Webform</option>
+                    <option value="INCOMING CALL">Incoming Call</option>
+                    <option value="EMAIL">Email</option>
+                    <option value="SOCIAL MEDIA">Social Media</option>
+                    <option value="COLD CALL">Cold Call</option>
+                    <option value="PERSPECTIVES">Perspectives</option>
+                    <option value="REFERAL">Referral</option>
+                    <option value="OTHER">Other</option>
+                </select>
+            </label>
+            <label>Referred By: <input name="referred_by"></label>
+            <label>Initial Notes: <textarea name="initial_notes"></textarea></label>
+            <label>Info Given: <textarea name="info_given"></textarea></label>
+            <label>Virtuous: <input type="checkbox" name="virtuous"></label>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="button primary">Add Church</button>
+            <a href="{{ url_for('churches_bp.churches') }}" class="button">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

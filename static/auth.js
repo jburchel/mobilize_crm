@@ -39,9 +39,22 @@ class AuthManager {
         this.authError = getElement('auth-error');
         this.loadingOverlay = getElement('loading-overlay');
         this.syncStatus = getElement('sync-status', true) || this._createSyncStatus();
+        this.navbar = document.querySelector('.navbar.auth-required');
+        this.mobileMenuButton = document.querySelector('.mobile-menu-toggle');
+        this.navList = document.querySelector('.nav-list');
 
         if (!this.authContainer) {
             console.error('Auth container not found');
+        }
+
+        // Set up mobile menu toggle
+        if (this.mobileMenuButton && this.navList) {
+            this.mobileMenuButton.addEventListener('click', () => {
+                const isExpanded = this.mobileMenuButton.getAttribute('aria-expanded') === 'true';
+                this.mobileMenuButton.setAttribute('aria-expanded', !isExpanded);
+                this.navList.classList.toggle('active');
+                this.authContainer.classList.toggle('active');
+            });
         }
     }
 
@@ -158,13 +171,54 @@ class AuthManager {
         
         try {
             if (user) {
+                // Update auth status
                 this.authStatus.textContent = `Welcome, ${user.displayName}`;
                 this.signInButton.style.display = 'none';
                 this.signOutButton.style.display = 'block';
+                
+                // Show navigation menu with animation
+                if (this.navbar) {
+                    this.navbar.style.display = 'block';
+                    // Force a reflow to trigger the transition
+                    this.navbar.offsetHeight;
+                }
+
+                // Get the user's ID token
+                user.getIdToken().then(token => {
+                    // Store the token for API calls
+                    sessionStorage.setItem('authToken', token);
+                    
+                    // If on landing page, redirect to dashboard
+                    if (window.location.pathname === '/') {
+                        window.location.href = '/dashboard';
+                    }
+                });
             } else {
+                // Update auth status
                 this.authStatus.textContent = 'Please sign in';
                 this.signInButton.style.display = 'block';
                 this.signOutButton.style.display = 'none';
+                
+                // Hide navigation menu
+                if (this.navbar) {
+                    this.navbar.style.display = 'none';
+                }
+                
+                // Reset mobile menu state
+                if (this.mobileMenuButton && this.navList) {
+                    this.mobileMenuButton.setAttribute('aria-expanded', 'false');
+                    this.navList.classList.remove('active');
+                    this.authContainer.classList.remove('active');
+                }
+                
+                // Clear stored tokens
+                sessionStorage.removeItem('authToken');
+                sessionStorage.removeItem('googleAccessToken');
+
+                // If not on landing page, redirect to root
+                if (window.location.pathname !== '/') {
+                    window.location.href = '/';
+                }
             }
         } catch (error) {
             console.error("Error updating UI:", error);

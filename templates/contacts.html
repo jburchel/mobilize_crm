@@ -9,9 +9,14 @@
             <button id="fetch-contacts" class="btn btn-primary" disabled>
                 <span class="icon">↻</span> Fetch Google Contacts
             </button>
-            <button id="sync-selected" class="btn btn-success" style="display: none;">
-                Sync Selected Contacts
-            </button>
+            <div id="import-controls" style="display: none;">
+                <button id="sync-selected-people" class="btn btn-success">
+                    Import as People
+                </button>
+                <button id="sync-selected-churches" class="btn btn-success">
+                    Import as Churches
+                </button>
+            </div>
             <span id="sync-status" class="status-message"></span>
         </div>
         
@@ -43,7 +48,9 @@
     
     document.addEventListener('DOMContentLoaded', () => {
         const fetchButton = document.getElementById('fetch-contacts');
-        const syncSelectedButton = document.getElementById('sync-selected');
+        const syncSelectedPeopleButton = document.getElementById('sync-selected-people');
+        const syncSelectedChurchesButton = document.getElementById('sync-selected-churches');
+        const importControls = document.getElementById('import-controls');
         const contactsList = document.getElementById('contacts-list');
         const syncStatus = document.getElementById('sync-status');
         const labelsSection = document.querySelector('.labels-section');
@@ -80,7 +87,7 @@
             groupsList.innerHTML = '';
             labelsSection.style.display = 'none';
             contactsSection.style.display = 'none';
-            syncSelectedButton.style.display = 'none';
+            importControls.style.display = 'none';
             selectedContacts.clear();
             groupLabels.clear();
             activeLabel = null;
@@ -89,7 +96,7 @@
         
         function updateSelectionCount() {
             selectionCount.textContent = `(${selectedContacts.size} selected)`;
-            syncSelectedButton.style.display = selectedContacts.size > 0 ? 'block' : 'none';
+            importControls.style.display = selectedContacts.size > 0 ? 'block' : 'none';
         }
         
         function createLabelItem(group) {
@@ -249,12 +256,16 @@
             updateSelectionCount();
         });
         
-        syncSelectedButton.addEventListener('click', async () => {
+        syncSelectedPeopleButton.addEventListener('click', () => handleImport('person'));
+        syncSelectedChurchesButton.addEventListener('click', () => handleImport('church'));
+
+        async function handleImport(type) {
             if (selectedContacts.size === 0) return;
             
             try {
-                syncSelectedButton.disabled = true;
                 syncStatus.textContent = 'Importing selected contacts...';
+                syncSelectedPeopleButton.disabled = true;
+                syncSelectedChurchesButton.disabled = true;
                 const service = new ContactsService(window.auth);
                 
                 let imported = 0;
@@ -262,11 +273,17 @@
                 
                 for (const contact of selectedContacts) {
                     try {
-                        await service.importContact(contact);
+                        console.log('Importing contact:', contact); // Debug log
+                        const result = await service.importContact(contact, type);
+                        console.log('Import result:', result); // Debug log
                         importedContacts.add(contact.resource_name);
                         imported++;
                     } catch (error) {
-                        errors.push(`Failed to import ${contact.names}: ${error.message}`);
+                        console.error('Import error for contact:', contact, error);
+                        errors.push({
+                            name: contact.names,
+                            error: error.message
+                        });
                     }
                 }
                 
@@ -275,8 +292,8 @@
                 updateSelectionCount();
                 
                 if (errors.length > 0) {
-                    syncStatus.textContent = `Imported ${imported} contacts with ${errors.length} errors`;
                     console.error('Import errors:', errors);
+                    syncStatus.textContent = `Imported ${imported} contacts with ${errors.length} errors. Check console for details.`;
                 } else {
                     syncStatus.textContent = `Successfully imported ${imported} contacts`;
                 }
@@ -284,9 +301,10 @@
                 console.error('Error importing contacts:', error);
                 syncStatus.textContent = error.message;
             } finally {
-                syncSelectedButton.disabled = false;
+                syncSelectedPeopleButton.disabled = false;
+                syncSelectedChurchesButton.disabled = false;
             }
-        });
+        }
     });
 </script>
 {% endblock %}

@@ -4,7 +4,8 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 import firebase_admin
 from firebase_admin import auth
-from models import Person, session_scope
+from sqlalchemy import or_
+from models import Person, Church, Contacts, session_scope
 import os
 
 contacts_api = Blueprint('contacts_api', __name__)
@@ -28,16 +29,23 @@ def check_import_status(resource_name):
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         with session_scope() as session:
-            existing_contact = session.query(Person).filter_by(
-                google_resource_name=resource_name
+            # Check if contact already exists in either table
+            existing_contact = session.query(Contacts).filter(
+                Contacts.google_resource_name == resource_name
             ).first()
-            return jsonify({
-                'imported': existing_contact is not None,
-                'person': {
-                    'id': existing_contact.id,
-                    'name': existing_contact.name
-                } if existing_contact else None
-            })
+
+            if existing_contact:
+                return jsonify({
+                    'imported': True,
+                    'contact': {
+                        'id': existing_contact.id,
+                        'name': existing_contact.get_name(),
+                        'type': existing_contact.type
+                    }
+                })
+
+            return jsonify({'imported': False})
+            
     except Exception as e:
         print(f"Error checking import status: {e}")
         return jsonify({'error': str(e)}), 500
@@ -49,14 +57,12 @@ def sync_contacts():
         return jsonify({'error': 'Unauthorized'}), 401
 
     try:
-        # Get access token from request body
         request_data = request.get_json()
         if not request_data or 'access_token' not in request_data:
             return jsonify({'error': 'No access token provided'}), 400
 
         access_token = request_data['access_token']
         
-        # Create Google credentials with the access token
         google_credentials = Credentials(
             token=access_token,
             refresh_token=None,
@@ -66,10 +72,8 @@ def sync_contacts():
             scopes=["https://www.googleapis.com/auth/contacts.readonly"]
         )
 
-        # Build the People API service
         service = build('people', 'v1', credentials=google_credentials)
         
-        # Call the People API
         results = service.people().connections().list(
             resourceName='people/me',
             pageSize=1000,
@@ -79,31 +83,43 @@ def sync_contacts():
         connections = results.get('connections', [])
         processed_contacts = []
 
+        print(f"Processing {len(connections)} contacts from Google")
+        
         for person in connections:
-            names = person.get('names', [])
-            name = names[0].get('displayName') if names else 'No Name'
-            
-            contact = {
-                'resource_name': person.get('resourceName'),
-                'names': name,
-                'email_addresses': [email.get('value') for email in person.get('emailAddresses', [])],
-                'phone_numbers': [phone.get('value') for phone in person.get('phoneNumbers', [])],
-                'addresses': [addr.get('formattedValue') for addr in person.get('addresses', [])],
-                'groups': []
-            }
-            
-            # Extract group memberships
-            memberships = person.get('memberships', [])
-            for membership in memberships:
-                if 'contactGroupMembership' in membership:
-                    contact['groups'].append(membership['contactGroupMembership'].get('contactGroupId'))
-            
-            processed_contacts.append(contact)
+            try:
+                names = person.get('names', [])
+                name = names[0].get('displayName', 'No Name') if names else 'No Name'
+                
+                email_addresses = person.get('emailAddresses', [])
+                emails = [email.get('value') for email in email_addresses if email.get('value')]
+                
+                phone_numbers = person.get('phoneNumbers', [])
+                phones = [phone.get('value') for phone in phone_numbers if phone.get('value')]
+                
+                addresses = person.get('addresses', [])
+                formatted_addresses = [addr.get('formattedValue') for addr in addresses if addr.get('formattedValue')]
+                
+                contact = {
+                    'resource_name': person.get('resourceName'),
+                    'names': name,
+                    'email_addresses': emails,
+                    'phone_numbers': phones,
+                    'addresses': formatted_addresses
+                }
+                
+                print(f"Processed contact: {name}")  # Debug log
+                processed_contacts.append(contact)
+            except Exception as e:
+                print(f"Error processing contact: {e}")
+                continue
 
+        print(f"Successfully processed {len(processed_contacts)} contacts")
         return jsonify(processed_contacts)
 
     except Exception as e:
         print(f"Error syncing contacts: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 @contacts_api.route('/api/contacts/import', methods=['POST'])
@@ -111,52 +127,133 @@ def import_contact():
     token_data = verify_firebase_token(request)
     if not token_data:
         return jsonify({'error': 'Unauthorized'}), 401
+
     try:
-        contact_data = request.json
-        if not contact_data:
-            return jsonify({'error': 'No contact data provided'}), 400
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        resource_name = data.get('resource_name')
+        names = data.get('names', '')
+        email_addresses = data.get('email_addresses', [])
+        phone_numbers = data.get('phone_numbers', [])
+        addresses = data.get('addresses', [])
+        import_type = data.get('import_type')
+
+        print(f"[DEBUG] Attempting to import contact: {names} as {import_type}")
+
+        if not resource_name:
+            return jsonify({'error': 'No resource name provided'}), 400
 
         with session_scope() as session:
-            # Check if contact already exists by google_resource_name
-            existing_contact = session.query(Person).filter_by(
-                google_resource_name=contact_data['resource_name']
+            # Check if contact already exists
+            existing_contact = session.query(Contacts).filter_by(
+                google_resource_name=resource_name
             ).first()
-            
-            if existing_contact:
-                return jsonify({
-                    'message': 'Contact already imported',
-                    'person': {
-                        'id': existing_contact.id,
-                        'name': existing_contact.name,
-                        'email': existing_contact.email,
-                        'phone': existing_contact.phone,
-                        'address': existing_contact.address
-                    }
-                }), 200
 
-            # Create new person from contact data
-            new_person = Person(
-                name=contact_data['names'],
-                email=contact_data['email_addresses'][0] if contact_data['email_addresses'] else None,
-                phone=contact_data['phone_numbers'][0] if contact_data['phone_numbers'] else None,
-                address=contact_data['addresses'][0] if contact_data['addresses'] else None,
-                role='Contact',  # Default role for imported contacts
-                google_resource_name=contact_data['resource_name']
-            )
-            session.add(new_person)
-            # session.commit() is handled by the context manager
-            return jsonify({
-                'message': 'Contact imported successfully',
-                'person': {
-                    'id': new_person.id,
-                    'name': new_person.name,
-                    'email': new_person.email,
-                    'phone': new_person.phone,
-                    'address': new_person.address
-                }
-            })
+            # Parse address components
+            address_parts = {}
+            if addresses:
+                address = addresses[0]
+                print(f"[DEBUG] Processing address: {address}")
+                # Try to parse the formatted address
+                address_lines = address.split(',')
+                if len(address_lines) >= 2:
+                    # Last part usually contains state and zip
+                    state_zip = address_lines[-1].strip().split()
+                    if len(state_zip) >= 2:
+                        address_parts['state'] = state_zip[0]
+                        address_parts['zip_code'] = state_zip[1]
+                    # Second to last part usually contains city
+                    address_parts['city'] = address_lines[-2].strip()
+                    # First part(s) contain street address
+                    address_parts['street_address'] = ','.join(address_lines[:-2]).strip()
+                print(f"[DEBUG] Parsed address parts: {address_parts}")
+
+            try:
+                if import_type == 'church':
+                    if existing_contact and existing_contact.type == 'person':
+                        # Delete the existing person contact
+                        print(f"[DEBUG] Deleting existing person contact: {existing_contact.get_name()}")
+                        session.delete(existing_contact)
+                        session.flush()
+                        existing_contact = None
+
+                    if existing_contact and existing_contact.type == 'church':
+                        print(f"[DEBUG] Church already exists: {existing_contact.get_name()}")
+                        return jsonify({
+                            'message': 'Church already imported',
+                            'contact': {
+                                'id': existing_contact.id,
+                                'name': existing_contact.get_name(),
+                                'type': existing_contact.type
+                            }
+                        })
+
+                    print(f"[DEBUG] Creating new church: {names}")
+                    new_contact = Church(
+                        type='church',  # This is redundant but explicit
+                        church_name=names,
+                        email=email_addresses[0] if email_addresses else None,
+                        phone=phone_numbers[0] if phone_numbers else None,
+                        street_address=address_parts.get('street_address'),
+                        city=address_parts.get('city'),
+                        state=address_parts.get('state'),
+                        zip_code=address_parts.get('zip_code'),
+                        google_resource_name=resource_name,
+                        location=f"{address_parts.get('city', '')}, {address_parts.get('state', '')}" if address_parts.get('city') and address_parts.get('state') else None
+                    )
+                else:
+                    if existing_contact:
+                        print(f"[DEBUG] Contact already exists: {existing_contact.get_name()}")
+                        return jsonify({
+                            'message': 'Contact already imported',
+                            'contact': {
+                                'id': existing_contact.id,
+                                'name': existing_contact.get_name(),
+                                'type': existing_contact.type
+                            }
+                        })
+
+                    # Create new person contact
+                    name_parts = names.split()
+                    first_name = name_parts[0] if name_parts else ''
+                    last_name = ' '.join(name_parts[1:]) if len(name_parts) > 1 else ''
+                    
+                    print(f"[DEBUG] Creating new person: {first_name} {last_name}")
+                    new_contact = Person(
+                        type='person',  # This is redundant but explicit
+                        first_name=first_name,
+                        last_name=last_name,
+                        email=email_addresses[0] if email_addresses else None,
+                        phone=phone_numbers[0] if phone_numbers else None,
+                        street_address=address_parts.get('street_address'),
+                        city=address_parts.get('city'),
+                        state=address_parts.get('state'),
+                        zip_code=address_parts.get('zip_code'),
+                        google_resource_name=resource_name
+                    )
+
+                print(f"[DEBUG] Adding new contact to session...")
+                session.add(new_contact)
+                print(f"[DEBUG] Contact will be committed by session_scope: {new_contact.get_name()} (type: {new_contact.type})")
+                
+                return jsonify({
+                    'message': 'Contact imported successfully',
+                    'contact': {
+                        'id': new_contact.id,
+                        'name': new_contact.get_name(),
+                        'email': new_contact.email,
+                        'type': import_type
+                    }
+                })
+
+            except Exception as db_error:
+                print(f"[DEBUG] Database error while importing contact: {db_error}")
+                raise
+
     except Exception as e:
-        print(f"Error importing contact: {e}")
+        print(f"[DEBUG] Error importing contact: {e}")
         return jsonify({'error': str(e)}), 500
 
 @contacts_api.route('/api/contacts/list', methods=['POST'])

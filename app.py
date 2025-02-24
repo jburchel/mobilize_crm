@@ -1,5 +1,6 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, redirect, url_for, session
 from flask_cors import CORS
+from flask_migrate import Migrate
 from config import Config
 from models import Base, engine
 from routes.dashboard import dashboard_bp
@@ -10,12 +11,12 @@ from routes.communications import communications_bp
 from routes.health import health_bp
 from routes.contacts_api import contacts_api
 from routes.contacts import contacts_bp
-from routes.auth_api import auth_api  # Add new import
+from routes.auth_api import auth_api
 import logging
 from datetime import datetime
 import sys
 import firebase_admin
-from firebase_admin import credentials
+from firebase_admin import credentials, auth
 
 print("Script starting...")
 print("Python version:", sys.version)
@@ -30,8 +31,8 @@ try:
     cred = credentials.Certificate('firebase-credentials.json')
     firebase_admin.initialize_app(cred)
 
-    # Initialize CORS
-    CORS(app)
+    # Initialize CORS with credentials support
+    CORS(app, supports_credentials=True)
     
     # Security headers
     @app.after_request
@@ -42,7 +43,7 @@ try:
         return response
 
     # Register blueprints
-    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
     app.register_blueprint(people_bp)
     app.register_blueprint(churches_bp)
     app.register_blueprint(tasks_bp)
@@ -50,7 +51,10 @@ try:
     app.register_blueprint(health_bp)
     app.register_blueprint(contacts_api)
     app.register_blueprint(contacts_bp)
-    app.register_blueprint(auth_api)  # Register new blueprint
+    app.register_blueprint(auth_api)
+
+    # Initialize Flask-Migrate
+    migrate = Migrate(app, Base)
 
     # Set up logging
     logging.basicConfig(level=logging.INFO)
@@ -69,20 +73,36 @@ try:
     def internal_error(error):
         return render_template('500.html'), 500
 
+    def get_auth_token():
+        # Check Authorization header first
+        auth_header = request.headers.get('Authorization')
+        if (auth_header and auth_header.startswith('Bearer ')):
+            return auth_header.split('Bearer ')[1]
+        # Then check for token in cookie/session
+        return request.cookies.get('authToken')
+
     @app.route('/')
     def home():
-        return render_template('base.html')
+        token = get_auth_token()
+        if token:
+            try:
+                # Verify the token
+                decoded_token = auth.verify_id_token(token)
+                # Token is valid, redirect to dashboard
+                return redirect(url_for('dashboard_bp.dashboard'))
+            except Exception as e:
+                app.logger.warning(f"Token verification failed: {str(e)}")
+                # Token verification failed, show landing page
+                return render_template('landing.html')
+        # No token found, show landing page
+        return render_template('landing.html')
 
     if __name__ == '__main__':
         print("Entering main block...")
         try:
             print("Server starting at http://127.0.0.1:5000")
-            app.run(debug=True, host='127.0.0.1', port=5000)
+            app.run(host='127.0.0.1', port=5000)
         except Exception as e:
-            print(f"Error in main block: {e}")
-            raise
-    else:
-        print("Warning: Script was imported, not run directly")
+            print(f"Error starting server: {e}")
 except Exception as e:
-    print("Error starting the application:", str(e))
-    raise
+    print(f"Error during app initialization: {e}")

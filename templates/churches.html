@@ -1,41 +1,113 @@
-
 {% extends "base.html" %}
 
 {% block content %}
+<div class="churches-header">
     <h2>Churches</h2>
-    <form method="POST" action="/add_church">
-        <div class="form-group">
-            <label>Name: <input name="name" required></label>
-            <label>Location: <input name="location"></label>
-            <label>Phone: <input name="phone"></label>
-            <label>Email: <input type="email" name="email"></label>
-            <label>Main Contact: 
-                <select name="main_contact_id">
-                    <option value="">None</option>
-                    {% for person in people %}
-                    <option value="{{ person.id }}">{{ person.name }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <button type="submit">Add Church</button>
-        </div>
-    </form>
-    <table>
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Location</th>
-                <th>Main Contact</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for church in churches %}
-            <tr>
-                <td><a href="{{ url_for('churches_bp.church_detail', church_id=church.id) }}">{{ church.name }}</a></td>
-                <td>{{ church.location }}</td>
-                <td>{{ church.main_contact.name if church.main_contact else 'None' }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <a href="{{ url_for('churches_bp.add_church_form') }}" class="button primary">Add Church</a>
+</div>
+
+<div class="search-container">
+    <input type="text" id="churchSearch" placeholder="Search churches..." class="search-input">
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Location</th>
+            <th>Contact Info</th>
+            <th>Main Contact</th>
+        </tr>
+    </thead>
+    <tbody id="churchTableBody">
+        {% for church in churches %}
+        <tr class="church-row" data-search-text="{{ church.get_name() }} {{ church.location if church.location else (church.city + ', ' + church.state) if church.city and church.state else church.street_address }} {{ church.main_contact.get_name() if church.main_contact else '' }}">
+            <td><a href="{{ url_for('churches_bp.church_detail', church_id=church.id) }}">{{ church.get_name() }}</a></td>
+            <td>{{ church.location if church.location else (church.city + ', ' + church.state) if church.city and church.state else church.street_address }}</td>
+            <td>
+                {% if church.phone %}📞 {{ church.phone }}<br>{% endif %}
+                {% if church.email %}📧 {{ church.email }}{% endif %}
+            </td>
+            <td>{{ church.main_contact.get_name() if church.main_contact else 'None' }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="4" class="text-center">No churches found</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<script>
+document.getElementById('churchSearch').addEventListener('input', function(e) {
+    const searchText = e.target.value.toLowerCase();
+    document.querySelectorAll('.church-row').forEach(row => {
+        const rowText = row.dataset.searchText.toLowerCase();
+        row.style.display = rowText.includes(searchText) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+.churches-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.search-container {
+    margin-bottom: 1rem;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+th, td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+th {
+    background-color: #f9fafb;
+    font-weight: 600;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.button {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.button.primary {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.button.primary:hover {
+    background-color: #2563eb;
+}
+</style>
 {% endblock %}

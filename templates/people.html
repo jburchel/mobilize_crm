@@ -1,44 +1,109 @@
-
 {% extends "base.html" %}
 
 {% block content %}
-    <h2>People</h2>
-    <form method="POST" action="/add_person">
-        <div class="form-group">
-            <label>Name: <input name="name" required></label>
-            <label>Email: <input type="email" name="email"></label>
-            <label>Phone: <input name="phone"></label>
-            <label>Address: <input name="address"></label>
-            <label>Church: 
-                <select name="church_id">
-                    <option value="">None</option>
-                    {% for church in churches %}
-                    <option value="{{ church.id }}">{{ church.name }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <label>Role: <input name="role"></label>
-            <button type="submit">Add Person</button>
-        </div>
-    </form>
+    <div class="people-header">
+        <h2>People</h2>
+        <a href="{{ url_for('people_bp.add_person_form') }}" class="button primary">Add Person</a>
+    </div>
+
+    <div class="search-container">
+        <input type="text" id="peopleSearch" placeholder="Search people..." class="search-input">
+    </div>
+
     <table>
         <thead>
             <tr>
                 <th>Name</th>
                 <th>Email</th>
+                <th>Phone</th>
+                <th>Address</th>
                 <th>Role</th>
                 <th>Church</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="peopleTableBody">
             {% for person in people %}
-            <tr>
-                <td><a href="{{ url_for('people_bp.person_detail', person_id=person.id) }}">{{ person.name }}</a></td>
+            <tr class="person-row" data-search-text="{{ person.first_name }} {{ person.last_name }} {{ person.email }} {{ person.role }}">
+                <td><a href="{{ url_for('people_bp.person_detail', person_id=person.id) }}">{{ person.first_name }} {{ person.last_name }}</a></td>
                 <td>{{ person.email }}</td>
+                <td>{{ person.phone }}</td>
+                <td>{{ person.street_address }}{% if person.city %}, {{ person.city }}{% endif %}{% if person.state %}, {{ person.state }}{% endif %}</td>
                 <td>{{ person.role }}</td>
-                <td>{{ person.church.name if person.church else 'None' }}</td>
+                <td>{{ person.church.church_name if person.church else 'None' }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('peopleSearch');
+    const tbody = document.getElementById('peopleTableBody');
+    const rows = tbody.getElementsByClassName('person-row');
+
+    searchInput.addEventListener('input', function() {
+        const searchText = this.value.toLowerCase();
+        
+        for (const row of rows) {
+            const text = row.dataset.searchText.toLowerCase();
+            row.style.display = text.includes(searchText) ? '' : 'none';
+        }
+    });
+});
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+.people-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.search-container {
+    margin-bottom: 1rem;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    max-width: 300px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+th, td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+th {
+    background-color: #f5f5f5;
+    font-weight: bold;
+}
+
+tr:hover {
+    background-color: #f8f8f8;
+}
+
+a {
+    color: #2563eb;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+</style>
 {% endblock %}

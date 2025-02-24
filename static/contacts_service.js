@@ -128,11 +128,11 @@ class ContactsService {
         }
     }
 
-    async importContact(contact) {
+    async importContact(contact, type) {
         try {
             const user = this.auth.currentUser;
             if (!user) {
-                throw new Error('User must be authenticated to import contact');
+                throw new Error('User must be authenticated');
             }
 
             const token = await user.getIdToken();
@@ -142,7 +142,10 @@ class ContactsService {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(contact)
+                body: JSON.stringify({
+                    ...contact,
+                    import_type: type
+                })
             });
 
             if (!response.ok) {
@@ -152,7 +155,7 @@ class ContactsService {
 
             return await response.json();
         } catch (error) {
-            return this._handleError(error);
+            this._handleError(error);
         }
     }
 }

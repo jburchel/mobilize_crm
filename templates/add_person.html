@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block content %}
+    <h2>Add New Person</h2>
+    <form method="POST" action="{{ url_for('people_bp.add_person') }}">
+        <div class="form-group">
+            <label>Title: <input name="title"></label>
+            <label>First Name: <input name="first_name" required></label>
+            <label>Last Name: <input name="last_name"></label>
+            <label>Email: <input type="email" name="email"></label>
+            <label>Phone: <input name="phone"></label>
+            <label>Preferred Contact Method: 
+                <select name="preferred_contact_method">
+                    <option value="">None</option>
+                    <option value="email">Email</option>
+                    <option value="phone">Phone</option>
+                    <option value="text">Text</option>
+                    <option value="facebook_messenger">Facebook Messenger</option>
+                    <option value="whatsapp">Whatsapp</option>
+                    <option value="groupme">Groupme</option>
+                    <option value="signal">Signal</option>
+                    <option value="other">Other</option>
+                </select>
+            </label>
+            <label>Street Address: <input name="street_address"></label>
+            <label>City: <input name="city"></label>
+            <label>State: <input name="state"></label>
+            <label>Zip Code: <input name="zip_code"></label>
+            <label>Home Country: <input name="home_country"></label>
+            <label>Role: 
+                <select name="role">
+                    <option value="Contact">Contact</option>
+                    <option value="Member">Member</option>
+                    <option value="Leader">Leader</option>
+                    <option value="Pastor">Pastor</option>
+                </select>
+            </label>
+            <label>Church: 
+                <select name="church_id">
+                    <option value="">None</option>
+                    {% for church in churches %}
+                    <option value="{{ church.id }}">{{ church.church_name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>Marital Status:
+                <select name="marital_status">
+                    <option value="">None</option>
+                    <option value="single">Single</option>
+                    <option value="married">Married</option>
+                    <option value="divorced">Divorced</option>
+                    <option value="widowed">Widowed</option>
+                    <option value="separated">Separated</option>
+                    <option value="engaged">Engaged</option>
+                    <option value="unknown">Unknown</option>
+                </select>
+            </label>
+            <label>Spouse First Name: <input name="spouse_first_name"></label>
+            <label>Spouse Last Name: <input name="spouse_last_name"></label>
+            <label>People Pipeline:
+                <select name="people_pipeline">
+                    <option value="">None</option>
+                    <option value="PROMOTION">Promotion</option>
+                    <option value="INFORMATION">Information</option>
+                    <option value="INVITATION">Invitation</option>
+                    <option value="CONFIRMATION">Confirmation</option>
+                    <option value="AUTOMATION">Automation</option>
+                </select>
+            </label>
+            <label>Priority:
+                <select name="priority">
+                    <option value="">None</option>
+                    <option value="urgent">Urgent</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                </select>
+            </label>
+            <label>Assigned To:
+                <select name="assigned_to">
+                    <option value="UNASSIGNED" selected>Unassigned</option>
+                    <option value="BILL JONES">Bill Jones</option>
+                    <option value="JASON MODOMO">Jason Modomo</option>
+                    <option value="KEN KATAYAMA">Ken Katayama</option>
+                    <option value="MATTHEW RULE">Matthew Rule</option>
+                    <option value="CHIP ATKINSON">Chip Atkinson</option>
+                    <option value="RACHEL LIVELY">Rachel Lively</option>
+                    <option value="JIM BURCHEL">Jim Burchel</option>
+                    <option value="JILL WALKER">Jill Walker</option>
+                </select>
+            </label>
+            <label>Source:
+                <select name="source">
+                    <option value="">None</option>
+                    <option value="WEBFORM">Webform</option>
+                    <option value="INCOMING CALL">Incoming Call</option>
+                    <option value="EMAIL">Email</option>
+                    <option value="SOCIAL MEDIA">Social Media</option>
+                    <option value="COLD CALL">Cold Call</option>
+                    <option value="PERSPECTIVES">Perspectives</option>
+                    <option value="REFERAL">Referral</option>
+                    <option value="OTHER">Other</option>
+                    <option value="UNKNOWN">Unknown</option>
+                </select>
+            </label>
+            <label>Referred By: <input name="referred_by"></label>
+            <label>Info Given: <textarea name="info_given"></textarea></label>
+            <label>Desired Service: <textarea name="desired_service"></textarea></label>
+            <label>Initial Notes: <textarea name="initial_notes"></textarea></label>
+            <label>
+                <input type="checkbox" name="virtuous" value="true"> Virtuous
+            </label>
+            <div class="button-group">
+                <button type="submit" class="button primary">Save Person</button>
+                <a href="{{ url_for('people_bp.people') }}" class="button">Cancel</a>
+            </div>
+        </div>
+    </form>
+{% endblock %}
+
+{% block styles %}
+<style>
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.form-group label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.form-group textarea {
+    min-height: 100px;
+}
+
+.button-group {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+</style>
+{% endblock %}

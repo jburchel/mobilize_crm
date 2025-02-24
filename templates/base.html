@@ -8,8 +8,9 @@
     <!-- Security headers -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo.png') }}">
-    <title>Mobilize CRM</title>
+    <title>{% block title %}Mobilize CRM{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    {% block styles %}{% endblock %}
 </head>
 <body>
     <!-- Loading overlay -->
@@ -42,14 +43,14 @@
                 </button>
             </div>
         </div>
-        <nav class="navbar" role="navigation" aria-label="Main navigation">
+        <nav class="navbar auth-required" role="navigation" aria-label="Main navigation" style="display: none;">
             <ul class="nav-list">
                 <li><a href="/" class="nav-link" aria-current="page">Dashboard</a></li>
                 <li><a href="/people" class="nav-link">People</a></li>
                 <li><a href="/churches" class="nav-link">Churches</a></li>
                 <li><a href="/tasks" class="nav-link">Tasks</a></li>
                 <li><a href="/communications" class="nav-link">Communications</a></li>
-                <li><a href="/contacts" class="nav-link">Contacts</a></li>
+                <li><a href="/contacts" class="nav-link">Google Contacts</a></li>
             </ul>
         </nav>
     </header>

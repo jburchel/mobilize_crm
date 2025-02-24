@@ -1,7 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap');
 
 :root {
-    --primary-color: #1a73e8;
+    --primary-color: #183963;    /* PANTONE 534 */
+    --secondary-color: #39A949;  /* PANTONE 7739 */
+    --neutral-color: #7F7F7F;    /* PANTONE 840 C */
+    --white-color: #FFFFFF;      /* PANTONE P 75-1 U */
     --error-color: #dc3545;
     --success-color: #28a745;
     --text-color: #333;
@@ -46,12 +49,14 @@ h1, h2 {
 }
 
 a {
-    color: #183963;
+    color: var(--primary-color);
     text-decoration: none;
+    transition: color 0.3s ease;
 }
 
 a:hover {
-    text-decoration: underline;
+    color: var(--secondary-color);
+    text-decoration: none;
 }
 
 form {
@@ -100,7 +105,7 @@ th {
 }
 
 tr:nth-child(even) {
-    background-color: #f2f2f2;
+    background-color: rgba(24, 57, 99, 0.05); /* Light shade of primary color */
 }
 
 /* Container */
@@ -114,7 +119,7 @@ tr:nth-child(even) {
 .navbar {
     display: flex;
     justify-content: center;
-    background-color: #183963;
+    background-color: var(--primary-color);
     padding: 1rem;
     position: relative;
     z-index: 101; /* Ensure navbar is above header but below overlay */
@@ -129,7 +134,8 @@ tr:nth-child(even) {
 }
 
 .nav-link:hover {
-    background-color: #24527a;
+    background-color: var(--secondary-color);
+    color: var(--white-color);
 }
 
 .nav-list {
@@ -168,6 +174,7 @@ h1, h2 {
     font-weight: 600;
     margin-top: 0;
     margin-bottom: 20px;
+    background-color: var(--primary-color);
 }
 
 main {
@@ -212,7 +219,7 @@ th, td {
 }
 
 th {
-    background-color: #183963;
+    background-color: var(--primary-color);
 }
 
 /* Responsive adjustments */
@@ -250,7 +257,7 @@ th {
 }
 
 .site-header {
-    background-color: #183963;
+    background-color: var(--primary-color);
     position: relative;
     z-index: 100;
     width: 100%;
@@ -425,7 +432,7 @@ th {
         position: absolute;
         top: 100%;
         right: 0;
-        background: #183963;
+        background: var(--primary-color);
         padding: 1rem;
         border-radius: 0 0 4px 4px;
         flex-direction: column;
@@ -470,8 +477,8 @@ th {
 .spinner {
     width: 40px;
     height: 40px;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #3498db;
+    border: 4px solid rgba(24, 57, 99, 0.1);
+    border-top: 4px solid var(--primary-color);
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -558,12 +565,12 @@ th {
 }
 
 .btn-primary {
-    background: #4299e1;
-    color: white;
+    background: var(--primary-color);
+    color: var(--white-color);
 }
 
 .btn-primary:hover:not(:disabled) {
-    background: #3182ce;
+    background: var(--secondary-color);
 }
 
 .status-message {
@@ -605,11 +612,11 @@ th {
 }
 
 .checkbox-container:hover .checkmark {
-    background-color: #e2e8f0;
+    background-color: var(--secondary-color);
 }
 
 .checkbox-container input:checked ~ .checkmark {
-    background-color: #4299e1;
+    background-color: var(--primary-color);
 }
 
 .checkmark:after {
@@ -657,4 +664,166 @@ th {
     color: #333;
     text-align: center;
     font-size: 14px;
+}
+
+/* People page specific styles */
+.people-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.button.primary {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    transition: background-color 0.3s ease;
+}
+
+.button.primary:hover {
+    background-color: #1557b0;
+    text-decoration: none;
+}
+
+.search-container {
+    margin-bottom: 1.5rem;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+}
+
+.search-input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+}
+
+/* Button group for form actions */
+.button-group {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.button-group .button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    transition: background-color 0.3s ease;
+}
+
+.button-group button {
+    background-color: var(--primary-color);
+}
+
+.button-group .button {
+    background-color: #f0f0f0;
+    color: var(--text-color);
+}
+
+/* Auth-required elements */
+.auth-required {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+}
+
+.auth-required[style*="display: block"] {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+/* Landing page specific overrides */
+body:has(.landing-page) {
+    background-color: var(--white-color);
+}
+
+body:has(.landing-page) .site-header {
+    background: transparent;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+}
+
+body:has(.landing-page) .container {
+    padding: 0;
+    max-width: 100%;
+}
+
+body:has(.landing-page) .navbar {
+    background: transparent;
+    position: relative;
+    z-index: 10;
+}
+
+body:has(.landing-page) .nav-link {
+    color: var(--white-color);
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+body:has(.landing-page) .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: var(--white-color);
+}
+
+/* Ensure text contrast on landing page */
+body:has(.landing-page) h1,
+body:has(.landing-page) h2 {
+    background-color: transparent;
+}
+
+/* Success states can use the secondary color */
+.btn-success,
+.status-success {
+    background-color: var(--secondary-color);
+    color: var(--white-color);
+}
+
+/* Neutral elements */
+.status-neutral,
+.text-muted {
+    color: var(--neutral-color);
+}
+
+/* Landing page specific styles */
+.landing-page {
+    background-color: var(--white-color);
+    color: var(--text-color);
+}
+
+/* Form focus states */
+input:focus, 
+select:focus, 
+textarea:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(24, 57, 99, 0.2);
+}
+
+/* Card and container shadows */
+.contact-card,
+form,
+table {
+    box-shadow: 0 2px 4px rgba(24, 57, 99, 0.1);
+}
+
+.contact-card:hover {
+    box-shadow: 0 4px 8px rgba(24, 57, 99, 0.15);
 }
