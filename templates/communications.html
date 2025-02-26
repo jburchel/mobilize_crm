@@ -1,53 +1,159 @@
 {% extends "base.html" %}
 
+{% block page_title %}Communications{% endblock %}
+{% block page_description %}Track and manage your communication history{% endblock %}
+
 {% block content %}
-    <h2>Communications</h2>
-    <form method="POST" action="/send_communication">
-        <div class="form-group">
-            <label>Type: 
-                <select name="type">
-                    <option>Email</option>
-                    <option>Note</option>
-                </select>
-            </label>
-            <label>Message: <textarea name="message" required></textarea></label>
-            <label>Person: 
-                <select name="person_id">
-                    <option value="">None</option>
-                    {% for person in people %}
-                    <option value="{{ person.id }}">{{ person.name }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <label>Church: 
-                <select name="church_id">
-                    <option value="">None</option>
-                    {% for church in churches %}
-                    <option value="{{ church.id }}">{{ church.name }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <button type="submit">Send/Log</button>
-        </div>
-    </form>
-    <table>
-        <thead>
-            <tr>
-                <th>Type</th>
-                <th>Message</th>
-                <th>Date</th>
-                <th>To</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for comm in communications %}
-            <tr>
-                <td>{{ comm.type }}</td>
-                <td>{{ comm.message }}</td>
-                <td>{{ comm.date }}</td>
-                <td>{{ comm.person.name if comm.person else (comm.church.name if comm.church else 'None') }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="card">
+        <h3>New Communication</h3>
+        <form method="POST" action="/send_communication" class="comm-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="type">Type</label>
+                    <select id="type" name="type">
+                        <option>Email</option>
+                        <option>Note</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="person_id">Person</label>
+                    <select id="person_id" name="person_id">
+                        <option value="">None</option>
+                        {% for person in people %}
+                        <option value="{{ person.id }}">{{ person.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="church_id">Church</label>
+                    <select id="church_id" name="church_id">
+                        <option value="">None</option>
+                        {% for church in churches %}
+                        <option value="{{ church.id }}">{{ church.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-group full-width">
+                <label for="message">Message</label>
+                <textarea id="message" name="message" required rows="4"></textarea>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="button primary">Send/Log</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>Communication History</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Message</th>
+                    <th>Date</th>
+                    <th>To</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for comm in communications %}
+                <tr>
+                    <td><span class="badge {{ 'info' if comm.type == 'Email' else 'neutral' }}">{{ comm.type }}</span></td>
+                    <td>{{ comm.message }}</td>
+                    <td>{{ comm.date }}</td>
+                    <td>{{ comm.person.name if comm.person else (comm.church.name if comm.church else 'None') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
+
+{% block styles %}
+<style>
+.comm-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.form-group label {
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    width: 100%;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(24, 57, 99, 0.1);
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 1rem;
+}
+
+.button.primary {
+    background-color: var(--primary-color);
+    color: var(--white-color);
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--border-radius);
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all var(--transition-speed) ease;
+}
+
+.button.primary:hover {
+    background-color: var(--secondary-color);
+    transform: translateY(-1px);
+    box-shadow: var(--card-hover-shadow);
+}
+
+.badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.badge.info {
+    background-color: #3b82f6;
+    color: var(--white-color);
+}
+
+.badge.neutral {
+    background-color: var(--neutral-color);
+    color: var(--white-color);
+}
+</style>
 {% endblock %}

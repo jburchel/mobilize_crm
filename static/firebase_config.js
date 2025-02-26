@@ -51,11 +51,7 @@ async function initializeFirebase() {
             }
         }
         
-        // Load OAuth configuration and configure GoogleAuthProvider
-        console.log("Loading OAuth configuration...");
-        const oauthConfig = await loadOAuthConfig();
-        console.log("OAuth configuration loaded");
-        
+        // Configure GoogleAuthProvider
         const provider = new GoogleAuthProvider();
         
         // Configure provider with all required scopes
@@ -64,11 +60,10 @@ async function initializeFirebase() {
         provider.addScope('https://www.googleapis.com/auth/contacts.readonly');
         provider.addScope('https://www.googleapis.com/auth/contacts.other.readonly');
         
-        // Ensure we request fresh tokens
+        // Set custom parameters for Google sign-in
         provider.setCustomParameters({
-            client_id: oauthConfig.clientId,
-            access_type: 'online',  // Changed to 'online' to avoid refresh token complexity
-            prompt: 'select_account consent'  // Always show account selection and consent
+            prompt: 'consent',  // Always show the Google consent screen
+            access_type: 'offline'  // Request offline access to get refresh token
         });
 
         console.log("Google provider configured with scopes");

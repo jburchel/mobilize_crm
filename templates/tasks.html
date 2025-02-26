@@ -1,26 +1,29 @@
 {% extends "base.html" %}
 
-{% block content %}
-    <div class="container mt-4">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+{% block page_title %}Tasks{% endblock %}
+{% block page_description %}Manage and track your action items{% endblock %}
 
-        <h2>Tasks</h2>
-        <form action="{{ url_for('tasks_bp.add_task') }}" method="post" class="mb-4 needs-validation" novalidate>
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label for="title" class="form-label">Title *</label>
-                    <input type="text" class="form-control" id="title" name="title" required>
+{% block content %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card">
+        <h3>Add New Task</h3>
+        <form action="{{ url_for('tasks_bp.add_task') }}" method="post" class="task-form needs-validation" novalidate>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="title">Title *</label>
+                    <input type="text" id="title" name="title" required>
                     <div class="invalid-feedback">Title is required</div>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <label for="status" class="form-label">Status *</label>
-                    <select class="form-select" id="status" name="status" required>
+                <div class="form-group">
+                    <label for="status">Status *</label>
+                    <select id="status" name="status" required>
                         <option value="">Choose...</option>
                         <option value="Not Started">Not Started</option>
                         <option value="In Progress">In Progress</option>
@@ -30,21 +33,19 @@
                 </div>
             </div>
             
-            <div class="row">
-                <div class="col-md-12 mb-3">
-                    <label for="description" class="form-label">Description</label>
-                    <textarea class="form-control" id="description" name="description" rows="3"></textarea>
-                </div>
+            <div class="form-group full-width">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="3"></textarea>
             </div>
 
-            <div class="row">
-                <div class="col-md-4 mb-3">
-                    <label for="due_date" class="form-label">Due Date</label>
-                    <input type="date" class="form-control" id="due_date" name="due_date">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="due_date">Due Date</label>
+                    <input type="date" id="due_date" name="due_date">
                 </div>
-                <div class="col-md-4 mb-3">
-                    <label for="priority" class="form-label">Priority</label>
-                    <select class="form-select" id="priority" name="priority">
+                <div class="form-group">
+                    <label for="priority">Priority</label>
+                    <select id="priority" name="priority">
                         <option value="Low">Low</option>
                         <option value="Medium" selected>Medium</option>
                         <option value="High">High</option>
@@ -52,19 +53,19 @@
                 </div>
             </div>
 
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label for="person_id" class="form-label">Assign to Person</label>
-                    <select class="form-select" id="person_id" name="person_id">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="person_id">Assign to Person</label>
+                    <select id="person_id" name="person_id">
                         <option value="">None</option>
                         {% for person in people %}
                             <option value="{{ person.id }}">{{ person.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <label for="church_id" class="form-label">Assign to Church</label>
-                    <select class="form-select" id="church_id" name="church_id">
+                <div class="form-group">
+                    <label for="church_id">Assign to Church</label>
+                    <select id="church_id" name="church_id">
                         <option value="">None</option>
                         {% for church in churches %}
                             <option value="{{ church.id }}">{{ church.name }}</option>
@@ -73,53 +74,199 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-primary">Add Task</button>
+            <div class="form-actions">
+                <button type="submit" class="button primary">Add Task</button>
+            </div>
         </form>
-
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Title</th>
-                        <th>Status</th>
-                        <th>Priority</th>
-                        <th>Due Date</th>
-                        <th>Assigned To</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for task in tasks %}
-                    <tr>
-                        <td>{{ task.title }}</td>
-                        <td><span class="badge bg-{{ 'success' if task.status == 'Completed' else 'warning' if task.status == 'In Progress' else 'secondary' }}">{{ task.status }}</span></td>
-                        <td><span class="badge bg-{{ 'danger' if task.priority == 'High' else 'warning' if task.priority == 'Medium' else 'info' }}">{{ task.priority }}</span></td>
-                        <td>{{ task.due_date if task.due_date else 'No due date' }}</td>
-                        <td>
-                            {% if task.person %}{{ task.person.name }}{% endif %}
-                            {% if task.church %}{{ task.church.name }}{% endif %}
-                            {% if not task.person and not task.church %}Unassigned{% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
     </div>
 
-    <script>
-    // Form validation
-    (function () {
-        'use strict'
-        var forms = document.querySelectorAll('.needs-validation')
-        Array.prototype.slice.call(forms).forEach(function (form) {
-            form.addEventListener('submit', function (event) {
-                if (!form.checkValidity()) {
-                    event.preventDefault()
-                    event.stopPropagation()
-                }
-                form.classList.add('was-validated')
-            }, false)
-        })
-    })()
-    </script>
+    <div class="card">
+        <h3>All Tasks</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Priority</th>
+                    <th>Due Date</th>
+                    <th>Assigned To</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                <tr>
+                    <td>{{ task.title }}</td>
+                    <td><span class="badge {{ 'success' if task.status == 'Completed' else 'warning' if task.status == 'In Progress' else 'neutral' }}">{{ task.status }}</span></td>
+                    <td><span class="badge {{ 'error' if task.priority == 'High' else 'warning' if task.priority == 'Medium' else 'info' }}">{{ task.priority }}</span></td>
+                    <td>{{ task.due_date if task.due_date else 'No due date' }}</td>
+                    <td>
+                        {% if task.person %}{{ task.person.name }}{% endif %}
+                        {% if task.church %}{{ task.church.name }}{% endif %}
+                        {% if not task.person and not task.church %}Unassigned{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
+
+{% block styles %}
+<style>
+.task-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.form-group label {
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    width: 100%;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(24, 57, 99, 0.1);
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 1rem;
+}
+
+.button.primary {
+    background-color: var(--primary-color);
+    color: var(--white-color);
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--border-radius);
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all var(--transition-speed) ease;
+}
+
+.button.primary:hover {
+    background-color: var(--secondary-color);
+    transform: translateY(-1px);
+    box-shadow: var(--card-hover-shadow);
+}
+
+.badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.badge.success {
+    background-color: var(--success-color);
+    color: var(--white-color);
+}
+
+.badge.warning {
+    background-color: #f59e0b;
+    color: var(--white-color);
+}
+
+.badge.error {
+    background-color: var(--error-color);
+    color: var(--white-color);
+}
+
+.badge.info {
+    background-color: #3b82f6;
+    color: var(--white-color);
+}
+
+.badge.neutral {
+    background-color: var(--neutral-color);
+    color: var(--white-color);
+}
+
+.alert {
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.alert-success {
+    background-color: #def7ec;
+    border-color: #bcf0da;
+    color: #03543f;
+}
+
+.alert-error {
+    background-color: #fde8e8;
+    border-color: #f8b4b4;
+    color: #9b1c1c;
+}
+
+.invalid-feedback {
+    color: var(--error-color);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: none;
+}
+
+.was-validated input:invalid ~ .invalid-feedback,
+.was-validated select:invalid ~ .invalid-feedback {
+    display: block;
+}
+
+.was-validated input:invalid,
+.was-validated select:invalid {
+    border-color: var(--error-color);
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Form validation
+(function () {
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms).forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault()
+                event.stopPropagation()
+            }
+            form.classList.add('was-validated')
+        }, false)
+    })
+})()
+</script>
 {% endblock %}

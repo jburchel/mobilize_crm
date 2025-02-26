@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 
+{% block page_title %}People{% endblock %}
+{% block page_description %}Manage your contacts and relationships{% endblock %}
+
 {% block content %}
     <div class="people-header">
-        <h2>People</h2>
         <a href="{{ url_for('people_bp.add_person_form') }}" class="button primary">Add Person</a>
     </div>
 
@@ -10,30 +12,33 @@
         <input type="text" id="peopleSearch" placeholder="Search people..." class="search-input">
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Address</th>
-                <th>Role</th>
-                <th>Church</th>
-            </tr>
-        </thead>
-        <tbody id="peopleTableBody">
-            {% for person in people %}
-            <tr class="person-row" data-search-text="{{ person.first_name }} {{ person.last_name }} {{ person.email }} {{ person.role }}">
-                <td><a href="{{ url_for('people_bp.person_detail', person_id=person.id) }}">{{ person.first_name }} {{ person.last_name }}</a></td>
-                <td>{{ person.email }}</td>
-                <td>{{ person.phone }}</td>
-                <td>{{ person.street_address }}{% if person.city %}, {{ person.city }}{% endif %}{% if person.state %}, {{ person.state }}{% endif %}</td>
-                <td>{{ person.role }}</td>
-                <td>{{ person.church.church_name if person.church else 'None' }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="card">
+        <h3>All People</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Address</th>
+                    <th>Role</th>
+                    <th>Church</th>
+                </tr>
+            </thead>
+            <tbody id="peopleTableBody">
+                {% for person in people %}
+                <tr class="person-row" data-search-text="{{ person.first_name }} {{ person.last_name }} {{ person.email }} {{ person.role }}">
+                    <td><a href="{{ url_for('people_bp.person_detail', person_id=person.id) }}">{{ person.first_name }} {{ person.last_name }}</a></td>
+                    <td>{{ person.email }}</td>
+                    <td>{{ person.phone }}</td>
+                    <td>{{ person.street_address }}{% if person.city %}, {{ person.city }}{% endif %}{% if person.state %}, {{ person.state }}{% endif %}</td>
+                    <td>{{ person.role }}</td>
+                    <td>{{ person.church.church_name if person.church else 'None' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 {% endblock %}
 
 {% block scripts %}
@@ -59,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <style>
 .people-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     margin-bottom: 1rem;
 }
@@ -70,40 +75,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .search-input {
     width: 100%;
-    padding: 0.5rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: var(--border-radius);
     max-width: 300px;
 }
 
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 1rem;
+.search-input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(24, 57, 99, 0.1);
 }
 
-th, td {
-    padding: 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
-}
-
-th {
-    background-color: #f5f5f5;
-    font-weight: bold;
-}
-
-tr:hover {
-    background-color: #f8f8f8;
-}
-
-a {
-    color: #2563eb;
+a.button.primary {
+    background-color: var(--primary-color);
+    color: var(--white-color);
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--border-radius);
     text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    transition: all var(--transition-speed) ease;
 }
 
-a:hover {
-    text-decoration: underline;
+a.button.primary:hover {
+    background-color: var(--secondary-color);
+    transform: translateY(-1px);
+    box-shadow: var(--card-hover-shadow);
 }
 </style>
 {% endblock %}

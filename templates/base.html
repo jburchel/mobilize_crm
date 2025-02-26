@@ -22,42 +22,49 @@
 
     <header class="site-header" role="banner">
         <div class="header-content">
-            <h1>
-                <a href="/" class="brand">
-                    <img src="{{ url_for('static', filename='logo.png') }}" alt="Mobilize CRM Logo" class="brand-logo">
-                    Mobilize CRM
-                </a>
-            </h1>
-            <div class="header-right">
+            <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+            <p class="page-description">{% block page_description %}Your latest mobilization numbers{% endblock %}</p>
+        </div>
+    </header>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="/" class="brand">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Mobilize CRM Logo" class="brand-logo">
+                <span class="brand-text">Crossover Global</span>
+            </a>
+        </div>
+        <hr class="sidebar-divider">
+        <nav class="sidebar-nav auth-required" role="navigation" aria-label="Main navigation">
+            <ul class="nav-list">
+                <li><a href="/" class="nav-link" aria-current="page"><span>📊</span><span>Dashboard</span></a></li>
+                <li><a href="/people" class="nav-link"><span>👥</span><span>People</span></a></li>
+                <li><a href="/churches" class="nav-link"><span>⛪</span><span>Churches</span></a></li>
+                <li><a href="/tasks" class="nav-link"><span>✅</span><span>Tasks</span></a></li>
+                <li><a href="/communications" class="nav-link"><span>✉️</span><span>Communications</span></a></li>
+                <li><a href="/contacts" class="nav-link"><span>📱</span><span>Google Contacts</span></a></li>
+            </ul>
+            <div class="sidebar-footer">
                 <div class="auth-container">
                     <span id="auth-status"></span>
                     <button id="sign-in" class="btn-google">
                         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo">
                         Sign in with Google
                     </button>
-                    <button id="sign-out" style="display: none;">Sign out</button>
+                    <button id="sign-out" class="hidden"><span>Sign out</span></button>
                     <span id="auth-error" class="auth-error"></span>
                 </div>
-                <button class="mobile-menu-toggle" aria-label="Toggle menu" aria-expanded="false">
+                <button class="mobile-menu-toggle" aria-label="Toggle sidebar" aria-expanded="false">
                     <span class="hamburger"></span>
                 </button>
             </div>
-        </div>
-        <nav class="navbar auth-required" role="navigation" aria-label="Main navigation" style="display: none;">
-            <ul class="nav-list">
-                <li><a href="/" class="nav-link" aria-current="page">Dashboard</a></li>
-                <li><a href="/people" class="nav-link">People</a></li>
-                <li><a href="/churches" class="nav-link">Churches</a></li>
-                <li><a href="/tasks" class="nav-link">Tasks</a></li>
-                <li><a href="/communications" class="nav-link">Communications</a></li>
-                <li><a href="/contacts" class="nav-link">Google Contacts</a></li>
-            </ul>
         </nav>
-    </header>
+    </aside>
 
-    <main class="container" role="main">
+    <main class="main-content" role="main">
         <!-- Error boundary -->
-        <div id="error-boundary" class="error-boundary" style="display:none;">
+        <div id="error-boundary" class="error-boundary hidden">
             <h2>Something went wrong</h2>
             <button onclick="window.location.reload()">Reload page</button>
         </div>

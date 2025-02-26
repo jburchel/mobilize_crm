@@ -1,41 +1,60 @@
 {% extends "base.html" %}
+
+{% block page_title %}Google Contacts{% endblock %}
+{% block page_description %}Import and sync your Google contacts{% endblock %}
+
 {% block content %}
-    <h2>Google Contacts</h2>
     <div id="contacts-container">
-        <div class="auth-status-banner" style="display: none;">
-            Please sign in with Google using the button in the top-right corner to access your contacts.
+        <div class="alert alert-info initial-setup" style="display: none;">
+            <p><strong>First Time Setup:</strong></p>
+            <ol>
+                <li>Sign in with your Google account using the button in the sidebar</li>
+                <li>Grant permission to access your contacts when prompted</li>
+                <li>Click "Fetch Google Contacts" to start importing</li>
+            </ol>
         </div>
-        <div class="controls">
-            <button id="fetch-contacts" class="btn btn-primary" disabled>
-                <span class="icon">↻</span> Fetch Google Contacts
-            </button>
-            <div id="import-controls" style="display: none;">
-                <button id="sync-selected-people" class="btn btn-success">
-                    Import as People
+
+        <div class="alert alert-warning auth-status-banner" style="display: none;">
+            Please sign in with Google using the button in the sidebar to access your contacts.
+        </div>
+
+        <div class="card">
+            <h3>Contact Sync</h3>
+            <div class="controls">
+                <button id="fetch-contacts" class="button primary" disabled>
+                    <span class="icon">↻</span> Fetch Google Contacts
                 </button>
-                <button id="sync-selected-churches" class="btn btn-success">
-                    Import as Churches
-                </button>
+                <div id="import-controls" style="display: none;">
+                    <button id="sync-selected-people" class="button success">
+                        Import as People
+                    </button>
+                    <button id="sync-selected-churches" class="button success">
+                        Import as Churches
+                    </button>
+                </div>
+                <div class="sync-status-container">
+                    <span id="sync-status" class="status-message"></span>
+                    <div class="spinner" style="display: none;"></div>
+                </div>
             </div>
-            <span id="sync-status" class="status-message"></span>
         </div>
         
-        <div class="labels-section" style="display: none;">
+        <div class="card labels-section" style="display: none;">
             <h3>Select a Label to View Contacts</h3>
             <div id="groups-list" class="labels-list"></div>
         </div>
         
-        <div class="contacts-section" style="display: none;">
+        <div class="card contacts-section" style="display: none;">
             <div class="section-header">
                 <h3>
-                    <button id="back-to-labels" class="btn btn-secondary">←</button>
+                    <button id="back-to-labels" class="button secondary">←</button>
                     <span id="selected-label-name">All Contacts</span>
                 </h3>
             </div>
             <div class="selection-info">
                 <span class="selection-count">(0 selected)</span>
-                <button id="select-all" class="btn btn-secondary">Select All Visible</button>
-                <button id="deselect-all" class="btn btn-secondary">Deselect All</button>
+                <button id="select-all" class="button secondary">Select All Visible</button>
+                <button id="deselect-all" class="button secondary">Deselect All</button>
             </div>
             <div id="contacts-list" class="contacts-grid"></div>
         </div>
@@ -53,6 +72,7 @@
         const importControls = document.getElementById('import-controls');
         const contactsList = document.getElementById('contacts-list');
         const syncStatus = document.getElementById('sync-status');
+        const spinner = document.querySelector('.spinner');
         const labelsSection = document.querySelector('.labels-section');
         const contactsSection = document.querySelector('.contacts-section');
         const groupsList = document.getElementById('groups-list');
@@ -62,12 +82,30 @@
         const backToLabelsButton = document.getElementById('back-to-labels');
         const selectedLabelName = document.getElementById('selected-label-name');
         const authStatusBanner = document.querySelector('.auth-status-banner');
+        const initialSetup = document.querySelector('.initial-setup');
         
         let contacts = [];
         let selectedContacts = new Set();
         let importedContacts = new Set();
         let activeLabel = null;
         let groupLabels = new Map();
+
+        function showSpinner() {
+            spinner.style.display = 'block';
+        }
+
+        function hideSpinner() {
+            spinner.style.display = 'none';
+        }
+
+        function showError(message) {
+            syncStatus.textContent = message;
+            syncStatus.classList.add('error');
+        }
+
+        function clearError() {
+            syncStatus.classList.remove('error');
+        }
         
         // Listen for Firebase auth initialization
         window.addEventListener('firebaseAuthReady', (event) => {
@@ -75,6 +113,8 @@
             auth.onAuthStateChanged((user) => {
                 fetchButton.disabled = !user;
                 authStatusBanner.style.display = user ? 'none' : 'block';
+                initialSetup.style.display = user && !sessionStorage.getItem('contactsSetupSeen') ? 'block' : 'none';
+                
                 if (!user) {
                     syncStatus.textContent = 'Please sign in to access contacts';
                     resetUI();
@@ -92,11 +132,13 @@
             groupLabels.clear();
             activeLabel = null;
             updateSelectionCount();
+            hideSpinner();
+            clearError();
         }
         
         function updateSelectionCount() {
             selectionCount.textContent = `(${selectedContacts.size} selected)`;
-            importControls.style.display = selectedContacts.size > 0 ? 'block' : 'none';
+            importControls.style.display = selectedContacts.size > 0 ? 'flex' : 'none';
         }
         
         function createLabelItem(group) {
@@ -142,6 +184,7 @@
                 ${contact.email_addresses.length ? `<p><span class="icon">📧</span> ${contact.email_addresses[0]}</p>` : ''}
                 ${contact.phone_numbers.length ? `<p><span class="icon">📞</span> ${contact.phone_numbers[0]}</p>` : ''}
                 ${contact.addresses.length ? `<p><span class="icon">📍</span> ${contact.addresses[0]}</p>` : ''}
+                ${isImported ? '<div class="imported-badge">Already Imported</div>' : ''}
             `;
             
             if (!isImported) {
@@ -192,6 +235,7 @@
             try {
                 syncStatus.textContent = 'Fetching contacts...';
                 fetchButton.disabled = true;
+                showSpinner();
                 resetUI();
                 
                 const service = new ContactsService(window.auth);
@@ -223,14 +267,21 @@
                         filterContacts();
                         syncStatus.textContent = `Found ${contacts.length} contacts`;
                     }
+
+                    // Mark setup as seen
+                    sessionStorage.setItem('contactsSetupSeen', 'true');
+                    initialSetup.style.display = 'none';
                 } else {
                     syncStatus.textContent = 'No contacts found';
                 }
             } catch (error) {
                 console.error('Error fetching contacts:', error);
-                syncStatus.textContent = error.message;
+                showError(error.message || 'Failed to fetch contacts. Please check permissions and try again.');
+                authStatusBanner.style.display = 'block';
+                authStatusBanner.textContent = 'Please ensure you have granted access to your Google contacts';
             } finally {
                 fetchButton.disabled = false;
+                hideSpinner();
             }
         });
         
@@ -266,16 +317,15 @@
                 syncStatus.textContent = 'Importing selected contacts...';
                 syncSelectedPeopleButton.disabled = true;
                 syncSelectedChurchesButton.disabled = true;
-                const service = new ContactsService(window.auth);
+                showSpinner();
                 
+                const service = new ContactsService(window.auth);
                 let imported = 0;
                 let errors = [];
                 
                 for (const contact of selectedContacts) {
                     try {
-                        console.log('Importing contact:', contact); // Debug log
                         const result = await service.importContact(contact, type);
-                        console.log('Import result:', result); // Debug log
                         importedContacts.add(contact.resource_name);
                         imported++;
                     } catch (error) {
@@ -292,17 +342,18 @@
                 updateSelectionCount();
                 
                 if (errors.length > 0) {
-                    console.error('Import errors:', errors);
-                    syncStatus.textContent = `Imported ${imported} contacts with ${errors.length} errors. Check console for details.`;
+                    showError(`Imported ${imported} contacts with ${errors.length} errors. Check console for details.`);
                 } else {
+                    clearError();
                     syncStatus.textContent = `Successfully imported ${imported} contacts`;
                 }
             } catch (error) {
                 console.error('Error importing contacts:', error);
-                syncStatus.textContent = error.message;
+                showError(error.message || 'Failed to import contacts');
             } finally {
                 syncSelectedPeopleButton.disabled = false;
                 syncSelectedChurchesButton.disabled = false;
+                hideSpinner();
             }
         }
     });
@@ -311,167 +362,214 @@
 
 {% block styles %}
 <style>
-    .contacts-container {
-        padding: 1rem;
-    }
-    
-    .auth-status-banner {
-        background: #fef3c7;
-        border: 1px solid #f59e0b;
-        border-radius: 6px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-    }
-    
+.contacts-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing);
+}
+
+.initial-setup {
+    margin-bottom: var(--spacing);
+}
+
+.initial-setup ol {
+    margin: 0.5rem 0 0 1.5rem;
+}
+
+.initial-setup li {
+    margin-bottom: 0.5rem;
+}
+
+.controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+#import-controls {
+    display: flex;
+    gap: 1rem;
+}
+
+.sync-status-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.status-message {
+    color: var(--text-color);
+    opacity: 0.7;
+}
+
+.status-message.error {
+    color: var(--error-color);
+    opacity: 1;
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(24, 57, 99, 0.1);
+    border-top: 2px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.labels-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.label-item {
+    background: var(--white-color);
+    border: 1px solid #e5e7eb;
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.label-item:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow);
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.section-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.selection-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.contacts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.contact-card {
+    background: var(--white-color);
+    border: 1px solid #e5e7eb;
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    position: relative;
+    transition: all var(--transition-speed) ease;
+}
+
+.contact-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow);
+}
+
+.contact-card.imported {
+    background: #f3f4f6;
+    opacity: 0.7;
+}
+
+.contact-card h3 {
+    margin: 0 0 0.5rem;
+    padding-right: 2rem;
+    font-size: 1.1rem;
+}
+
+.contact-card p {
+    margin: 0.25rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.contact-checkbox {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 1.2rem;
+    height: 1.2rem;
+    cursor: pointer;
+}
+
+.imported-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: var(--neutral-color);
+    color: var(--white-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius);
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.icon {
+    opacity: 0.7;
+}
+
+.alert {
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+    font-weight: 500;
+}
+
+.alert-warning {
+    background-color: #fff7ed;
+    border: 1px solid #fdba74;
+    color: #c2410c;
+}
+
+.alert-info {
+    background-color: #eff6ff;
+    border: 1px solid #93c5fd;
+    color: #1e40af;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 640px) {
     .controls {
-        margin-bottom: 1rem;
-        display: flex;
-        gap: 1rem;
-        align-items: center;
+        flex-direction: column;
+        align-items: stretch;
     }
     
-    .status-message {
-        color: #666;
+    #import-controls {
+        flex-direction: column;
     }
     
-    .labels-section {
-        margin-top: 2rem;
-    }
-    
-    .labels-list {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 1rem;
-        margin-top: 1rem;
-    }
-    
-    .label-item {
-        background: white;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        padding: 1rem;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .label-item:hover {
-        border-color: #3b82f6;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    
-    .contacts-section {
-        margin-top: 2rem;
-    }
-    
-    .section-header {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 1rem;
-    }
-    
-    .section-header h3 {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin: 0;
+    .button {
+        width: 100%;
     }
     
     .selection-info {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 1rem;
+        flex-direction: column;
+        align-items: stretch;
     }
-    
-    .contacts-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 1rem;
-    }
-    
-    .contact-card {
-        background: white;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        padding: 1rem;
-        position: relative;
-    }
-    
-    .contact-card.imported {
-        background: #f3f4f6;
-        opacity: 0.7;
-    }
-    
-    .contact-card h3 {
-        margin: 0 0 0.5rem;
-        padding-right: 2rem;
-    }
-    
-    .contact-card p {
-        margin: 0.25rem 0;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .contact-checkbox {
-        position: absolute;
-        top: 1rem;
-        right: 1rem;
-    }
-    
-    .icon {
-        opacity: 0.7;
-    }
-    
-    .btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 1rem;
-        border-radius: 6px;
-        border: 1px solid transparent;
-        cursor: pointer;
-        font-size: 14px;
-        line-height: 1.4;
-        transition: all 0.2s;
-    }
-    
-    .btn:disabled {
-        opacity: 0.7;
-        cursor: not-allowed;
-    }
-    
-    .btn-primary {
-        background: #3b82f6;
-        color: white;
-    }
-    
-    .btn-primary:hover:not(:disabled) {
-        background: #2563eb;
-    }
-    
-    .btn-secondary {
-        background: #f3f4f6;
-        border-color: #e5e7eb;
-    }
-    
-    .btn-secondary:hover:not(:disabled) {
-        background: #e5e7eb;
-    }
-    
-    .btn-success {
-        background: #10b981;
-        color: white;
-    }
-    
-    .btn-success:hover:not(:disabled) {
-        background: #059669;
-    }
+}
 </style>
 {% endblock %}

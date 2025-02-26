@@ -3,30 +3,50 @@
 {% block content %}
     <h2>Dashboard</h2>
     <div class="dashboard-stats">
-        <p>Total People: {{ people }}</p>
-        <p>Total Churches: {{ churches }}</p>
+        <div class="stat-card">
+            <h3>People</h3>
+            <p class="stat-value">{{ people }}</p>
+        </div>
+        <div class="stat-card">
+            <h3>Churches</h3>
+            <p class="stat-value">{{ churches }}</p>
+        </div>
     </div>
-    <h3>Active Tasks</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>Title</th>
-                <th>Description</th>
-                <th>Due Date</th>
-                <th>Assigned To</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for task in tasks %}
-            <tr>
-                <td>{{ task.title }}</td>
-                <td>{{ task.description }}</td>
-                <td>{{ task.due_date }}</td>
-                <td>{{ task.assigned_to }}</td>
-                <td>{{ task.status }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+
+    <div class="card">
+        <h3>Active Tasks</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Description</th>
+                    <th>Due Date</th>
+                    <th>Assigned To</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                <tr>
+                    <td>{{ task.title }}</td>
+                    <td>{{ task.description }}</td>
+                    <td>{{ task.due_date }}</td>
+                    <td>{{ task.assigned_to }}</td>
+                    <td>{{ task.status }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
+
+{% block styles %}
+<style>
+.stat-value {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin: 0.5rem 0;
+}
+</style>
 {% endblock %}

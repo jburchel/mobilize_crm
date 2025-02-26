@@ -56,6 +56,23 @@ class AuthManager {
                 this.authContainer.classList.toggle('active');
             });
         }
+
+        // Add sidebar toggle functionality
+        const sidebar = document.getElementById('sidebar');
+        const mobileMenuButton = document.querySelector('.mobile-menu-toggle');
+
+        if (mobileMenuButton && sidebar) {
+            mobileMenuButton.addEventListener('click', () => {
+                sidebar.classList.toggle('collapsed');
+                const isCollapsed = sidebar.classList.contains('collapsed');
+                mobileMenuButton.setAttribute('aria-expanded', !isCollapsed);
+                
+                // For mobile devices
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.toggle('active');
+                }
+            });
+        }
     }
 
     _createSyncStatus() {
@@ -108,6 +125,8 @@ class AuthManager {
         this.loadingOverlay.style.display = 'flex';
         try {
             console.log("Starting sign-in process...");
+            // Force refresh token to ensure we get a fresh one with the right scopes
+            await this.auth.signOut();
             const result = await signInWithPopup(this.auth, this.provider);
             console.log("Sign-in popup completed");
             
@@ -122,19 +141,8 @@ class AuthManager {
 
             // Store access token in session storage for reuse
             sessionStorage.setItem('googleAccessToken', token);
-            
-            // After successful sign-in, sync contacts
-            if (this.contactsService) {
-                try {
-                    this.syncStatus.textContent = 'Syncing contacts...';
-                    this.syncStatus.style.display = 'block';
-                    const contacts = await this.contactsService.fetchContacts(token);
-                    console.log("Contacts synchronized:", contacts.length);
-                } catch (error) {
-                    console.error("Error syncing contacts:", error);
-                    this.handleError(error);
-                }
-            }
+            console.log("Access token stored in session storage");
+
         } catch (error) {
             console.error("Authentication error:", error);
             // Handle specific error cases
@@ -156,6 +164,7 @@ class AuthManager {
         this.loadingOverlay.style.display = 'flex';
         
         try {
+            sessionStorage.removeItem('googleAccessToken');
             await signOut(this.auth);
             console.log("Sign out successful");
         } catch (error) {
@@ -173,35 +182,43 @@ class AuthManager {
             if (user) {
                 // Update auth status
                 this.authStatus.textContent = `Welcome, ${user.displayName}`;
-                this.signInButton.style.display = 'none';
-                this.signOutButton.style.display = 'block';
+                this.signInButton.classList.add('hidden');
+                this.signOutButton.classList.remove('hidden');
                 
-                // Show navigation menu with animation
+                // Show navigation menu and adjust sidebar
                 if (this.navbar) {
-                    this.navbar.style.display = 'block';
-                    // Force a reflow to trigger the transition
-                    this.navbar.offsetHeight;
+                    this.navbar.classList.remove('hidden');
+                }
+                
+                // Ensure sidebar is visible and active
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar) {
+                    sidebar.classList.remove('hidden');
+                    if (window.innerWidth > 768) {
+                        sidebar.classList.remove('collapsed');
+                    }
                 }
 
-                // Get the user's ID token
+                // Get the user's ID token and set up auth
                 user.getIdToken().then(token => {
                     // Store the token for API calls
                     sessionStorage.setItem('authToken', token);
                     
-                    // If on landing page, redirect to dashboard
-                    if (window.location.pathname === '/') {
-                        window.location.href = '/dashboard';
-                    }
+                    // Store token in cookie for server-side auth
+                    document.cookie = `firebase_token=${token}; path=/; SameSite=Strict`;
+                    
+                    // Add Authorization header to all requests
+                    this._setupRequestInterceptor(token);
                 });
             } else {
                 // Update auth status
                 this.authStatus.textContent = 'Please sign in';
-                this.signInButton.style.display = 'block';
-                this.signOutButton.style.display = 'none';
+                this.signInButton.classList.remove('hidden');
+                this.signOutButton.classList.add('hidden');
                 
                 // Hide navigation menu
                 if (this.navbar) {
-                    this.navbar.style.display = 'none';
+                    this.navbar.classList.add('hidden');
                 }
                 
                 // Reset mobile menu state
@@ -214,16 +231,31 @@ class AuthManager {
                 // Clear stored tokens
                 sessionStorage.removeItem('authToken');
                 sessionStorage.removeItem('googleAccessToken');
-
-                // If not on landing page, redirect to root
-                if (window.location.pathname !== '/') {
-                    window.location.href = '/';
-                }
+                document.cookie = 'firebase_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
             }
         } catch (error) {
             console.error("Error updating UI:", error);
             this.handleError(error);
         }
+    }
+
+    _setupRequestInterceptor(token) {
+        // Intercept all fetch requests to add the auth token
+        const originalFetch = window.fetch;
+        window.fetch = function() {
+            let [resource, config] = arguments;
+            if (!config) {
+                config = {};
+            }
+            if (!config.headers) {
+                config.headers = {};
+            }
+            // Add Authorization header if it's not already present
+            if (!config.headers.Authorization) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+            return originalFetch(resource, config);
+        };
     }
 
     handleError(error) {

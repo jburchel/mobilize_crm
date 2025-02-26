@@ -9,18 +9,27 @@ dashboard_bp = Blueprint('dashboard_bp', __name__)
 def auth_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Check for auth token
+        # First check Authorization header
         auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
-            return redirect(url_for('home'))
+        if auth_header and auth_header.startswith('Bearer '):
+            try:
+                token = auth_header.split('Bearer ')[1]
+                auth.verify_id_token(token)
+                return f(*args, **kwargs)
+            except:
+                pass
+
+        # If no valid bearer token, check for session token
+        if 'firebase_token' in request.cookies:
+            try:
+                auth.verify_id_token(request.cookies['firebase_token'])
+                return f(*args, **kwargs)
+            except:
+                pass
+                
+        # No valid authentication found, redirect to home
+        return redirect(url_for('home'))
             
-        try:
-            token = auth_header.split('Bearer ')[1]
-            auth.verify_id_token(token)
-        except:
-            return redirect(url_for('home'))
-            
-        return f(*args, **kwargs)
     return decorated_function
 
 @dashboard_bp.route('/')
