@@ -108,6 +108,8 @@ body {
 .sidebar-header {
     padding: 1.5rem;
     margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: flex-start;
 }
 
 .sidebar-header .brand {
@@ -116,6 +118,7 @@ body {
     gap: 1rem;
     text-decoration: none;
     color: var(--white-color);
+    width: 100%;
 }
 
 .brand-logo {
@@ -145,12 +148,26 @@ body {
 }
 
 .sidebar.collapsed .sidebar-header {
-    padding: 1rem 0.5rem;
+    padding: 1rem;
+}
+
+.sidebar.collapsed .sidebar-header .brand {
+    justify-content: center;
 }
 
 .sidebar.collapsed .nav-list li a {
     justify-content: center;
-    padding: 1rem 0.5rem;
+    padding: 1rem;
+}
+
+.sidebar.collapsed #sign-out {
+    padding: 1rem;
+    justify-content: center;
+}
+
+.sidebar.collapsed .mobile-menu-toggle {
+    padding: 0.75rem;
+    justify-content: center;
 }
 
 .sidebar.collapsed .nav-list li a span:not(:first-child),
@@ -190,12 +207,25 @@ body {
     letter-spacing: 0.02em;
 }
 
+.sidebar.collapsed .nav-link {
+    padding: 1rem;
+}
+
+.sidebar.collapsed .nav-link span:first-child {
+    margin: 0 auto;
+    font-size: 1.2rem;
+}
+
 .nav-link:hover {
     background-color: rgba(255, 255, 255, 0.15);
     transform: translateX(4px);
 }
 
-.nav-link[aria-current="page"] {
+.sidebar.collapsed .nav-link:hover {
+    transform: scale(1.1);
+}
+
+.nav-link.active {
     background-color: rgba(255, 255, 255, 0.2);
     color: white !important;
     font-weight: 600;
@@ -203,8 +233,19 @@ body {
 
 .sidebar-footer {
     margin-top: auto;
-    padding: 1.5rem;
+    padding: 1rem;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.sidebar.collapsed .sidebar-footer {
+    padding: 1rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
 }
 
 /* Auth container styles */
@@ -213,16 +254,24 @@ body {
     flex-direction: column;
     gap: 1rem;
     width: 100%;
-    margin-top: auto;
-    color: var(--white-color);
+    align-items: center;
+}
+
+.sidebar.collapsed .auth-container {
+    padding: 0;
+    width: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
 }
 
 .sidebar #sign-out {
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.4);
     color: var(--white-color);
     width: 100%;
-    padding: 1rem;
+    padding: 0.75rem;
     border-radius: var(--border-radius);
     cursor: pointer;
     font-weight: 500;
@@ -234,38 +283,84 @@ body {
 }
 
 .sidebar #sign-out:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.45);
+    border-color: rgba(255, 255, 255, 0.5);
     transform: translateY(-1px);
+}
+
+.sidebar.collapsed .auth-container {
+    padding: 0 0.5rem;
+}
+
+.sidebar.collapsed #sign-out {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 50%;
+    margin: 0 auto;
+}
+
+.sidebar.collapsed #sign-out::before {
+    margin: 0;
+    font-size: 1.4rem;
+}
+
+.sidebar.collapsed #sign-out:hover,
+.sidebar.collapsed .mobile-menu-toggle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .sidebar #sign-out::before {
     content: '🚪';
     font-size: 1.2rem;
+    opacity: 1;
 }
 
 /* Mobile menu toggle */
 .mobile-menu-toggle {
     width: 100%;
     padding: 0.75rem;
-    margin-top: 1rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.4);
     border-radius: var(--border-radius);
     cursor: pointer;
     color: var(--white-color);
     font-weight: 500;
+    transition: all var(--transition-speed) ease;
+}
+
+.mobile-menu-toggle:hover {
+    background: rgba(255, 255, 255, 0.45);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-1px);
+}
+
+.sidebar.collapsed .mobile-menu-toggle {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    margin: 0 auto;
+    border-radius: 50%;
 }
 
 .mobile-menu-toggle::before {
     content: '◀️';
+    font-size: 1.2rem;
 }
 
 .sidebar.collapsed .mobile-menu-toggle::before {
     content: '▶️';
+    font-size: 1.2rem;
+}
+
+/* Override any potential opacity on the icons */
+.mobile-menu-toggle::before,
+.sidebar #sign-out::before {
+    opacity: 1 !important;
 }
 
 /* Main content */

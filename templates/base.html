@@ -39,12 +39,12 @@
         <hr class="sidebar-divider">
         <nav class="sidebar-nav auth-required" role="navigation" aria-label="Main navigation">
             <ul class="nav-list">
-                <li><a href="/" class="nav-link" aria-current="page"><span>📊</span><span>Dashboard</span></a></li>
-                <li><a href="/people" class="nav-link"><span>👥</span><span>People</span></a></li>
-                <li><a href="/churches" class="nav-link"><span>⛪</span><span>Churches</span></a></li>
-                <li><a href="/tasks" class="nav-link"><span>✅</span><span>Tasks</span></a></li>
-                <li><a href="/communications" class="nav-link"><span>✉️</span><span>Communications</span></a></li>
-                <li><a href="/contacts" class="nav-link"><span>📱</span><span>Google Contacts</span></a></li>
+                <li><a href="/" class="nav-link {% if request.endpoint == 'home' or request.endpoint == 'dashboard_bp.dashboard' %}active{% endif %}"><span>📊</span><span>Dashboard</span></a></li>
+                <li><a href="/people" class="nav-link {% if request.endpoint and 'people_bp' in request.endpoint %}active{% endif %}"><span>👥</span><span>People</span></a></li>
+                <li><a href="/churches" class="nav-link {% if request.endpoint and 'churches_bp' in request.endpoint %}active{% endif %}"><span>⛪</span><span>Churches</span></a></li>
+                <li><a href="/tasks" class="nav-link {% if request.endpoint and 'tasks_bp' in request.endpoint %}active{% endif %}"><span>✅</span><span>Tasks</span></a></li>
+                <li><a href="/communications" class="nav-link {% if request.endpoint and 'communications_bp' in request.endpoint %}active{% endif %}"><span>✉️</span><span>Communications</span></a></li>
+                <li><a href="/contacts" class="nav-link {% if request.endpoint and 'contacts_bp' in request.endpoint %}active{% endif %}"><span>📱</span><span>Google Contacts</span></a></li>
             </ul>
             <div class="sidebar-footer">
                 <div class="auth-container">
