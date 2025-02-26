@@ -33,10 +33,12 @@ class AuthManager {
         };
 
         this.authContainer = document.querySelector('.auth-container');
-        this.signInButton = getElement('sign-in');
-        this.signOutButton = getElement('sign-out');
-        this.authStatus = getElement('auth-status');
+        this.signInButton = getElement('sign-in', true);
+        this.landingSignInButton = getElement('landing-sign-in', true);
+        this.signOutButton = getElement('sign-out', true);
+        this.authStatus = getElement('auth-status', true);
         this.authError = getElement('auth-error');
+        this.landingAuthError = getElement('landing-auth-error', true);
         this.loadingOverlay = getElement('loading-overlay');
         this.syncStatus = getElement('sync-status', true) || this._createSyncStatus();
         this.navbar = document.querySelector('.navbar.auth-required');
@@ -117,8 +119,9 @@ class AuthManager {
 
     setupListeners() {
         this.auth.onAuthStateChanged(this.handleAuthStateChange.bind(this));
-        this.signInButton.addEventListener('click', this.signIn.bind(this));
-        this.signOutButton.addEventListener('click', this.signOut.bind(this));
+        this.signInButton?.addEventListener('click', this.signIn.bind(this));
+        this.landingSignInButton?.addEventListener('click', this.signIn.bind(this));
+        this.signOutButton?.addEventListener('click', this.signOut.bind(this));
     }
 
     async signIn() {
@@ -143,6 +146,16 @@ class AuthManager {
             sessionStorage.setItem('googleAccessToken', token);
             console.log("Access token stored in session storage");
 
+            // Get the ID token and store it
+            const idToken = await result.user.getIdToken();
+            document.cookie = `firebase_token=${idToken}; path=/; SameSite=Strict`;
+
+            // Redirect to dashboard after successful login
+            if (window.location.pathname === '/' || window.location.pathname === '/landing') {
+                console.log("Redirecting to dashboard...");
+                window.location.href = '/dashboard';
+            }
+
         } catch (error) {
             console.error("Authentication error:", error);
             // Handle specific error cases
@@ -164,9 +177,16 @@ class AuthManager {
         this.loadingOverlay.style.display = 'flex';
         
         try {
+            // Clear all stored tokens
             sessionStorage.removeItem('googleAccessToken');
+            sessionStorage.removeItem('authToken');
+            document.cookie = 'firebase_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+            
             await signOut(this.auth);
             console.log("Sign out successful");
+            
+            // Redirect to landing page
+            window.location.href = '/';
         } catch (error) {
             console.error("Sign-out error:", error);
             this.handleError(error);
@@ -275,17 +295,23 @@ class AuthManager {
         }
         
         // Show error in UI
-        if (this.authError) {
-            this.authError.textContent = errorMessage;
-            this.authError.style.display = 'block';
-            
-            // Remove error after 5 seconds
-            setTimeout(() => {
-                if (this.authError.textContent === errorMessage) {
-                    this.authError.style.display = 'none';
-                }
-            }, 5000);
-        }
+        const showError = (element) => {
+            if (element) {
+                element.textContent = errorMessage;
+                element.style.display = 'block';
+                
+                // Remove error after 5 seconds
+                setTimeout(() => {
+                    if (element.textContent === errorMessage) {
+                        element.style.display = 'none';
+                    }
+                }, 5000);
+            }
+        };
+
+        // Show error in both places if they exist
+        showError(this.authError);
+        showError(this.landingAuthError);
 
         // Dispatch error event for other components
         window.dispatchEvent(new CustomEvent('authError', {

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for
+from flask import Blueprint, render_template, request, redirect, url_for, current_app
 from sqlalchemy import func
 from models import Session, Person, Church, Task, Communication, session_scope
 from firebase_admin import auth
@@ -16,16 +16,16 @@ def auth_required(f):
                 token = auth_header.split('Bearer ')[1]
                 auth.verify_id_token(token)
                 return f(*args, **kwargs)
-            except:
-                pass
+            except Exception as e:
+                current_app.logger.error(f"Bearer token verification failed: {str(e)}")
 
         # If no valid bearer token, check for session token
         if 'firebase_token' in request.cookies:
             try:
                 auth.verify_id_token(request.cookies['firebase_token'])
                 return f(*args, **kwargs)
-            except:
-                pass
+            except Exception as e:
+                current_app.logger.error(f"Cookie token verification failed: {str(e)}")
                 
         # No valid authentication found, redirect to home
         return redirect(url_for('home'))

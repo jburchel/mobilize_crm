@@ -6,13 +6,23 @@
 <div class="landing-page">
     <section class="hero">
         <div class="hero-content">
+            <div class="landing-brand">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Mobilize CRM Logo" class="brand-logo">
+                <span class="brand-text">Crossover Global</span>
+            </div>
             <h1>Welcome to Mobilize CRM</h1>
-            <p class="lead">Crossover Global's Complete Mobilization CRM</p>
+            <p class="lead">Crossover Global's Complete CRM Solution for Mobilizers</p>
+            <div class="landing-auth">
+                <button id="landing-sign-in" class="btn-google">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo">
+                    Sign in with Google
+                </button>
+                <span id="landing-auth-error" class="auth-error"></span>
+            </div>
         </div>
     </section>
 
     <section class="features">
-        
         <div class="features-grid">
             <div class="feature-card">
                 <div class="feature-icon">📊</div>
@@ -49,10 +59,11 @@
 .hero {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
     color: var(--white-color);
-    padding: 4rem 2rem;  /* Reduced from 6rem to 4rem */
+    padding: 2rem 2rem;  /* Further reduced from 2.5rem to 2rem */
     text-align: center;
-    margin-bottom: 2rem;  /* Reduced from 3rem to 2rem */
+    margin-bottom: 1.5rem;  /* Reduced from 2rem to 1.5rem */
     position: relative;
+    border-radius: 12px;
 }
 
 .hero-content {
@@ -63,16 +74,16 @@
 }
 
 .hero h1 {
-    font-size: 3rem;
-    margin-bottom: 1rem;  /* Reduced from 1.5rem to 1rem */
+    font-size: 2.5rem; /* Reduced from 3rem */
+    margin-bottom: 0.5rem; /* Reduced from 1rem */
     color: var(--white-color);
     font-weight: 700;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .lead {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;  /* Reduced from 2rem to 1rem */
+    font-size: 1.25rem; /* Reduced from 1.5rem */
+    margin-bottom: 0.75rem; /* Reduced from 1rem */
     opacity: 1;
     color: var(--white-color);
 }
@@ -82,6 +93,7 @@
     max-width: 1200px;
     margin: 0 auto;
     background-color: var(--white-color);
+    border-radius: 12px;
 }
 
 .features h2 {
@@ -121,10 +133,6 @@
     font-size: 3rem;
     margin-bottom: 1.5rem;
     display: inline-block;
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
 }
 
 .feature-card h3 {
@@ -140,6 +148,69 @@
     font-size: 1.1rem;
 }
 
+.hero .btn-google {
+    margin-top: 2rem;
+    background: var(--white-color);
+    color: var(--text-color);
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    display: inline-flex;
+    align-items: center;
+    gap: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+}
+
+.hero .btn-google:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow);
+}
+
+.hero .btn-google img {
+    width: 24px;
+    height: 24px;
+}
+
+.landing-auth {
+    margin-top: 1.5rem; /* Reduced from 2rem */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem; /* Reduced from 1rem */
+}
+
+.hero .auth-error {
+    color: #fff;
+    background: rgba(239, 68, 68, 0.9);
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius);
+    font-size: 0.875rem;
+    text-align: center;
+    display: none; /* Hide by default */
+}
+
+.landing-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1rem; /* Reduced from 2rem to 1rem */
+}
+
+.landing-brand .brand-logo {
+    width: 36px; /* Reduced from 48px */
+    height: 36px; /* Reduced from 48px */
+    object-fit: contain;
+}
+
+.landing-brand .brand-text {
+    font-size: 1.5rem; /* Reduced from 1.75rem */
+    font-weight: 600;
+    color: var(--white-color);
+}
+
 @media (max-width: 1200px) {
     .features-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -148,15 +219,15 @@
 
 @media (max-width: 768px) {
     .hero {
-        padding: 4rem 1.5rem;
+        padding: 1.5rem;  /* Further reduced from 2rem to 1.5rem */
     }
     
     .hero h1 {
-        font-size: 2.5rem;
+        font-size: 2rem; /* Reduced from 2.5rem */
     }
     
     .lead {
-        font-size: 1.25rem;
+        font-size: 1.1rem; /* Reduced from 1.25rem */
     }
     
     .features-grid {
@@ -166,6 +237,15 @@
     
     .feature-card {
         padding: 2rem;
+    }
+
+    .landing-brand .brand-logo {
+        width: 32px; /* Reduced from 40px */
+        height: 32px; /* Reduced from 40px */
+    }
+    
+    .landing-brand .brand-text {
+        font-size: 1.25rem; /* Reduced from 1.5rem */
     }
 }
 </style>

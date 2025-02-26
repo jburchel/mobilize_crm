@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, make_response
 from flask_cors import CORS
 from flask_migrate import Migrate
 from config import Config
@@ -83,18 +83,32 @@ try:
 
     @app.route('/')
     def home():
-        token = get_auth_token()
-        if token:
+        # Check Authorization header first
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
             try:
-                # Verify the token
+                token = auth_header.split('Bearer ')[1]
                 decoded_token = auth.verify_id_token(token)
-                # Token is valid, redirect to dashboard
+                app.logger.info("Valid bearer token found")
                 return redirect(url_for('dashboard_bp.dashboard'))
             except Exception as e:
-                app.logger.warning(f"Token verification failed: {str(e)}")
-                # Token verification failed, show landing page
-                return render_template('landing.html')
-        # No token found, show landing page
+                app.logger.warning(f"Bearer token verification failed: {str(e)}")
+
+        # Check cookie token
+        token = request.cookies.get('firebase_token')
+        if token:
+            try:
+                decoded_token = auth.verify_id_token(token)
+                app.logger.info("Valid cookie token found")
+                return redirect(url_for('dashboard_bp.dashboard'))
+            except Exception as e:
+                app.logger.warning(f"Cookie token verification failed: {str(e)}")
+                # Clear invalid token
+                response = make_response(render_template('landing.html'))
+                response.delete_cookie('firebase_token')
+                return response
+
+        # No valid token found, show landing page
         return render_template('landing.html')
 
     if __name__ == '__main__':
