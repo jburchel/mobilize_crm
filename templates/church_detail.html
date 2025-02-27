@@ -4,11 +4,87 @@
 
 {% block content %}
     <div class="page-header">
-        <h2>Edit Church</h2>
+        <div class="header-left">
+            <h2>Edit Church</h2>
+            <h1 class="church-name">{{ church.church_name }}</h1>
+        </div>
         <div class="button-group">
             <button type="submit" form="church-form" class="button primary">Save Changes</button>
             <a href="{{ url_for('churches_bp.churches') }}" class="button">Back to Churches</a>
         </div>
+    </div>
+
+    <!-- Pipeline Visualization -->
+    <div class="pipeline-container">
+        <div class="pipeline-title">
+            <i class="bi bi-diagram-3"></i>
+            <span>Pipeline Progress</span>
+        </div>
+        <div class="pipeline-progress six-steps">
+            <div class="pipeline-progress-bar" style="width: 
+                {% if church.church_pipeline == 'PROMOTION' %}10%
+                {% elif church.church_pipeline == 'INFORMATION' %}30%
+                {% elif church.church_pipeline == 'INVITATION' %}50%
+                {% elif church.church_pipeline == 'CONFIRMATION' %}70%
+                {% elif church.church_pipeline == 'EN42' %}90%
+                {% elif church.church_pipeline == 'AUTOMATION' %}100%
+                {% else %}0%{% endif %}">
+            </div>
+            
+            <div class="pipeline-step {% if church.church_pipeline == 'PROMOTION' %}active{% elif church.church_pipeline in ['INFORMATION', 'INVITATION', 'CONFIRMATION', 'EN42', 'AUTOMATION'] %}completed{% endif %}">
+                <div class="pipeline-step-marker">1</div>
+                <div class="pipeline-step-label">Promotion</div>
+            </div>
+            
+            <div class="pipeline-step {% if church.church_pipeline == 'INFORMATION' %}active{% elif church.church_pipeline in ['INVITATION', 'CONFIRMATION', 'EN42', 'AUTOMATION'] %}completed{% endif %}">
+                <div class="pipeline-step-marker">2</div>
+                <div class="pipeline-step-label">Information</div>
+            </div>
+            
+            <div class="pipeline-step {% if church.church_pipeline == 'INVITATION' %}active{% elif church.church_pipeline in ['CONFIRMATION', 'EN42', 'AUTOMATION'] %}completed{% endif %}">
+                <div class="pipeline-step-marker">3</div>
+                <div class="pipeline-step-label">Invitation</div>
+            </div>
+            
+            <div class="pipeline-step {% if church.church_pipeline == 'CONFIRMATION' %}active{% elif church.church_pipeline in ['EN42', 'AUTOMATION'] %}completed{% endif %}">
+                <div class="pipeline-step-marker">4</div>
+                <div class="pipeline-step-label">Confirmation</div>
+            </div>
+            
+            <div class="pipeline-step {% if church.church_pipeline == 'EN42' %}active{% elif church.church_pipeline == 'AUTOMATION' %}completed{% endif %}">
+                <div class="pipeline-step-marker">5</div>
+                <div class="pipeline-step-label">EN42</div>
+            </div>
+            
+            <div class="pipeline-step {% if church.church_pipeline == 'AUTOMATION' %}active{% endif %}">
+                <div class="pipeline-step-marker">6</div>
+                <div class="pipeline-step-label">Automation</div>
+            </div>
+        </div>
+        
+        {% if church.church_pipeline %}
+        <div class="pipeline-info">
+            <p>Current stage: <strong>{{ church.church_pipeline }}</strong>. 
+            {% if church.church_pipeline == 'PROMOTION' %}
+                This church is in the initial promotion stage. Focus on introducing them to the organization.
+            {% elif church.church_pipeline == 'INFORMATION' %}
+                This church is in the information gathering stage. Provide them with relevant materials.
+            {% elif church.church_pipeline == 'INVITATION' %}
+                This church is in the invitation stage. Invite them to relevant events or meetings.
+            {% elif church.church_pipeline == 'CONFIRMATION' %}
+                This church is in the confirmation stage. Follow up to confirm their participation.
+            {% elif church.church_pipeline == 'EN42' %}
+                This church is in the EN42 stage. They are actively engaged in the program.
+            {% elif church.church_pipeline == 'AUTOMATION' %}
+                This church is in the automation stage. Regular automated communications are in place.
+            {% endif %}
+            </p>
+        </div>
+        {% else %}
+        <div class="pipeline-info">
+            <p>No pipeline stage set. Select a pipeline stage to track this church's progress.</p>
+        </div>
+        {% endif %}
     </div>
 
     <form id="church-form" method="POST" action="{{ url_for('churches_bp.edit_church', church_id=church.id) }}">
@@ -249,6 +325,26 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
+}
+
+.header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.header-left h2 {
+    font-size: 1.25rem;
+    color: var(--text-color);
+    margin: 0;
+    opacity: 0.8;
+}
+
+.church-name {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin: 0;
 }
 
 .form-container {

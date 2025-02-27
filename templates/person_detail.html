@@ -4,11 +4,79 @@
 
 {% block content %}
     <div class="page-header">
-        <h2>Edit Person</h2>
+        <div class="header-left">
+            <h2>Edit Person</h2>
+            <h1 class="person-name">{{ person.first_name }} {{ person.last_name }}</h1>
+        </div>
         <div class="button-group">
             <button type="submit" form="person-form" class="button primary">Save Changes</button>
             <a href="{{ url_for('people_bp.people') }}" class="button">Back to People</a>
         </div>
+    </div>
+
+    <!-- Pipeline Visualization -->
+    <div class="pipeline-container">
+        <div class="pipeline-title">
+            <i class="bi bi-diagram-3"></i>
+            <span>Pipeline Progress</span>
+        </div>
+        <div class="pipeline-progress">
+            <div class="pipeline-progress-bar" style="width: 
+                {% if person.people_pipeline == 'PROMOTION' %}10%
+                {% elif person.people_pipeline == 'INFORMATION' %}30%
+                {% elif person.people_pipeline == 'INVITATION' %}50%
+                {% elif person.people_pipeline == 'CONFIRMATION' %}70%
+                {% elif person.people_pipeline == 'AUTOMATION' %}90%
+                {% else %}0%{% endif %}">
+            </div>
+            
+            <div class="pipeline-step {% if person.people_pipeline == 'PROMOTION' %}active{% elif person.people_pipeline in ['INFORMATION', 'INVITATION', 'CONFIRMATION', 'AUTOMATION'] %}completed{% endif %}">
+                <div class="pipeline-step-marker">1</div>
+                <div class="pipeline-step-label">Promotion</div>
+            </div>
+            
+            <div class="pipeline-step {% if person.people_pipeline == 'INFORMATION' %}active{% elif person.people_pipeline in ['INVITATION', 'CONFIRMATION', 'AUTOMATION'] %}completed{% endif %}">
+                <div class="pipeline-step-marker">2</div>
+                <div class="pipeline-step-label">Information</div>
+            </div>
+            
+            <div class="pipeline-step {% if person.people_pipeline == 'INVITATION' %}active{% elif person.people_pipeline in ['CONFIRMATION', 'AUTOMATION'] %}completed{% endif %}">
+                <div class="pipeline-step-marker">3</div>
+                <div class="pipeline-step-label">Invitation</div>
+            </div>
+            
+            <div class="pipeline-step {% if person.people_pipeline == 'CONFIRMATION' %}active{% elif person.people_pipeline in ['AUTOMATION'] %}completed{% endif %}">
+                <div class="pipeline-step-marker">4</div>
+                <div class="pipeline-step-label">Confirmation</div>
+            </div>
+            
+            <div class="pipeline-step {% if person.people_pipeline == 'AUTOMATION' %}active{% endif %}">
+                <div class="pipeline-step-marker">5</div>
+                <div class="pipeline-step-label">Automation</div>
+            </div>
+        </div>
+        
+        {% if person.people_pipeline %}
+        <div class="pipeline-info">
+            <p>Current stage: <strong>{{ person.people_pipeline }}</strong>. 
+            {% if person.people_pipeline == 'PROMOTION' %}
+                This person is in the initial promotion stage. Focus on introducing them to the organization.
+            {% elif person.people_pipeline == 'INFORMATION' %}
+                This person is in the information gathering stage. Provide them with relevant materials.
+            {% elif person.people_pipeline == 'INVITATION' %}
+                This person is in the invitation stage. Invite them to relevant events or meetings.
+            {% elif person.people_pipeline == 'CONFIRMATION' %}
+                This person is in the confirmation stage. Follow up to confirm their participation.
+            {% elif person.people_pipeline == 'AUTOMATION' %}
+                This person is in the automation stage. Regular automated communications are in place.
+            {% endif %}
+            </p>
+        </div>
+        {% else %}
+        <div class="pipeline-info">
+            <p>No pipeline stage set. Select a pipeline stage to track this person's progress.</p>
+        </div>
+        {% endif %}
     </div>
 
     <form id="person-form" method="POST" action="/edit_person/{{ person.id }}">
@@ -256,6 +324,26 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
+}
+
+.header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.header-left h2 {
+    font-size: 1.25rem;
+    color: var(--text-color);
+    margin: 0;
+    opacity: 0.8;
+}
+
+.person-name {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin: 0;
 }
 
 .form-container {
