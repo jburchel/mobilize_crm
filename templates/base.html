@@ -37,28 +37,31 @@
         <div class="sidebar-header">
             <a href="/" class="brand">
                 <img src="{{ url_for('static', filename='logo.png') }}" alt="Mobilize CRM Logo" class="brand-logo">
-                <span class="brand-text">Crossover Global</span>
+                <span class="brand-text">Mobilize CRM</span>
             </a>
         </div>
         <hr class="sidebar-divider">
         <nav class="sidebar-nav auth-required" role="navigation" aria-label="Main navigation">
+            <span id="auth-status" class="welcome-message"></span>
             <ul class="nav-list">
                 <li><a href="/" class="nav-link {% if request.endpoint == 'home' or request.endpoint == 'dashboard_bp.dashboard' %}active{% endif %}"><span>📊</span><span>Dashboard</span></a></li>
                 <li><a href="/people" class="nav-link {% if request.endpoint and 'people_bp' in request.endpoint %}active{% endif %}"><span>👥</span><span>People</span></a></li>
                 <li><a href="/churches" class="nav-link {% if request.endpoint and 'churches_bp' in request.endpoint %}active{% endif %}"><span>⛪</span><span>Churches</span></a></li>
                 <li><a href="/tasks" class="nav-link {% if request.endpoint and 'tasks_bp' in request.endpoint %}active{% endif %}"><span>✅</span><span>Tasks</span></a></li>
                 <li><a href="/communications" class="nav-link {% if request.endpoint and 'communications_bp' in request.endpoint %}active{% endif %}"><span>✉️</span><span>Communications</span></a></li>
-                <li><a href="/contacts" class="nav-link {% if request.endpoint and 'contacts_bp' in request.endpoint %}active{% endif %}"><span><i class="bi bi-google"></i></span><span>Google Contacts</span></a></li>
             </ul>
+            <div class="sidebar-spacer"></div>
             <div class="sidebar-footer">
                 <div class="auth-container">
-                    <span id="auth-status"></span>
-                    <a href="/dashboard/google-settings" class="nav-link {% if request.endpoint == 'dashboard_bp.google_settings' %}active{% endif %}"><span>⚙️</span><span>Google Settings</span></a>
+                    <div class="footer-links">
+                        <a href="/contacts" class="nav-link {% if request.endpoint and 'contacts_bp' in request.endpoint %}active{% endif %}"><span><i class="bi bi-google"></i></span><span>Google Contacts</span></a>
+                        <a href="/dashboard/google-settings" class="nav-link {% if request.endpoint == 'dashboard_bp.google_settings' %}active{% endif %}"><span>⚙️</span><span>Google Settings</span></a>
+                        <button id="sign-out" class="hidden"><span>Sign out</span></button>
+                    </div>
                     <button id="sign-in" class="btn-google">
                         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo">
                         Sign in with Google
                     </button>
-                    <button id="sign-out" class="hidden"><span>Sign out</span></button>
                     <span id="auth-error" class="auth-error"></span>
                 </div>
                 <button class="mobile-menu-toggle" aria-label="Toggle sidebar" aria-expanded="false">
