@@ -22,173 +22,287 @@
         </div>
     {% endif %}
 
-    <div class="row">
-        <div class="col-md-8">
-            <div class="card mb-4">
-                <h3>Add New Task</h3>
-                <form action="{{ url_for('tasks_bp.add_task') }}" method="post" class="task-form needs-validation" novalidate>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="title">Title *</label>
-                            <input type="text" id="title" name="title" required>
-                            <div class="invalid-feedback">Title is required</div>
+    <!-- All Tasks Section -->
+    <div class="card mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h3>All Tasks</h3>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                <i class="bi bi-plus-circle"></i> Add Task
+            </button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Priority</th>
+                    <th>Due Date</th>
+                    <th>Assigned To</th>
+                    <th>Calendar</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                <tr data-task-id="{{ task.id }}">
+                    <td>{{ task.title }}</td>
+                    <td><span class="badge {{ 'success' if task.status == 'Completed' else 'warning' if task.status == 'In Progress' else 'neutral' }}">{{ task.status }}</span></td>
+                    <td><span class="badge {{ 'error' if task.priority == 'High' else 'warning' if task.priority == 'Medium' else 'info' }}">{{ task.priority }}</span></td>
+                    <td>{{ task.due_date.strftime('%m/%d/%Y') if task.due_date else 'No due date' }}</td>
+                    <td>
+                        {% if task.person %}{{ task.person.name }}{% endif %}
+                        {% if task.church %}{{ task.church.name }}{% endif %}
+                        {% if not task.person and not task.church %}Unassigned{% endif %}
+                    </td>
+                    <td>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input calendar-sync-toggle" 
+                                  type="checkbox" 
+                                  id="calendarSync{{ task.id }}" 
+                                  data-task-id="{{ task.id }}"
+                                  {% if task.google_calendar_sync_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="calendarSync{{ task.id }}">
+                                <span class="sync-status">
+                                    {% if task.google_calendar_sync_enabled %}
+                                        {% if task.google_calendar_event_id %}
+                                            <span class="badge success">Synced</span>
+                                        {% else %}
+                                            <span class="badge warning">Pending</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge neutral">Not synced</span>
+                                    {% endif %}
+                                </span>
+                            </label>
                         </div>
-                        <div class="form-group">
-                            <label for="status">Status *</label>
-                            <select id="status" name="status" required>
-                                <option value="">Choose...</option>
-                                <option value="Not Started">Not Started</option>
-                                <option value="In Progress">In Progress</option>
-                                <option value="Completed">Completed</option>
-                            </select>
-                            <div class="invalid-feedback">Please select a status</div>
+                    </td>
+                    <td>
+                        <div class="task-actions">
+                            <button class="btn btn-sm btn-outline-primary edit-task-btn" 
+                                   data-task-id="{{ task.id }}"
+                                   data-bs-toggle="modal" 
+                                   data-bs-target="#editTaskModal">
+                                <i class="bi bi-pencil"></i> Edit
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary sync-calendar-btn" 
+                                   data-task-id="{{ task.id }}"
+                                   {% if not task.google_calendar_sync_enabled %}disabled{% endif %}>
+                                <i class="bi bi-calendar"></i> Sync Now
+                            </button>
                         </div>
-                    </div>
-                    
-                    <div class="form-group full-width">
-                        <label for="description">Description</label>
-                        <textarea id="description" name="description" rows="3"></textarea>
-                    </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="due_date">Due Date</label>
-                            <input type="text" 
-                                   id="due_date" 
-                                   name="due_date" 
-                                   placeholder="MM/DD/YYYY"
-                                   pattern="^(0[1-9]|1[0-2])/(0[1-9]|[12]\d|3[01])/\d{4}$"
-                                   value="{{ today() }}"
-                                   autocomplete="off">
-                            <small class="text-muted">Format: MM/DD/YYYY</small>
-                            <div class="invalid-feedback">Please enter a valid date in MM/DD/YYYY format</div>
-                        </div>
-                        <div class="form-group">
-                            <label for="priority">Priority</label>
-                            <select id="priority" name="priority">
-                                <option value="Low">Low</option>
-                                <option value="Medium" selected>Medium</option>
-                                <option value="High">High</option>
-                            </select>
-                        </div>
+    <!-- Upcoming Calendar Section - Now below All Tasks -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Upcoming Calendar</h5>
+        </div>
+        <div class="card-body">
+            <div id="upcomingCalendar">
+                <div class="text-center">
+                    <div class="spinner-border spinner-border-sm" role="status">
+                        <span class="visually-hidden">Loading...</span>
                     </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="person_id">Assign to Person</label>
-                            <select id="person_id" name="person_id">
-                                <option value="">None</option>
-                                {% for person in people %}
-                                    <option value="{{ person.id }}">{{ person.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="church_id">Assign to Church</label>
-                            <select id="church_id" name="church_id">
-                                <option value="">None</option>
-                                {% for church in churches %}
-                                    <option value="{{ church.id }}">{{ church.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="google_calendar_sync_enabled" name="google_calendar_sync_enabled">
-                                <label class="form-check-label" for="google_calendar_sync_enabled">
-                                    Sync with Google Calendar
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="submit" class="button primary">Add Task</button>
-                    </div>
-                </form>
-            </div>
-
-            <div class="card">
-                <h3>All Tasks</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Title</th>
-                            <th>Status</th>
-                            <th>Priority</th>
-                            <th>Due Date</th>
-                            <th>Assigned To</th>
-                            <th>Calendar</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for task in tasks %}
-                        <tr data-task-id="{{ task.id }}">
-                            <td>{{ task.title }}</td>
-                            <td><span class="badge {{ 'success' if task.status == 'Completed' else 'warning' if task.status == 'In Progress' else 'neutral' }}">{{ task.status }}</span></td>
-                            <td><span class="badge {{ 'error' if task.priority == 'High' else 'warning' if task.priority == 'Medium' else 'info' }}">{{ task.priority }}</span></td>
-                            <td>{{ task.due_date if task.due_date else 'No due date' }}</td>
-                            <td>
-                                {% if task.person %}{{ task.person.name }}{% endif %}
-                                {% if task.church %}{{ task.church.name }}{% endif %}
-                                {% if not task.person and not task.church %}Unassigned{% endif %}
-                            </td>
-                            <td>
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input calendar-sync-toggle" 
-                                          type="checkbox" 
-                                          id="calendarSync{{ task.id }}" 
-                                          data-task-id="{{ task.id }}"
-                                          {% if task.google_calendar_sync_enabled %}checked{% endif %}>
-                                    <label class="form-check-label" for="calendarSync{{ task.id }}">
-                                        <span class="sync-status">
-                                            {% if task.google_calendar_sync_enabled %}
-                                                {% if task.google_calendar_event_id %}
-                                                    <span class="badge success">Synced</span>
-                                                {% else %}
-                                                    <span class="badge warning">Pending</span>
-                                                {% endif %}
-                                            {% else %}
-                                                <span class="badge neutral">Not synced</span>
-                                            {% endif %}
-                                        </span>
-                                    </label>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="task-actions">
-                                    <button class="btn btn-sm btn-outline-primary sync-calendar-btn" 
-                                           data-task-id="{{ task.id }}"
-                                           {% if not task.google_calendar_sync_enabled %}disabled{% endif %}>
-                                        <i class="bi bi-calendar"></i> Sync Now
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                    <p class="text-muted mb-0">Loading calendar events...</p>
+                </div>
             </div>
         </div>
+    </div>
 
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Upcoming Calendar</h5>
+    <!-- Add Task Modal -->
+    <div class="modal fade" id="addTaskModal" tabindex="-1" aria-labelledby="addTaskModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addTaskModalLabel">Add New Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="card-body">
-                    <div id="upcomingCalendar">
-                        <div class="text-center">
-                            <div class="spinner-border spinner-border-sm" role="status">
-                                <span class="visually-hidden">Loading...</span>
+                <div class="modal-body">
+                    <form action="{{ url_for('tasks_bp.add_task') }}" method="post" class="task-form needs-validation" novalidate>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="title">Title *</label>
+                                <input type="text" id="title" name="title" required>
+                                <div class="invalid-feedback">Title is required</div>
                             </div>
-                            <p class="text-muted mb-0">Loading calendar events...</p>
+                            <div class="form-group">
+                                <label for="status">Status *</label>
+                                <select id="status" name="status" required>
+                                    <option value="">Choose...</option>
+                                    <option value="Not Started">Not Started</option>
+                                    <option value="In Progress">In Progress</option>
+                                    <option value="Completed">Completed</option>
+                                </select>
+                                <div class="invalid-feedback">Please select a status</div>
+                            </div>
                         </div>
-                    </div>
+                        
+                        <div class="form-group full-width">
+                            <label for="description">Description</label>
+                            <textarea id="description" name="description" rows="3"></textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="due_date">Due Date</label>
+                                <input type="text" 
+                                       id="due_date" 
+                                       name="due_date" 
+                                       placeholder="MM/DD/YYYY"
+                                       pattern="^(0[1-9]|1[0-2])/(0[1-9]|[12]\d|3[01])/\d{4}$"
+                                       value="{{ today() }}"
+                                       autocomplete="off">
+                                <small class="text-muted">Format: MM/DD/YYYY</small>
+                                <div class="invalid-feedback">Please enter a valid date in MM/DD/YYYY format</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="priority">Priority</label>
+                                <select id="priority" name="priority">
+                                    <option value="Low">Low</option>
+                                    <option value="Medium" selected>Medium</option>
+                                    <option value="High">High</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="person_id">Assign to Person</label>
+                                <select id="person_id" name="person_id">
+                                    <option value="">None</option>
+                                    {% for person in people %}
+                                        <option value="{{ person.id }}">{{ person.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="church_id">Assign to Church</label>
+                                <select id="church_id" name="church_id">
+                                    <option value="">None</option>
+                                    {% for church in churches %}
+                                        <option value="{{ church.id }}">{{ church.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="google_calendar_sync_enabled" name="google_calendar_sync_enabled">
+                                    <label class="form-check-label" for="google_calendar_sync_enabled">
+                                        Sync with Google Calendar
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-primary">Add Task</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Task Modal -->
+    <div class="modal fade" id="editTaskModal" tabindex="-1" aria-labelledby="editTaskModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editTaskModalLabel">Edit Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editTaskForm" action="" method="post" class="task-form needs-validation" novalidate>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit_title">Title *</label>
+                                <input type="text" id="edit_title" name="title" required>
+                                <div class="invalid-feedback">Title is required</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_status">Status *</label>
+                                <select id="edit_status" name="status" required>
+                                    <option value="">Choose...</option>
+                                    <option value="Not Started">Not Started</option>
+                                    <option value="In Progress">In Progress</option>
+                                    <option value="Completed">Completed</option>
+                                </select>
+                                <div class="invalid-feedback">Please select a status</div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group full-width">
+                            <label for="edit_description">Description</label>
+                            <textarea id="edit_description" name="description" rows="3"></textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit_due_date">Due Date</label>
+                                <input type="text" 
+                                       id="edit_due_date" 
+                                       name="due_date" 
+                                       placeholder="MM/DD/YYYY"
+                                       pattern="^(0[1-9]|1[0-2])/(0[1-9]|[12]\d|3[01])/\d{4}$"
+                                       autocomplete="off">
+                                <small class="text-muted">Format: MM/DD/YYYY</small>
+                                <div class="invalid-feedback">Please enter a valid date in MM/DD/YYYY format</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_priority">Priority</label>
+                                <select id="edit_priority" name="priority">
+                                    <option value="Low">Low</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="High">High</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit_person_id">Assign to Person</label>
+                                <select id="edit_person_id" name="person_id">
+                                    <option value="">None</option>
+                                    {% for person in people %}
+                                        <option value="{{ person.id }}">{{ person.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_church_id">Assign to Church</label>
+                                <select id="edit_church_id" name="church_id">
+                                    <option value="">None</option>
+                                    {% for church in churches %}
+                                        <option value="{{ church.id }}">{{ church.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="edit_google_calendar_sync_enabled" name="google_calendar_sync_enabled">
+                                    <label class="form-check-label" for="edit_google_calendar_sync_enabled">
+                                        Sync with Google Calendar
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="saveTaskChanges">Save Changes</button>
                 </div>
             </div>
         </div>
@@ -201,6 +315,66 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+/* Enhanced Modal Styling */
+.modal-content {
+    border: none;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.modal-backdrop.show {
+    opacity: 1;
+}
+
+.modal {
+    padding-right: 0 !important;
+}
+
+.modal-dialog {
+    margin: 2rem auto;
+    max-width: 800px;
+}
+
+.modal-header {
+    background-color: var(--bg-light);
+    border-bottom: 2px solid var(--border-color);
+    padding: 1rem 1.5rem;
+    border-top-left-radius: var(--border-radius);
+    border-top-right-radius: var(--border-radius);
+}
+
+.modal-header .modal-title {
+    font-weight: 600;
+    color: #212529;
+}
+
+.modal-header .btn-close {
+    font-size: 1.2rem;
+    padding: 0.5rem;
+    margin: -0.5rem -0.5rem -0.5rem auto;
+}
+
+.modal-footer {
+    background-color: var(--bg-light);
+    border-top: 2px solid var(--border-color);
+    padding: 1rem 1.5rem;
+    justify-content: space-between;
+    border-bottom-left-radius: var(--border-radius);
+    border-bottom-right-radius: var(--border-radius);
+}
+
+.modal-footer::before {
+    content: "Click outside to close";
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    margin-right: auto;
 }
 
 .form-row {
@@ -438,20 +612,67 @@
 
 // Google Calendar integration
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM fully loaded - initializing scripts');
+    
+    // Initialize Bootstrap modals
+    var addTaskModal = document.getElementById('addTaskModal');
+    var editTaskModal = document.getElementById('editTaskModal');
+    
+    // Create modal instances
+    var addTaskModalInstance = new bootstrap.Modal(addTaskModal);
+    var editTaskModalInstance = new bootstrap.Modal(editTaskModal);
+    
+    console.log('Modal instances created');
+
     // Initialize date picker for due date
     const dueDateInput = document.getElementById('due_date');
     if (dueDateInput) {
         const today = new Date();
         const formattedDate = `${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getDate().toString().padStart(2, '0')}/${today.getFullYear()}`;
         dueDateInput.value = formattedDate;
+        console.log('Setting initial due date:', formattedDate);
         
         // Add event listener to validate date format
         dueDateInput.addEventListener('change', function(e) {
             const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/;
             if (!dateRegex.test(this.value)) {
+                console.log('Invalid date format:', this.value);
                 this.setCustomValidity('Please enter a valid date in MM/DD/YYYY format');
             } else {
+                console.log('Valid date format:', this.value);
                 this.setCustomValidity('');
+            }
+        });
+    }
+    
+    // Initialize Add Task modal
+    if (addTaskModal) {
+        addTaskModal.addEventListener('show.bs.modal', function() {
+            console.log('Add Task modal is showing');
+            // Reset form when modal is opened
+            const form = this.querySelector('form');
+            if (form) {
+                form.reset();
+                
+                // Set default date
+                const dueDateInput = form.querySelector('#due_date');
+                if (dueDateInput) {
+                    const today = new Date();
+                    const formattedDate = `${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getDate().toString().padStart(2, '0')}/${today.getFullYear()}`;
+                    dueDateInput.value = formattedDate;
+                }
+                
+                // Set default status to "Not Started"
+                const statusSelect = form.querySelector('#status');
+                if (statusSelect) {
+                    statusSelect.value = 'Not Started';
+                }
+                
+                // Set default priority to "Medium"
+                const prioritySelect = form.querySelector('#priority');
+                if (prioritySelect) {
+                    prioritySelect.value = 'Medium';
+                }
             }
         });
     }
@@ -459,8 +680,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Helper function to show messages
     function showMessage(message, type) {
         const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type}`;
-        alertDiv.innerText = message;
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
         
         const container = document.querySelector('.card');
         container.parentNode.insertBefore(alertDiv, container);
@@ -653,7 +877,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Refresh the calendar widget to show the new event
                     loadUpcomingEvents();
                 } else {
-                    throw new Error(data.message || 'Failed to sync task');
+                    // Check for specific error messages
+                    if (data.message && data.message.includes('due_date: Not a valid date')) {
+                        showMessage('Error: This task needs a valid due date before it can be synced to your calendar.', 'error');
+                        
+                        // Open the edit modal for this task to allow setting the due date
+                        const editBtn = row.querySelector('.edit-task-btn');
+                        if (editBtn) {
+                            editBtn.click();
+                        }
+                    } else {
+                        throw new Error(data.message || 'Failed to sync task');
+                    }
                 }
             } catch (error) {
                 console.error('Sync error:', error);
@@ -668,6 +903,133 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.disabled = false;
             }
         });
+    });
+
+    // Handle edit task buttons
+    const editButtons = document.querySelectorAll('.edit-task-btn');
+    const editTaskForm = document.getElementById('editTaskForm');
+    const saveTaskChangesBtn = document.getElementById('saveTaskChanges');
+    
+    // Initialize date picker for edit due date
+    const editDueDateInput = document.getElementById('edit_due_date');
+    if (editDueDateInput) {
+        // Add event listener to validate date format
+        editDueDateInput.addEventListener('change', function(e) {
+            const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/;
+            if (!dateRegex.test(this.value)) {
+                console.log('Invalid edit date format:', this.value);
+                this.setCustomValidity('Please enter a valid date in MM/DD/YYYY format');
+            } else {
+                console.log('Valid edit date format:', this.value);
+                this.setCustomValidity('');
+            }
+        });
+    }
+    
+    // Function to populate the edit form with task data
+    function populateEditForm(taskId) {
+        const row = document.querySelector(`tr[data-task-id="${taskId}"]`);
+        if (!row) return;
+        
+        // Get task data from the row
+        const title = row.cells[0].textContent.trim();
+        const status = row.cells[1].querySelector('.badge').textContent.trim();
+        const priority = row.cells[2].querySelector('.badge').textContent.trim();
+        const dueDateCell = row.cells[3].textContent.trim();
+        const dueDate = dueDateCell !== 'No due date' ? dueDateCell : '';
+        
+        // Get assigned entity
+        const assignedCell = row.cells[4].textContent.trim();
+        let personId = '';
+        let churchId = '';
+        
+        // This is a simplification - in a real app, you'd need to store these IDs in data attributes
+        // For now, we'll just try to match by name
+        if (assignedCell !== 'Unassigned') {
+            const personSelect = document.getElementById('edit_person_id');
+            const churchSelect = document.getElementById('edit_church_id');
+            
+            // Try to find matching person or church
+            for (const option of personSelect.options) {
+                if (option.text === assignedCell) {
+                    personId = option.value;
+                    break;
+                }
+            }
+            
+            if (!personId) {
+                for (const option of churchSelect.options) {
+                    if (option.text === assignedCell) {
+                        churchId = option.value;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Get sync status
+        const syncEnabled = row.querySelector('.calendar-sync-toggle').checked;
+        
+        // Populate form fields
+        document.getElementById('edit_title').value = title;
+        
+        const statusSelect = document.getElementById('edit_status');
+        for (const option of statusSelect.options) {
+            if (option.value === status) {
+                option.selected = true;
+                break;
+            }
+        }
+        
+        const prioritySelect = document.getElementById('edit_priority');
+        for (const option of prioritySelect.options) {
+            if (option.value === priority) {
+                option.selected = true;
+                break;
+            }
+        }
+        
+        // Set due date - the date is already in MM/DD/YYYY format from the table
+        document.getElementById('edit_due_date').value = dueDate;
+        
+        // Set person/church if found
+        if (personId) {
+            document.getElementById('edit_person_id').value = personId;
+        } else {
+            document.getElementById('edit_person_id').value = '';
+        }
+        
+        if (churchId) {
+            document.getElementById('edit_church_id').value = churchId;
+        } else {
+            document.getElementById('edit_church_id').value = '';
+        }
+        
+        // Set sync checkbox
+        document.getElementById('edit_google_calendar_sync_enabled').checked = syncEnabled;
+        
+        // Set form action
+        editTaskForm.action = `/edit_task/${taskId}`;
+    }
+    
+    // Add event listeners to edit buttons
+    editButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const taskId = this.dataset.taskId;
+            populateEditForm(taskId);
+        });
+    });
+    
+    // Handle save changes button
+    saveTaskChangesBtn.addEventListener('click', function() {
+        // Validate form
+        if (!editTaskForm.checkValidity()) {
+            editTaskForm.classList.add('was-validated');
+            return;
+        }
+        
+        // Submit form
+        editTaskForm.submit();
     });
 
     // Initialize calendar widget

@@ -46,6 +46,11 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
     line-height: 1.6;
     color: var(--text-color);
+    transition: grid-template-columns var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.sidebar-collapsed {
+    grid-template-columns: 80px 1fr;
 }
 
 /* Header */
@@ -62,6 +67,10 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     margin: var(--spacing) var(--spacing) 0;
     transition: all var(--transition-speed) ease;
+}
+
+body.sidebar-collapsed .site-header {
+    max-width: calc(var(--content-width) + var(--sidebar-width) - 80px);
 }
 
 .header-content {
@@ -240,12 +249,22 @@ body {
     gap: 1rem;
 }
 
+.sidebar-footer .nav-link {
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+}
+
 .sidebar.collapsed .sidebar-footer {
     padding: 1rem 0.5rem;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 1rem;
+}
+
+.sidebar.collapsed .sidebar-footer .nav-link {
+    padding: 0.75rem;
+    justify-content: center;
 }
 
 /* Auth container styles */
@@ -257,6 +276,12 @@ body {
     align-items: center;
 }
 
+.sidebar .auth-container .nav-link {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+}
+
 .sidebar.collapsed .auth-container {
     padding: 0;
     width: auto;
@@ -264,6 +289,21 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 1rem;
+}
+
+.sidebar.collapsed .auth-container .nav-link {
+    padding: 0.75rem;
+    justify-content: center;
+}
+
+.sidebar.collapsed .auth-container .nav-link span:not(:first-child) {
+    display: none;
+}
+
+/* Google icon styling */
+.nav-link .bi-google {
+    color: var(--white-color);
+    font-size: 1.2rem;
 }
 
 .sidebar #sign-out {
@@ -319,48 +359,39 @@ body {
 
 /* Mobile menu toggle */
 .mobile-menu-toggle {
-    width: 100%;
-    padding: 0.75rem;
     display: flex;
     align-items: center;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.35);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    border-radius: var(--border-radius);
-    cursor: pointer;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    border: none;
     color: var(--white-color);
+    cursor: pointer;
+    font-size: 1rem;
     font-weight: 500;
+    border-radius: var(--border-radius);
     transition: all var(--transition-speed) ease;
+    width: 100%;
+}
+
+.mobile-menu-toggle i {
+    font-size: 1.5rem;
 }
 
 .mobile-menu-toggle:hover {
-    background: rgba(255, 255, 255, 0.45);
-    border-color: rgba(255, 255, 255, 0.5);
-    transform: translateY(-1px);
+    background-color: rgba(255, 255, 255, 0.15);
 }
 
 .sidebar.collapsed .mobile-menu-toggle {
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    margin: 0 auto;
-    border-radius: 50%;
+    justify-content: center;
+    padding: 0.75rem;
 }
 
-.mobile-menu-toggle::before {
-    content: '◀️';
-    font-size: 1.2rem;
-}
-
-.sidebar.collapsed .mobile-menu-toggle::before {
-    content: '▶️';
-    font-size: 1.2rem;
-}
-
-/* Override any potential opacity on the icons */
+/* Remove the old hamburger styling */
 .mobile-menu-toggle::before,
-.sidebar #sign-out::before {
-    opacity: 1 !important;
+.sidebar.collapsed .mobile-menu-toggle::before {
+    content: none;
 }
 
 /* Main content */
@@ -369,7 +400,12 @@ body {
     padding: var(--spacing);
     width: 100%;
     max-width: var(--content-width);
-    margin: 0 auto;
+    justify-self: center;
+    transition: all var(--transition-speed) ease;
+}
+
+body.sidebar-collapsed .main-content {
+    max-width: calc(var(--content-width) + var(--sidebar-width) - 80px);
 }
 
 /* Footer */

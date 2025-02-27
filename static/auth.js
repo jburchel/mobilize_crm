@@ -69,6 +69,9 @@ class AuthManager {
                 const isCollapsed = sidebar.classList.contains('collapsed');
                 mobileMenuButton.setAttribute('aria-expanded', !isCollapsed);
                 
+                // Toggle body class for responsive layout
+                document.body.classList.toggle('sidebar-collapsed', isCollapsed);
+                
                 // For mobile devices
                 if (window.innerWidth <= 768) {
                     sidebar.classList.toggle('active');

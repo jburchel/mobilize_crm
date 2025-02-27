@@ -3,312 +3,372 @@
 {% block title %}Edit Church{% endblock %}
 
 {% block content %}
-    <div class="church-form-header">
+    <div class="page-header">
         <h2>Edit Church</h2>
-        <a href="{{ url_for('churches_bp.churches') }}" class="button secondary">Back to Churches</a>
+        <div class="button-group">
+            <button type="submit" form="church-form" class="button primary">Save Changes</button>
+            <a href="{{ url_for('churches_bp.churches') }}" class="button">Back to Churches</a>
+        </div>
     </div>
 
-    <form method="POST" action="{{ url_for('churches_bp.edit_church', church_id=church.id) }}" class="church-form">
-        <!-- Basic Information -->
-        <fieldset>
-            <legend>Basic Information</legend>
-            <div class="form-group">
-                <label for="church_name">Church Name:</label>
-                <input id="church_name" name="church_name" value="{{ church.church_name }}" required>
-            </div>
-            <div class="form-group">
-                <label for="location">Location:</label>
-                <input id="location" name="location" value="{{ church.location }}">
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="street_address">Street Address:</label>
-                    <input id="street_address" name="street_address" value="{{ church.street_address }}">
+    <form id="church-form" method="POST" action="{{ url_for('churches_bp.edit_church', church_id=church.id) }}">
+        <div class="form-container">
+            <!-- Basic Information -->
+            <fieldset>
+                <legend>Basic Information</legend>
+                <div class="form-row">
+                    <div class="form-field full-width">
+                        <label for="church_name">Church Name</label>
+                        <input id="church_name" name="church_name" value="{{ church.church_name }}" required>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="city">City:</label>
-                    <input id="city" name="city" value="{{ church.city }}">
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="location">Location</label>
+                        <input id="location" name="location" value="{{ church.location }}">
+                    </div>
+                    <div class="form-field">
+                        <label for="website">Website</label>
+                        <input id="website" name="website" type="url" value="{{ church.website }}">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="state">State:</label>
-                    <input id="state" name="state" value="{{ church.state }}">
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="phone">Phone</label>
+                        <input id="phone" name="phone" value="{{ church.phone }}">
+                    </div>
+                    <div class="form-field">
+                        <label for="email">Email</label>
+                        <input id="email" name="email" type="email" value="{{ church.email }}" novalidate>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="zip_code">ZIP Code:</label>
-                    <input id="zip_code" name="zip_code" value="{{ church.zip_code }}">
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="denomination">Denomination</label>
+                        <input id="denomination" name="denomination" value="{{ church.denomination }}">
+                    </div>
+                    <div class="form-field">
+                        <label for="congregation_size">Congregation Size</label>
+                        <input id="congregation_size" name="congregation_size" type="number" value="{{ church.congregation_size }}">
+                    </div>
+                    <div class="form-field">
+                        <label for="year_founded">Year Founded</label>
+                        <input id="year_founded" name="year_founded" type="number" value="{{ church.year_founded }}">
+                    </div>
                 </div>
-            </div>
-            <div class="form-group">
-                <label for="website">Website:</label>
-                <input id="website" name="website" type="url" value="{{ church.website }}">
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="phone">Phone:</label>
-                    <input id="phone" name="phone" value="{{ church.phone }}">
-                </div>
-                <div class="form-group">
-                    <label for="email">Email:</label>
-                    <input id="email" name="email" type="email" value="{{ church.email }}" novalidate>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="denomination">Denomination:</label>
-                    <input id="denomination" name="denomination" value="{{ church.denomination }}">
-                </div>
-                <div class="form-group">
-                    <label for="congregation_size">Congregation Size:</label>
-                    <input id="congregation_size" name="congregation_size" type="number" value="{{ church.congregation_size }}">
-                </div>
-                <div class="form-group">
-                    <label for="year_founded">Year Founded:</label>
-                    <input id="year_founded" name="year_founded" type="number" value="{{ church.year_founded }}">
-                </div>
-            </div>
-        </fieldset>
+            </fieldset>
 
-        <!-- Senior Pastor Information -->
-        <fieldset>
-            <legend>Senior Pastor Information</legend>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="senior_pastor_first_name">First Name:</label>
-                    <input id="senior_pastor_first_name" name="senior_pastor_first_name" value="{{ church.senior_pastor_first_name }}">
+            <!-- Address Information -->
+            <fieldset>
+                <legend>Address Information</legend>
+                <div class="form-row">
+                    <div class="form-field full-width">
+                        <label for="street_address">Street Address</label>
+                        <input id="street_address" name="street_address" value="{{ church.street_address }}">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="senior_pastor_last_name">Last Name:</label>
-                    <input id="senior_pastor_last_name" name="senior_pastor_last_name" value="{{ church.senior_pastor_last_name }}">
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="city">City</label>
+                        <input id="city" name="city" value="{{ church.city }}">
+                    </div>
+                    <div class="form-field">
+                        <label for="state">State</label>
+                        <input id="state" name="state" value="{{ church.state }}">
+                    </div>
+                    <div class="form-field">
+                        <label for="zip_code">ZIP Code</label>
+                        <input id="zip_code" name="zip_code" value="{{ church.zip_code }}">
+                    </div>
                 </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="senior_pastor_phone">Phone:</label>
-                    <input id="senior_pastor_phone" name="senior_pastor_phone" value="{{ church.senior_pastor_phone }}">
-                </div>
-                <div class="form-group">
-                    <label for="senior_pastor_email">Email:</label>
-                    <input id="senior_pastor_email" name="senior_pastor_email" type="email" value="{{ church.senior_pastor_email }}" novalidate>
-                </div>
-            </div>
-        </fieldset>
+            </fieldset>
 
-        <!-- Missions Pastor Information -->
-        <fieldset>
-            <legend>Missions Pastor Information</legend>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="missions_pastor_first_name">First Name:</label>
-                    <input id="missions_pastor_first_name" name="missions_pastor_first_name" value="{{ church.missions_pastor_first_name }}">
+            <!-- Senior Pastor Information -->
+            <fieldset>
+                <legend>Senior Pastor Information</legend>
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="senior_pastor_first_name">First Name</label>
+                        <input id="senior_pastor_first_name" name="senior_pastor_first_name" value="{{ church.senior_pastor_first_name }}">
+                    </div>
+                    <div class="form-field">
+                        <label for="senior_pastor_last_name">Last Name</label>
+                        <input id="senior_pastor_last_name" name="senior_pastor_last_name" value="{{ church.senior_pastor_last_name }}">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="missions_pastor_last_name">Last Name:</label>
-                    <input id="missions_pastor_last_name" name="missions_pastor_last_name" value="{{ church.missions_pastor_last_name }}">
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="senior_pastor_phone">Phone</label>
+                        <input id="senior_pastor_phone" name="senior_pastor_phone" value="{{ church.senior_pastor_phone }}">
+                    </div>
+                    <div class="form-field">
+                        <label for="senior_pastor_email">Email</label>
+                        <input id="senior_pastor_email" name="senior_pastor_email" type="email" value="{{ church.senior_pastor_email }}" novalidate>
+                    </div>
                 </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="mission_pastor_phone">Phone:</label>
-                    <input id="mission_pastor_phone" name="mission_pastor_phone" value="{{ church.mission_pastor_phone }}">
-                </div>
-                <div class="form-group">
-                    <label for="mission_pastor_email">Email:</label>
-                    <input id="mission_pastor_email" name="mission_pastor_email" type="email" value="{{ church.mission_pastor_email }}" novalidate>
-                </div>
-            </div>
-        </fieldset>
+            </fieldset>
 
-        <!-- Primary Contact Information -->
-        <fieldset>
-            <legend>Primary Contact Information</legend>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="primary_contact_first_name">First Name:</label>
-                    <input id="primary_contact_first_name" name="primary_contact_first_name" value="{{ church.primary_contact_first_name }}">
+            <!-- Missions Pastor Information -->
+            <fieldset>
+                <legend>Missions Pastor Information</legend>
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="missions_pastor_first_name">First Name</label>
+                        <input id="missions_pastor_first_name" name="missions_pastor_first_name" value="{{ church.missions_pastor_first_name }}">
+                    </div>
+                    <div class="form-field">
+                        <label for="missions_pastor_last_name">Last Name</label>
+                        <input id="missions_pastor_last_name" name="missions_pastor_last_name" value="{{ church.missions_pastor_last_name }}">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="primary_contact_last_name">Last Name:</label>
-                    <input id="primary_contact_last_name" name="primary_contact_last_name" value="{{ church.primary_contact_last_name }}">
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="mission_pastor_phone">Phone</label>
+                        <input id="mission_pastor_phone" name="mission_pastor_phone" value="{{ church.mission_pastor_phone }}">
+                    </div>
+                    <div class="form-field">
+                        <label for="mission_pastor_email">Email</label>
+                        <input id="mission_pastor_email" name="mission_pastor_email" type="email" value="{{ church.mission_pastor_email }}" novalidate>
+                    </div>
                 </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="primary_contact_phone">Phone:</label>
-                    <input id="primary_contact_phone" name="primary_contact_phone" value="{{ church.primary_contact_phone }}">
-                </div>
-                <div class="form-group">
-                    <label for="primary_contact_email">Email:</label>
-                    <input id="primary_contact_email" name="primary_contact_email" type="email" value="{{ church.primary_contact_email }}" novalidate>
-                </div>
-            </div>
-        </fieldset>
+            </fieldset>
 
-        <!-- Additional Information -->
-        <fieldset>
-            <legend>Additional Information</legend>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="church_pipeline">Pipeline Stage:</label>
-                    <select id="church_pipeline" name="church_pipeline">
-                        <option value="">Select Pipeline Stage</option>
-                        {% for choice in ['PROMOTION', 'INFORMATION', 'INVITATION', 'CONFIRMATION', 'EN42', 'AUTOMATION'] %}
-                            <option value="{{ choice }}" {% if church.church_pipeline == choice %}selected{% endif %}>{{ choice }}</option>
-                        {% endfor %}
-                    </select>
+            <!-- Primary Contact Information -->
+            <fieldset>
+                <legend>Primary Contact Information</legend>
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="primary_contact_first_name">First Name</label>
+                        <input id="primary_contact_first_name" name="primary_contact_first_name" value="{{ church.primary_contact_first_name }}">
+                    </div>
+                    <div class="form-field">
+                        <label for="primary_contact_last_name">Last Name</label>
+                        <input id="primary_contact_last_name" name="primary_contact_last_name" value="{{ church.primary_contact_last_name }}">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="priority">Priority:</label>
-                    <select id="priority" name="priority">
-                        <option value="">Select Priority</option>
-                        {% for choice in ['URGENT', 'HIGH', 'MEDIUM', 'LOW'] %}
-                            <option value="{{ choice }}" {% if church.priority == choice %}selected{% endif %}>{{ choice }}</option>
-                        {% endfor %}
-                    </select>
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="primary_contact_phone">Phone</label>
+                        <input id="primary_contact_phone" name="primary_contact_phone" value="{{ church.primary_contact_phone }}">
+                    </div>
+                    <div class="form-field">
+                        <label for="primary_contact_email">Email</label>
+                        <input id="primary_contact_email" name="primary_contact_email" type="email" value="{{ church.primary_contact_email }}" novalidate>
+                    </div>
                 </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="assigned_to">Assigned To:</label>
-                    <select id="assigned_to" name="assigned_to">
-                        <option value="">Select Assignee</option>
-                        {% for choice in ['BILL JONES', 'JASON MODOMO', 'KEN KATAYAMA', 'MATTHEW RULE', 'CHIP ATKINSON', 'RACHEL LIVELY', 'JIM BURCHEL', 'JILL WALKER', 'KARINA RAMPIN', 'UNASSIGNED'] %}
-                            <option value="{{ choice }}" {% if church.assigned_to == choice %}selected{% endif %}>{{ choice }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="source">Source:</label>
-                    <select id="source" name="source">
-                        <option value="">Select Source</option>
-                        {% for choice in ['WEBFORM', 'INCOMING CALL', 'EMAIL', 'SOCIAL MEDIA', 'COLD CALL', 'PERSPECTIVES', 'REFERAL', 'OTHER', 'UNKNOWN'] %}
-                            <option value="{{ choice }}" {% if church.source == choice %}selected{% endif %}>{{ choice }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="referred_by">Referred By:</label>
-                <input id="referred_by" name="referred_by" value="{{ church.referred_by }}">
-            </div>
-            <div class="form-group">
-                <label for="info_given">Information Given:</label>
-                <textarea id="info_given" name="info_given" rows="3">{{ church.info_given }}</textarea>
-            </div>
-            <div class="form-group">
-                <label>
-                    <input type="checkbox" name="virtuous" {% if church.virtuous %}checked{% endif %}>
-                    Virtuous
-                </label>
-            </div>
-            <div class="form-group">
-                <label for="reason_closed">Reason Closed:</label>
-                <textarea id="reason_closed" name="reason_closed" rows="3">{{ church.reason_closed }}</textarea>
-            </div>
-            <div class="form-group">
-                <label for="date_closed">Date Closed:</label>
-                <input id="date_closed" name="date_closed" type="date" value="{{ church.date_closed }}">
-            </div>
-        </fieldset>
+            </fieldset>
 
-        <div class="form-actions">
-            <button type="submit" class="button primary">Save Changes</button>
-            <a href="{{ url_for('churches_bp.churches') }}" class="button secondary">Cancel</a>
+            <!-- Administrative Information -->
+            <fieldset>
+                <legend>Administrative Details</legend>
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="church_pipeline">Pipeline Stage</label>
+                        <select id="church_pipeline" name="church_pipeline">
+                            <option value="">Select Pipeline Stage</option>
+                            {% for choice in ['PROMOTION', 'INFORMATION', 'INVITATION', 'CONFIRMATION', 'EN42', 'AUTOMATION'] %}
+                                <option value="{{ choice }}" {% if church.church_pipeline == choice %}selected{% endif %}>{{ choice }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="priority">Priority</label>
+                        <select id="priority" name="priority">
+                            <option value="">Select Priority</option>
+                            {% for choice in ['URGENT', 'HIGH', 'MEDIUM', 'LOW'] %}
+                                <option value="{{ choice }}" {% if church.priority == choice %}selected{% endif %}>{{ choice }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="assigned_to">Assigned To</label>
+                        <select id="assigned_to" name="assigned_to">
+                            <option value="">Select Assignee</option>
+                            {% for choice in ['BILL JONES', 'JASON MODOMO', 'KEN KATAYAMA', 'MATTHEW RULE', 'CHIP ATKINSON', 'RACHEL LIVELY', 'JIM BURCHEL', 'JILL WALKER', 'KARINA RAMPIN', 'UNASSIGNED'] %}
+                                <option value="{{ choice }}" {% if church.assigned_to == choice %}selected{% endif %}>{{ choice }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="source">Source</label>
+                        <select id="source" name="source">
+                            <option value="">Select Source</option>
+                            {% for choice in ['WEBFORM', 'INCOMING CALL', 'EMAIL', 'SOCIAL MEDIA', 'COLD CALL', 'PERSPECTIVES', 'REFERAL', 'OTHER', 'UNKNOWN'] %}
+                                <option value="{{ choice }}" {% if church.source == choice %}selected{% endif %}>{{ choice }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="referred_by">Referred By</label>
+                        <input id="referred_by" name="referred_by" value="{{ church.referred_by }}">
+                    </div>
+                    <div class="form-field checkbox-field">
+                        <label for="virtuous" class="checkbox-label">
+                            <input type="checkbox" id="virtuous" name="virtuous" {% if church.virtuous %}checked{% endif %}>
+                            <span>Virtuous</span>
+                        </label>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Notes & Additional Information -->
+            <fieldset>
+                <legend>Notes & Additional Information</legend>
+                <div class="form-row">
+                    <div class="form-field full-width">
+                        <label for="info_given">Information Given</label>
+                        <textarea id="info_given" name="info_given" rows="3">{{ church.info_given }}</textarea>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- Closure Information -->
+            <fieldset>
+                <legend>Closure Information</legend>
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="date_closed">Date Closed</label>
+                        <input id="date_closed" name="date_closed" type="date" value="{{ church.date_closed }}">
+                    </div>
+                    <div class="form-field full-width">
+                        <label for="reason_closed">Reason Closed</label>
+                        <textarea id="reason_closed" name="reason_closed" rows="3">{{ church.reason_closed }}</textarea>
+                    </div>
+                </div>
+            </fieldset>
         </div>
     </form>
 {% endblock %}
 
 {% block styles %}
 <style>
-.church-form-header {
+.page-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
 }
 
-.church-form {
+.form-container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 2rem;
 }
 
 fieldset {
     border: 1px solid #e5e7eb;
-    border-radius: 6px;
+    border-radius: var(--border-radius);
     padding: 1.5rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
+    background-color: #fff;
 }
 
 legend {
     font-weight: 600;
     padding: 0 0.5rem;
+    color: var(--primary-color);
 }
 
 .form-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
     margin-bottom: 1rem;
 }
 
-.form-group {
-    margin-bottom: 1rem;
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
-.form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
+.form-field.full-width {
+    grid-column: 1 / -1;
+}
+
+.form-field label {
     font-weight: 500;
+    color: var(--text-color);
 }
 
-.form-group input,
-.form-group select,
-.form-group textarea {
+.form-field input,
+.form-field select,
+.form-field textarea {
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: var(--border-radius);
+    font-size: 1rem;
     width: 100%;
-    padding: 0.5rem;
-    border: 1px solid #e5e7eb;
-    border-radius: 4px;
-    font-size: 0.875rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.form-group textarea {
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.form-field textarea {
+    min-height: 100px;
     resize: vertical;
 }
 
-.form-actions {
+.checkbox-field {
+    justify-content: center;
+    flex-direction: row;
+    align-items: center;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+}
+
+.button-group {
     display: flex;
     gap: 1rem;
-    margin-top: 2rem;
 }
 
 .button {
     display: inline-flex;
     align-items: center;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--border-radius);
     font-size: 0.875rem;
     font-weight: 500;
     text-decoration: none;
     cursor: pointer;
-    border: none;
+    border: 1px solid transparent;
+    transition: all 0.2s;
 }
 
 .button.primary {
-    background-color: #3b82f6;
+    background-color: var(--primary-color);
     color: white;
 }
 
 .button.primary:hover {
-    background-color: #2563eb;
+    background-color: var(--secondary-color);
 }
 
-.button.secondary {
-    background-color: #e5e7eb;
-    color: #374151;
+.button:not(.primary) {
+    background-color: #fff;
+    border-color: #ddd;
+    color: var(--text-color);
 }
 
-.button.secondary:hover {
-    background-color: #d1d5db;
+.button:not(.primary):hover {
+    background-color: #f9fafb;
+    border-color: #c0c0c0;
 }
 </style>
 {% endblock %}

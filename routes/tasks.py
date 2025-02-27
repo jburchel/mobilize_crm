@@ -152,6 +152,7 @@ def add_task():
             try:
                 # Ensure date is in MM/DD/YYYY format
                 datetime.strptime(due_date, '%m/%d/%Y')
+                current_app.logger.info(f"Valid date format received: {due_date}")
             except ValueError:
                 current_app.logger.error(f"Invalid date format received: {due_date}")
                 flash('Please enter the due date in MM/DD/YYYY format', 'error')
@@ -161,7 +162,7 @@ def add_task():
         data = {
             'title': request.form['title'],
             'description': request.form.get('description'),
-            'due_date': due_date,
+            'due_date': due_date,  # Keep as string, schema will handle conversion
             'priority': request.form.get('priority', 'Medium'),
             'status': request.form['status'],
             'person_id': request.form.get('person_id') or None,
@@ -202,4 +203,65 @@ def add_task():
     except Exception as e:
         current_app.logger.error('Unexpected error in task creation: %s', str(e), exc_info=True)
         flash('An unexpected error occurred while creating the task.', 'error')
+        return redirect(url_for('tasks_bp.tasks'))
+
+@tasks_bp.route('/edit_task/<int:task_id>', methods=['POST'])
+def edit_task(task_id):
+    try:
+        # Log incoming form data for debugging
+        current_app.logger.info("Received edit task form data: %s", request.form)
+        
+        # Get the due date from form
+        due_date = request.form.get('due_date')
+        if due_date:
+            try:
+                # Ensure date is in MM/DD/YYYY format
+                datetime.strptime(due_date, '%m/%d/%Y')
+                current_app.logger.info(f"Valid date format received: {due_date}")
+            except ValueError:
+                current_app.logger.error(f"Invalid date format received: {due_date}")
+                flash('Please enter the due date in MM/DD/YYYY format', 'error')
+                return redirect(url_for('tasks_bp.tasks'))
+        
+        # Create task data from form
+        data = {
+            'title': request.form['title'],
+            'description': request.form.get('description'),
+            'due_date': due_date,  # Keep as string, schema will handle conversion
+            'priority': request.form.get('priority', 'Medium'),
+            'status': request.form['status'],
+            'person_id': request.form.get('person_id') or None,
+            'church_id': request.form.get('church_id') or None,
+            'google_calendar_sync_enabled': bool(request.form.get('google_calendar_sync_enabled'))
+        }
+        
+        # Log the processed data
+        current_app.logger.debug("Processing task data: %s", data)
+        
+        # Validate data using schema
+        try:
+            validated_data = task_schema.load(data, partial=True)
+            current_app.logger.debug("Data validated successfully: %s", validated_data)
+        except ValidationError as err:
+            current_app.logger.error("Validation error: %s", err.messages)
+            for field, errors in err.messages.items():
+                flash(f"{field}: {', '.join(errors)}", 'error')
+            return redirect(url_for('tasks_bp.tasks'))
+        
+        with session_scope() as session:
+            task = session.query(Task).get(task_id)
+            if not task:
+                flash('Task not found', 'error')
+                return redirect(url_for('tasks_bp.tasks'))
+                
+            # Update task with validated data
+            for key, value in validated_data.items():
+                setattr(task, key, value)
+            
+            flash('Task updated successfully', 'success')
+            return redirect(url_for('tasks_bp.tasks'))
+            
+    except Exception as e:
+        current_app.logger.error(f"Error updating task: {e}")
+        flash('An unexpected error occurred. Please try again later.', 'error')
         return redirect(url_for('tasks_bp.tasks'))

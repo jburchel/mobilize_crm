@@ -1,9 +1,10 @@
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Date, Boolean, Text, DateTime
 from sqlalchemy.orm import relationship, declarative_base, scoped_session, sessionmaker
 from contextlib import contextmanager
-from marshmallow import Schema, fields, validate, ValidationError, pre_load
+from marshmallow import Schema, fields, validate, ValidationError, pre_load, post_load
 from datetime import datetime
 import os
+import logging
 
 Base = declarative_base()
 
@@ -79,7 +80,7 @@ class ContactsSchema(Schema):
     google_resource_name = fields.Str(allow_none=True)
 
 class PersonSchema(ContactsSchema):
-    role = fields.Str(validate=validate.OneOf(['admin', 'user', 'guest', 'Contact']))
+    church_role = fields.Str(validate=validate.OneOf(['admin', 'user', 'guest', 'Contact']))
     church_id = fields.Int(allow_none=True)
     affiliated_church = fields.Int(allow_none=True)
     spouse_first_name = fields.Str(allow_none=True)
@@ -131,7 +132,7 @@ class TaskSchema(Schema):
     id = fields.Int(dump_only=True)
     title = fields.Str(required=True, validate=validate.Length(min=1, max=200))
     description = fields.Str(allow_none=True)
-    due_date = fields.Date(allow_none=True)
+    due_date = fields.Str(allow_none=True)
     priority = fields.Str(validate=validate.OneOf(['Low', 'Medium', 'High']))
     status = fields.Str(required=True, validate=validate.OneOf(['Not Started', 'In Progress', 'Completed']))
     person_id = fields.Int(allow_none=True)
@@ -146,11 +147,33 @@ class TaskSchema(Schema):
         if due_date and isinstance(due_date, str):
             try:
                 # Try to parse date in MM/DD/YYYY format
+                logger = logging.getLogger(__name__)
+                logger.info(f"Processing due_date: {due_date}")
+                
+                # Strip any whitespace
+                due_date = due_date.strip()
+                
+                # Parse the date to validate it
                 parsed_date = datetime.strptime(due_date, '%m/%d/%Y').date()
-                data['due_date'] = parsed_date
+                logger.info(f"Successfully parsed date: {parsed_date}")
+                
+                # Keep the string format for now
+                data['due_date'] = due_date
             except ValueError as e:
-                print(f"Date parsing error: {e}")  # Debug logging
+                logger.error(f"Date parsing error: {e} for input '{due_date}'")
                 raise ValidationError({'due_date': ['Please enter a valid date in MM/DD/YYYY format']})
+        return data
+        
+    @post_load
+    def format_dates(self, data, **kwargs):
+        due_date = data.get('due_date')
+        if due_date and isinstance(due_date, str):
+            try:
+                # Convert string date to Python date object for database storage
+                data['due_date'] = datetime.strptime(due_date, '%m/%d/%Y').date()
+            except ValueError:
+                # This should never happen as we've already validated in pre_load
+                pass
         return data
 
 class CommunicationSchema(Schema):
@@ -210,7 +233,7 @@ class Person(Contacts):
     __tablename__ = 'people'
     
     id = Column(Integer, ForeignKey('contacts.id', ondelete='CASCADE'), primary_key=True)
-    role = Column(String)
+    church_role = Column(String)
     church_id = Column(Integer, ForeignKey('churches.id'))
     spouse_first_name = Column(String(100))
     spouse_last_name = Column(String(100))

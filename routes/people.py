@@ -41,7 +41,7 @@ def edit_person(person_id):
             person.initial_notes = request.form['initial_notes']
             
             # Update person-specific fields
-            person.role = request.form['role']
+            person.church_role = request.form['church_role']
             person.church_id = request.form['church_id'] or None
             person.spouse_first_name = request.form['spouse_first_name']
             person.spouse_last_name = request.form['spouse_last_name']
@@ -76,7 +76,7 @@ def add_person():
             state=request.form.get('state'),
             zip_code=request.form.get('zip_code'),
             initial_notes=request.form.get('initial_notes'),
-            role=request.form.get('role', 'Contact'),
+            church_role=request.form.get('church_role', 'Contact'),
             church_id=request.form.get('church_id') or None,
             spouse_first_name=request.form.get('spouse_first_name'),
             spouse_last_name=request.form.get('spouse_last_name')

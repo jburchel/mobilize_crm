@@ -14,26 +14,22 @@
 
     <div class="card">
         <h3>All People</h3>
-        <table>
+        <table class="people-table">
             <thead>
                 <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Address</th>
-                    <th>Role</th>
-                    <th>Church</th>
+                    <th class="name-column">Name</th>
+                    <th class="email-column">Email</th>
+                    <th class="phone-column">Phone</th>
+                    <th class="church-column">Church</th>
                 </tr>
             </thead>
             <tbody id="peopleTableBody">
                 {% for person in people %}
-                <tr class="person-row" data-search-text="{{ person.first_name }} {{ person.last_name }} {{ person.email }} {{ person.role }}">
-                    <td><a href="{{ url_for('people_bp.person_detail', person_id=person.id) }}">{{ person.first_name }} {{ person.last_name }}</a></td>
-                    <td>{{ person.email }}</td>
-                    <td>{{ person.phone }}</td>
-                    <td>{{ person.street_address }}{% if person.city %}, {{ person.city }}{% endif %}{% if person.state %}, {{ person.state }}{% endif %}</td>
-                    <td>{{ person.role }}</td>
-                    <td>{{ person.church.church_name if person.church else 'None' }}</td>
+                <tr class="person-row" data-search-text="{{ person.first_name }} {{ person.last_name }} {{ person.email }} {{ person.church.church_name if person.church else '' }}">
+                    <td class="name-column"><a href="{{ url_for('people_bp.person_detail', person_id=person.id) }}">{{ person.first_name }} {{ person.last_name }}</a></td>
+                    <td class="email-column">{{ person.email }}</td>
+                    <td class="phone-column">{{ person.phone }}</td>
+                    <td class="church-column">{{ person.church.church_name if person.church else 'None' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -102,6 +98,44 @@ a.button.primary:hover {
     background-color: var(--secondary-color);
     transform: translateY(-1px);
     box-shadow: var(--card-hover-shadow);
+}
+
+/* Table column width adjustments */
+.people-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+.name-column {
+    width: 22%;
+}
+
+.email-column {
+    width: 28%;
+}
+
+.phone-column {
+    width: 18%;
+}
+
+.church-column {
+    width: 32%;
+}
+
+/* Ensure text wrapping and overflow handling */
+.people-table td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0.75rem 0.5rem;
+}
+
+/* Add hover effect to show full text on overflow */
+.people-table td:hover {
+    white-space: normal;
+    overflow: visible;
+    z-index: 1;
+    position: relative;
 }
 </style>
 {% endblock %}

@@ -42,29 +42,45 @@ def sync_task_to_calendar(task_id):
                     'message': f'Task with ID {task_id} not found'
                 }), 404
             
-            # Check if the task already has a Google Calendar event
-            if task.google_calendar_event_id:
-                # Update existing event
-                event = update_event_from_task(
-                    calendar_service, 
-                    task, 
-                    task.google_calendar_event_id
-                )
-            else:
-                # Create new event
-                event = create_event_from_task(calendar_service, task)
-                # Store the event ID
-                task.google_calendar_event_id = event['id']
+            # Validate due_date before proceeding
+            if not task.due_date:
+                logger.error(f"Task {task_id} has no due date")
+                return jsonify({
+                    'success': False,
+                    'message': 'due_date: Not a valid date. Please set a due date for this task before syncing.'
+                }), 400
             
-            # Update sync status
-            task.google_calendar_sync_enabled = True
-            task.last_synced_at = datetime.now()
-            
-            return jsonify({
-                'success': True,
-                'message': f'Task successfully synced to Google Calendar',
-                'event_id': task.google_calendar_event_id
-            })
+            try:
+                # Check if the task already has a Google Calendar event
+                if task.google_calendar_event_id:
+                    # Update existing event
+                    event = update_event_from_task(
+                        calendar_service, 
+                        task, 
+                        task.google_calendar_event_id
+                    )
+                else:
+                    # Create new event
+                    event = create_event_from_task(calendar_service, task)
+                    # Store the event ID
+                    task.google_calendar_event_id = event['id']
+                
+                # Update sync status
+                task.google_calendar_sync_enabled = True
+                task.last_synced_at = datetime.now()
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'Task successfully synced to Google Calendar',
+                    'event_id': task.google_calendar_event_id
+                })
+            except ValueError as e:
+                # Handle specific value errors (like missing due date)
+                logger.error(f"Value error syncing task to calendar: {e}")
+                return jsonify({
+                    'success': False,
+                    'message': str(e)
+                }), 400
             
     except Exception as e:
         logger.error(f"Error syncing task to calendar: {e}")

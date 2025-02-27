@@ -5,15 +5,6 @@
 
 {% block content %}
     <div id="contacts-container">
-        <div class="alert alert-info initial-setup" style="display: none;">
-            <p><strong>First Time Setup:</strong></p>
-            <ol>
-                <li>Sign in with your Google account using the button in the sidebar</li>
-                <li>Grant permission to access your contacts when prompted</li>
-                <li>Click "Fetch Google Contacts" to start importing</li>
-            </ol>
-        </div>
-
         <div class="alert alert-warning auth-status-banner" style="display: none;">
             Please sign in with Google using the button in the sidebar to access your contacts.
         </div>
@@ -21,14 +12,14 @@
         <div class="card">
             <h3>Contact Sync</h3>
             <div class="controls">
-                <button id="fetch-contacts" class="button primary" disabled>
-                    <span class="icon">↻</span> Fetch Google Contacts
+                <button id="fetch-contacts" class="button primary fetch-button google-button" disabled>
+                    <i class="bi bi-google"></i> Fetch Google Contacts
                 </button>
                 <div id="import-controls" style="display: none;">
-                    <button id="sync-selected-people" class="button success">
+                    <button id="sync-selected-people" class="button success action-button">
                         Import as People
                     </button>
-                    <button id="sync-selected-churches" class="button success">
+                    <button id="sync-selected-churches" class="button success action-button">
                         Import as Churches
                     </button>
                 </div>
@@ -47,14 +38,14 @@
         <div class="card contacts-section" style="display: none;">
             <div class="section-header">
                 <h3>
-                    <button id="back-to-labels" class="button secondary">←</button>
+                    <button id="back-to-labels" class="button secondary nav-button">←</button>
                     <span id="selected-label-name">All Contacts</span>
                 </h3>
             </div>
             <div class="selection-info">
                 <span class="selection-count">(0 selected)</span>
-                <button id="select-all" class="button secondary">Select All Visible</button>
-                <button id="deselect-all" class="button secondary">Deselect All</button>
+                <button id="select-all" class="button secondary nav-button">Select All Visible</button>
+                <button id="deselect-all" class="button secondary nav-button">Deselect All</button>
             </div>
             <div id="contacts-list" class="contacts-grid"></div>
         </div>
@@ -82,7 +73,6 @@
         const backToLabelsButton = document.getElementById('back-to-labels');
         const selectedLabelName = document.getElementById('selected-label-name');
         const authStatusBanner = document.querySelector('.auth-status-banner');
-        const initialSetup = document.querySelector('.initial-setup');
         
         let contacts = [];
         let selectedContacts = new Set();
@@ -113,7 +103,6 @@
             auth.onAuthStateChanged((user) => {
                 fetchButton.disabled = !user;
                 authStatusBanner.style.display = user ? 'none' : 'block';
-                initialSetup.style.display = user && !sessionStorage.getItem('contactsSetupSeen') ? 'block' : 'none';
                 
                 if (!user) {
                     syncStatus.textContent = 'Please sign in to access contacts';
@@ -267,10 +256,6 @@
                         filterContacts();
                         syncStatus.textContent = `Found ${contacts.length} contacts`;
                     }
-
-                    // Mark setup as seen
-                    sessionStorage.setItem('contactsSetupSeen', 'true');
-                    initialSetup.style.display = 'none';
                 } else {
                     syncStatus.textContent = 'No contacts found';
                 }
@@ -366,18 +351,6 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing);
-}
-
-.initial-setup {
-    margin-bottom: var(--spacing);
-}
-
-.initial-setup ol {
-    margin: 0.5rem 0 0 1.5rem;
-}
-
-.initial-setup li {
-    margin-bottom: 0.5rem;
 }
 
 .controls {
@@ -569,6 +542,111 @@
     .selection-info {
         flex-direction: column;
         align-items: stretch;
+    }
+}
+
+/* Custom button styling for fetch-contacts */
+.fetch-button {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    border-radius: 30px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.fetch-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+.fetch-button .icon {
+    font-size: 1.2rem;
+    margin-right: 0.5rem;
+}
+
+.fetch-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Google-styled button */
+.google-button {
+    background: #4285F4;
+    color: white;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+    position: relative;
+    padding-left: 50px;
+}
+
+.google-button:hover {
+    background: #357AE8;
+}
+
+.google-button .bi-google {
+    font-size: 18px;
+    position: absolute;
+    left: 10px;
+    background: white;
+    color: #4285F4;
+    padding: 8px;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.google-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.google-button:disabled .bi-google {
+    color: #999;
+}
+
+/* Action buttons (import) */
+.action-button {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    border-radius: 25px;
+    font-weight: 500;
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.action-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Navigation buttons (back, select all, etc.) */
+.nav-button {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    border-radius: 20px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.nav-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .fetch-button, .action-button, .nav-button {
+        width: 100%;
+        margin-bottom: 0.5rem;
     }
 }
 </style>

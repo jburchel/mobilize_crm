@@ -49,6 +49,11 @@ def create_event_from_task(service, task, calendar_id='primary'):
         Created event object from Google Calendar API
     """
     try:
+        # Ensure we have a valid date
+        if not task.due_date:
+            logger.error(f"Task {task.id} has no due date")
+            raise ValueError("Task must have a due date to create a calendar event")
+        
         # Format event data from task
         event_data = {
             'summary': task.title,
@@ -95,6 +100,11 @@ def update_event_from_task(service, task, event_id, calendar_id='primary'):
         Updated event object from Google Calendar API
     """
     try:
+        # Ensure we have a valid date
+        if not task.due_date:
+            logger.error(f"Task {task.id} has no due date")
+            raise ValueError("Task must have a due date to update a calendar event")
+            
         # Format event data from task
         event_data = {
             'summary': task.title,
