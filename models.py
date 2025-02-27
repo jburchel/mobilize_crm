@@ -1,7 +1,8 @@
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Date, Boolean, Text
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Date, Boolean, Text, DateTime
 from sqlalchemy.orm import relationship, declarative_base, scoped_session, sessionmaker
 from contextlib import contextmanager
-from marshmallow import Schema, fields, validate, ValidationError
+from marshmallow import Schema, fields, validate, ValidationError, pre_load
+from datetime import datetime
 import os
 
 Base = declarative_base()
@@ -135,6 +136,22 @@ class TaskSchema(Schema):
     status = fields.Str(required=True, validate=validate.OneOf(['Not Started', 'In Progress', 'Completed']))
     person_id = fields.Int(allow_none=True)
     church_id = fields.Int(allow_none=True)
+    google_calendar_event_id = fields.Str(allow_none=True)
+    google_calendar_sync_enabled = fields.Bool(missing=False)
+    last_synced_at = fields.DateTime(allow_none=True)
+
+    @pre_load
+    def process_dates(self, data, **kwargs):
+        due_date = data.get('due_date')
+        if due_date and isinstance(due_date, str):
+            try:
+                # Try to parse date in MM/DD/YYYY format
+                parsed_date = datetime.strptime(due_date, '%m/%d/%Y').date()
+                data['due_date'] = parsed_date
+            except ValueError as e:
+                print(f"Date parsing error: {e}")  # Debug logging
+                raise ValidationError({'due_date': ['Please enter a valid date in MM/DD/YYYY format']})
+        return data
 
 class CommunicationSchema(Schema):
     id = fields.Int(dump_only=True)
@@ -277,6 +294,10 @@ class Task(Base):
     status = Column(String)
     person_id = Column(Integer, ForeignKey('people.id'))
     church_id = Column(Integer, ForeignKey('churches.id'))
+    # Google Calendar integration fields
+    google_calendar_event_id = Column(String, unique=True, nullable=True)
+    google_calendar_sync_enabled = Column(Boolean, default=False, nullable=True)
+    last_synced_at = Column(DateTime, nullable=True)
 
     person = relationship("Person", back_populates="tasks")
     church = relationship("Church", back_populates="tasks")

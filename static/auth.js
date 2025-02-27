@@ -128,28 +128,32 @@ class AuthManager {
         this.loadingOverlay.style.display = 'flex';
         try {
             console.log("Starting sign-in process...");
-            // Force refresh token to ensure we get a fresh one with the right scopes
+            
+            // Force new sign in to get fresh tokens
             await this.auth.signOut();
+            
             const result = await signInWithPopup(this.auth, this.provider);
             console.log("Sign-in popup completed");
             
             // Get the OAuth access token from the credential
             const credential = GoogleAuthProvider.credentialFromResult(result);
-            const token = credential?.accessToken;
-            console.log("OAuth token obtained:", token ? "Yes" : "No");
+            const accessToken = credential?.accessToken;
+            console.log("OAuth token obtained:", accessToken ? "Yes" : "No");
             
-            if (!token) {
+            if (!accessToken) {
                 throw new Error('No access token received from Google authentication');
             }
 
-            // Store access token in session storage for reuse
-            sessionStorage.setItem('googleAccessToken', token);
+            // Store access token in session storage
+            sessionStorage.setItem('googleAccessToken', accessToken);
             console.log("Access token stored in session storage");
 
-            // Get the ID token and store it
+            // Get ID token for Firebase auth
             const idToken = await result.user.getIdToken();
+            
+            // Store token in cookie for server-side auth
             document.cookie = `firebase_token=${idToken}; path=/; SameSite=Strict`;
-
+            
             // Redirect to dashboard after successful login
             if (window.location.pathname === '/' || window.location.pathname === '/landing') {
                 console.log("Redirecting to dashboard...");
@@ -158,7 +162,6 @@ class AuthManager {
 
         } catch (error) {
             console.error("Authentication error:", error);
-            // Handle specific error cases
             if (error.code === 'auth/popup-closed-by-user') {
                 this.handleError(new Error('Sign-in was cancelled'));
             } else if (error.code === 'auth/popup-blocked') {

@@ -1,5 +1,7 @@
-from flask import Blueprint, jsonify, current_app
+from flask import Blueprint, jsonify, request, current_app
 import os
+import firebase_admin
+from firebase_admin import auth
 
 auth_api = Blueprint('auth_api', __name__)
 
@@ -18,6 +20,55 @@ def get_oauth_config():
             'https://www.googleapis.com/discovery/v1/apis/people/v1/rest'
         ]
     })
+
+@auth_api.route('/api/auth/token', methods=['POST'])
+def update_token():
+    """Update Firebase user custom claims with Google OAuth token"""
+    try:
+        # Verify Firebase ID token
+        if 'Authorization' not in request.headers:
+            return jsonify({'error': 'No authorization header'}), 401
+        
+        id_token = request.headers['Authorization'].split('Bearer ')[1]
+        decoded_token = auth.verify_id_token(id_token)
+        uid = decoded_token['uid']
+        
+        # Get access token from request body
+        data = request.get_json()
+        if not data or 'accessToken' not in data:
+            return jsonify({'error': 'No access token provided'}), 400
+            
+        # Set custom claims with Google access token
+        try:
+            current_claims = auth.get_user(uid).custom_claims or {}
+            new_claims = {
+                **current_claims,
+                'googleAccessToken': data['accessToken']
+            }
+            auth.set_custom_user_claims(uid, new_claims)
+            
+            # Get fresh token with new claims
+            fresh_token = auth.create_custom_token(uid, new_claims)
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Token updated successfully',
+                'token': fresh_token.decode('utf-8') if isinstance(fresh_token, bytes) else fresh_token
+            })
+            
+        except Exception as e:
+            current_app.logger.error(f"Error setting custom claims: {e}")
+            return jsonify({
+                'error': 'Failed to update token',
+                'message': str(e)
+            }), 500
+            
+    except Exception as e:
+        current_app.logger.error(f"Auth error: {e}")
+        return jsonify({
+            'error': 'Authentication failed',
+            'message': str(e)
+        }), 401
 
 @auth_api.route('/api/auth/status')
 def get_auth_status():

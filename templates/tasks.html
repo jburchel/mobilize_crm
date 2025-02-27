@@ -7,107 +7,191 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
-                <div class="alert alert-{{ category }}">{{ message }}</div>
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
             {% endfor %}
         {% endif %}
     {% endwith %}
 
-    <div class="card">
-        <h3>Add New Task</h3>
-        <form action="{{ url_for('tasks_bp.add_task') }}" method="post" class="task-form needs-validation" novalidate>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="title">Title *</label>
-                    <input type="text" id="title" name="title" required>
-                    <div class="invalid-feedback">Title is required</div>
-                </div>
-                <div class="form-group">
-                    <label for="status">Status *</label>
-                    <select id="status" name="status" required>
-                        <option value="">Choose...</option>
-                        <option value="Not Started">Not Started</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Completed">Completed</option>
-                    </select>
-                    <div class="invalid-feedback">Please select a status</div>
-                </div>
-            </div>
-            
-            <div class="form-group full-width">
-                <label for="description">Description</label>
-                <textarea id="description" name="description" rows="3"></textarea>
+    {% if request.args.get('new_task_id') and request.args.get('sync_enabled') %}
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            Task created! Click the "Sync Now" button to add it to your Google Calendar.
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <h3>Add New Task</h3>
+                <form action="{{ url_for('tasks_bp.add_task') }}" method="post" class="task-form needs-validation" novalidate>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="title">Title *</label>
+                            <input type="text" id="title" name="title" required>
+                            <div class="invalid-feedback">Title is required</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="status">Status *</label>
+                            <select id="status" name="status" required>
+                                <option value="">Choose...</option>
+                                <option value="Not Started">Not Started</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Completed">Completed</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a status</div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="description">Description</label>
+                        <textarea id="description" name="description" rows="3"></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="due_date">Due Date</label>
+                            <input type="text" 
+                                   id="due_date" 
+                                   name="due_date" 
+                                   placeholder="MM/DD/YYYY"
+                                   pattern="^(0[1-9]|1[0-2])/(0[1-9]|[12]\d|3[01])/\d{4}$"
+                                   value="{{ today() }}"
+                                   autocomplete="off">
+                            <small class="text-muted">Format: MM/DD/YYYY</small>
+                            <div class="invalid-feedback">Please enter a valid date in MM/DD/YYYY format</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="priority">Priority</label>
+                            <select id="priority" name="priority">
+                                <option value="Low">Low</option>
+                                <option value="Medium" selected>Medium</option>
+                                <option value="High">High</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="person_id">Assign to Person</label>
+                            <select id="person_id" name="person_id">
+                                <option value="">None</option>
+                                {% for person in people %}
+                                    <option value="{{ person.id }}">{{ person.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="church_id">Assign to Church</label>
+                            <select id="church_id" name="church_id">
+                                <option value="">None</option>
+                                {% for church in churches %}
+                                    <option value="{{ church.id }}">{{ church.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="google_calendar_sync_enabled" name="google_calendar_sync_enabled">
+                                <label class="form-check-label" for="google_calendar_sync_enabled">
+                                    Sync with Google Calendar
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="button primary">Add Task</button>
+                    </div>
+                </form>
             </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="due_date">Due Date</label>
-                    <input type="date" id="due_date" name="due_date">
-                </div>
-                <div class="form-group">
-                    <label for="priority">Priority</label>
-                    <select id="priority" name="priority">
-                        <option value="Low">Low</option>
-                        <option value="Medium" selected>Medium</option>
-                        <option value="High">High</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="person_id">Assign to Person</label>
-                    <select id="person_id" name="person_id">
-                        <option value="">None</option>
-                        {% for person in people %}
-                            <option value="{{ person.id }}">{{ person.name }}</option>
+            <div class="card">
+                <h3>All Tasks</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Status</th>
+                            <th>Priority</th>
+                            <th>Due Date</th>
+                            <th>Assigned To</th>
+                            <th>Calendar</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task in tasks %}
+                        <tr data-task-id="{{ task.id }}">
+                            <td>{{ task.title }}</td>
+                            <td><span class="badge {{ 'success' if task.status == 'Completed' else 'warning' if task.status == 'In Progress' else 'neutral' }}">{{ task.status }}</span></td>
+                            <td><span class="badge {{ 'error' if task.priority == 'High' else 'warning' if task.priority == 'Medium' else 'info' }}">{{ task.priority }}</span></td>
+                            <td>{{ task.due_date if task.due_date else 'No due date' }}</td>
+                            <td>
+                                {% if task.person %}{{ task.person.name }}{% endif %}
+                                {% if task.church %}{{ task.church.name }}{% endif %}
+                                {% if not task.person and not task.church %}Unassigned{% endif %}
+                            </td>
+                            <td>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input calendar-sync-toggle" 
+                                          type="checkbox" 
+                                          id="calendarSync{{ task.id }}" 
+                                          data-task-id="{{ task.id }}"
+                                          {% if task.google_calendar_sync_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="calendarSync{{ task.id }}">
+                                        <span class="sync-status">
+                                            {% if task.google_calendar_sync_enabled %}
+                                                {% if task.google_calendar_event_id %}
+                                                    <span class="badge success">Synced</span>
+                                                {% else %}
+                                                    <span class="badge warning">Pending</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="badge neutral">Not synced</span>
+                                            {% endif %}
+                                        </span>
+                                    </label>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="task-actions">
+                                    <button class="btn btn-sm btn-outline-primary sync-calendar-btn" 
+                                           data-task-id="{{ task.id }}"
+                                           {% if not task.google_calendar_sync_enabled %}disabled{% endif %}>
+                                        <i class="bi bi-calendar"></i> Sync Now
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
                         {% endfor %}
-                    </select>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Upcoming Calendar</h5>
                 </div>
-                <div class="form-group">
-                    <label for="church_id">Assign to Church</label>
-                    <select id="church_id" name="church_id">
-                        <option value="">None</option>
-                        {% for church in churches %}
-                            <option value="{{ church.id }}">{{ church.name }}</option>
-                        {% endfor %}
-                    </select>
+                <div class="card-body">
+                    <div id="upcomingCalendar">
+                        <div class="text-center">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="text-muted mb-0">Loading calendar events...</p>
+                        </div>
+                    </div>
                 </div>
             </div>
-
-            <div class="form-actions">
-                <button type="submit" class="button primary">Add Task</button>
-            </div>
-        </form>
-    </div>
-
-    <div class="card">
-        <h3>All Tasks</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Title</th>
-                    <th>Status</th>
-                    <th>Priority</th>
-                    <th>Due Date</th>
-                    <th>Assigned To</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for task in tasks %}
-                <tr>
-                    <td>{{ task.title }}</td>
-                    <td><span class="badge {{ 'success' if task.status == 'Completed' else 'warning' if task.status == 'In Progress' else 'neutral' }}">{{ task.status }}</span></td>
-                    <td><span class="badge {{ 'error' if task.priority == 'High' else 'warning' if task.priority == 'Medium' else 'info' }}">{{ task.priority }}</span></td>
-                    <td>{{ task.due_date if task.due_date else 'No due date' }}</td>
-                    <td>
-                        {% if task.person %}{{ task.person.name }}{% endif %}
-                        {% if task.church %}{{ task.church.name }}{% endif %}
-                        {% if not task.person and not task.church %}Unassigned{% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        </div>
     </div>
 {% endblock %}
 
@@ -148,6 +232,24 @@
     border-radius: var(--border-radius);
     font-size: 1rem;
     width: 100%;
+}
+
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.form-check-input {
+    width: 1.25em;
+    height: 1.25em;
+}
+
+.form-check-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .form-group input:focus,
@@ -249,6 +351,71 @@
 .was-validated select:invalid {
     border-color: var(--error-color);
 }
+
+.task-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn {
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.btn-outline-primary {
+    border: 1px solid var(--primary-color);
+    background: transparent;
+    color: var(--primary-color);
+}
+
+.btn-outline-primary:hover:not([disabled]) {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Calendar widget styles */
+.calendar-event {
+    padding: 8px;
+    margin-bottom: 8px;
+    border-left: 3px solid var(--primary-color);
+    background-color: var(--bg-light);
+    border-radius: 4px;
+}
+
+.calendar-event.high-priority {
+    border-left-color: var(--error-color);
+}
+
+.calendar-event.medium-priority {
+    border-left-color: var(--warning-color);
+}
+
+.calendar-event-time {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.calendar-event-title {
+    font-weight: 500;
+    margin: 4px 0;
+}
+
+.calendar-event-status {
+    font-size: 0.75rem;
+}
 </style>
 {% endblock %}
 
@@ -268,5 +435,246 @@
         }, false)
     })
 })()
+
+// Google Calendar integration
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize date picker for due date
+    const dueDateInput = document.getElementById('due_date');
+    if (dueDateInput) {
+        const today = new Date();
+        const formattedDate = `${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getDate().toString().padStart(2, '0')}/${today.getFullYear()}`;
+        dueDateInput.value = formattedDate;
+        
+        // Add event listener to validate date format
+        dueDateInput.addEventListener('change', function(e) {
+            const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/;
+            if (!dateRegex.test(this.value)) {
+                this.setCustomValidity('Please enter a valid date in MM/DD/YYYY format');
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+    }
+    
+    // Helper function to show messages
+    function showMessage(message, type) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type}`;
+        alertDiv.innerText = message;
+        
+        const container = document.querySelector('.card');
+        container.parentNode.insertBefore(alertDiv, container);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 5000);
+    }
+    
+    // Helper function to get Google token
+    async function getGoogleToken() {
+        try {
+            // Get token from session storage
+            const token = sessionStorage.getItem('googleAccessToken');
+            if (!token) {
+                showMessage('Google access token not found. Please sign out and sign in again.', 'error');
+                return null;
+            }
+            return token;
+        } catch (error) {
+            console.error('Error getting Google token:', error);
+            showMessage('Failed to get Google access token. Please try again.', 'error');
+            return null;
+        }
+    }
+
+    // Calendar widget functionality
+    async function loadUpcomingEvents() {
+        console.log('Loading upcoming events...');
+        const calendarDiv = document.getElementById('upcomingCalendar');
+        
+        try {
+            const token = await getGoogleToken();
+            if (!token) {
+                calendarDiv.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        Please sign in with Google to view calendar events
+                    </div>
+                `;
+                return;
+            }
+
+            console.log('Fetching events from server...');
+            const response = await fetch('/api/calendar/upcoming-events', {
+                headers: {
+                    'X-Google-Token': token
+                }
+            });
+            
+            console.log('Server response status:', response.status);
+            const data = await response.json();
+            console.log('Server response:', data);
+            
+            if (data.success) {
+                if (!data.events || data.events.length === 0) {
+                    calendarDiv.innerHTML = '<p class="text-muted text-center">No upcoming events</p>';
+                    return;
+                }
+                
+                const eventsHtml = data.events.map(event => `
+                    <div class="calendar-event ${event.priority ? event.priority.toLowerCase() + '-priority' : ''}">
+                        <div class="calendar-event-time">${formatDate(event.start)}</div>
+                        <div class="calendar-event-title">${event.title}</div>
+                        <div class="calendar-event-status">
+                            <span class="badge ${event.status === 'Completed' ? 'success' : 
+                                              event.status === 'In Progress' ? 'warning' : 'neutral'}">
+                                ${event.status}
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+                
+                calendarDiv.innerHTML = eventsHtml;
+            } else {
+                throw new Error(data.message || 'Failed to load events');
+            }
+        } catch (error) {
+            console.error('Error loading calendar events:', error);
+            calendarDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-circle-fill me-2"></i>
+                    Failed to load calendar events: ${error.message}
+                </div>
+            `;
+        }
+    }
+
+    function formatDate(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString(undefined, { 
+            month: 'short', 
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+        });
+    }
+
+    // Handle calendar sync toggle switches
+    const syncToggles = document.querySelectorAll('.calendar-sync-toggle');
+    syncToggles.forEach(toggle => {
+        toggle.addEventListener('change', async function() {
+            const taskId = this.dataset.taskId;
+            const isChecked = this.checked;
+            
+            try {
+                const token = await getGoogleToken();
+                if (!token) {
+                    this.checked = !isChecked;
+                    return;
+                }
+                
+                // Call API to toggle sync status
+                const response = await fetch(`/api/calendar/toggle-sync/${taskId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Google-Token': token
+                    }
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    // Update UI based on response
+                    const syncStatusEl = this.closest('tr').querySelector('.sync-status');
+                    const syncButton = this.closest('tr').querySelector('.sync-calendar-btn');
+                    
+                    if (isChecked) {
+                        syncStatusEl.innerHTML = '<span class="badge warning">Pending</span>';
+                        syncButton.disabled = false;
+                    } else {
+                        syncStatusEl.innerHTML = '<span class="badge neutral">Not synced</span>';
+                        syncButton.disabled = true;
+                    }
+                    
+                    // If the toggle was turned on and needs sync, show a message
+                    if (data.needs_sync) {
+                        showMessage('Task marked for sync. Click "Sync Now" to create the calendar event.', 'info');
+                    }
+                } else {
+                    // If there was an error, revert the toggle
+                    this.checked = !isChecked;
+                    showMessage(`Error: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                this.checked = !isChecked;
+                showMessage('Failed to update sync status. Please try again.', 'error');
+            }
+        });
+    });
+    
+    // Handle sync now buttons
+    const syncButtons = document.querySelectorAll('.sync-calendar-btn');
+    syncButtons.forEach(button => {
+        button.addEventListener('click', async function() {
+            const taskId = this.dataset.taskId;
+            const row = this.closest('tr');
+            
+            // Show loading state
+            this.innerHTML = '<i class="bi bi-hourglass"></i> Syncing...';
+            this.disabled = true;
+            
+            try {
+                const token = await getGoogleToken();
+                if (!token) {
+                    throw new Error('No Google access token available');
+                }
+                
+                console.log('Syncing task to calendar...');
+                const response = await fetch(`/api/calendar/sync-task/${taskId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Google-Token': token
+                    }
+                });
+                
+                console.log('Sync response status:', response.status);
+                const data = await response.json();
+                console.log('Sync response:', data);
+                
+                if (data.success) {
+                    // Update UI based on response
+                    const syncStatusEl = row.querySelector('.sync-status');
+                    syncStatusEl.innerHTML = '<span class="badge success">Synced</span>';
+                    showMessage('Task successfully synced to Google Calendar!', 'success');
+                    
+                    // Refresh the calendar widget to show the new event
+                    loadUpcomingEvents();
+                } else {
+                    throw new Error(data.message || 'Failed to sync task');
+                }
+            } catch (error) {
+                console.error('Sync error:', error);
+                showMessage(`Error: ${error.message}`, 'error');
+                
+                // Reset sync status to show it needs to be tried again
+                const syncStatusEl = row.querySelector('.sync-status');
+                syncStatusEl.innerHTML = '<span class="badge warning">Sync failed</span>';
+            } finally {
+                // Reset button state
+                this.innerHTML = '<i class="bi bi-calendar"></i> Sync Now';
+                this.disabled = false;
+            }
+        });
+    });
+
+    // Initialize calendar widget
+    console.log('Initializing calendar widget...');
+    loadUpcomingEvents();
+    // Refresh calendar every 5 minutes
+    setInterval(loadUpcomingEvents, 5 * 60 * 1000);
+});
 </script>
 {% endblock %}

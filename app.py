@@ -12,11 +12,14 @@ from routes.health import health_bp
 from routes.contacts_api import contacts_api
 from routes.contacts import contacts_bp
 from routes.auth_api import auth_api
+from routes.google_auth import google_auth_bp
+from routes.calendar_api import calendar_api
 import logging
 from datetime import datetime
 import sys
 import firebase_admin
 from firebase_admin import credentials, auth
+import os
 
 print("Script starting...")
 print("Python version:", sys.version)
@@ -25,7 +28,9 @@ print("__name__ is:", __name__)
 
 try:
     app = Flask(__name__)
+    app.config.from_object(Config)
     app.config['DEBUG'] = True
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-please-change')
     
     # Initialize Firebase Admin SDK
     cred = credentials.Certificate('firebase-credentials.json')
@@ -52,6 +57,8 @@ try:
     app.register_blueprint(contacts_api)
     app.register_blueprint(contacts_bp)
     app.register_blueprint(auth_api)
+    app.register_blueprint(google_auth_bp)
+    app.register_blueprint(calendar_api)
 
     # Initialize Flask-Migrate
     migrate = Migrate(app, Base)
@@ -61,8 +68,15 @@ try:
 
     # Add template filter for the {% now %} tag
     @app.template_filter('now')
-    def now_filter(format_string):
+    def now_filter(format_string='%Y-%m-%d'):
         return datetime.now().strftime(format_string)
+
+    # Add template global for current date
+    @app.context_processor
+    def utility_processor():
+        def get_today():
+            return datetime.now().strftime('%m/%d/%Y')
+        return dict(today=get_today)
 
     # Error handlers
     @app.errorhandler(404)

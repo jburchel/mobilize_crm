@@ -81,9 +81,8 @@ def list_contacts():
                 "https://www.googleapis.com/auth/contacts.other.readonly"
             ]
         )
-        
+
         current_app.logger.info("Building People API service")
-        # Build the People API service
         service = build('people', 'v1', credentials=google_credentials)
         
         try:

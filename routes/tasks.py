@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, jsonify, current_app, flash
 from flask_restx import Resource, Namespace, fields
 from models import session_scope, Task, Person, Church, task_schema
 from datetime import datetime
@@ -108,45 +108,98 @@ class TaskDetail(Resource):
 # Web interface routes
 @tasks_bp.route('/tasks')
 def tasks():
+    current_app.logger.info("Loading tasks page...")
     try:
         with session_scope() as session:
-            tasks = session.query(Task).all()
+            current_app.logger.debug("Querying database for tasks...")
+            tasks = session.query(Task).order_by(Task.due_date.desc()).all()
+            current_app.logger.debug(f"Found {len(tasks)} tasks")
+            
+            current_app.logger.debug("Querying database for people...")
             people = session.query(Person).all()
+            current_app.logger.debug(f"Found {len(people)} people")
+            
+            current_app.logger.debug("Querying database for churches...")
             churches = session.query(Church).all()
+            current_app.logger.debug(f"Found {len(churches)} churches")
+            
+            # Add debug logging for template context
+            current_app.logger.debug("Rendering template with context: tasks=%d, people=%d, churches=%d", 
+                                   len(tasks), len(people), len(churches))
+            
             return render_template('tasks.html', 
                                 tasks=tasks, 
                                 people=people, 
                                 churches=churches)
+    except SQLAlchemyError as e:
+        current_app.logger.error(f'Database error in tasks page: {str(e)}', exc_info=True)
+        flash('A database error occurred. Please try again later.', 'error')
+        return redirect(url_for('dashboard_bp.dashboard'))
     except Exception as e:
-        current_app.logger.error(f'Error in tasks page: {str(e)}')
-        return render_template('500.html'), 500
+        current_app.logger.error(f'Error in tasks page: {str(e)}', exc_info=True)
+        flash('An unexpected error occurred. Please try again later.', 'error')
+        return redirect(url_for('dashboard_bp.dashboard'))
 
 @tasks_bp.route('/add_task', methods=['POST'])
 def add_task():
     try:
+        # Log incoming form data for debugging
+        current_app.logger.info("Received task form data: %s", request.form)
+        
+        # Get the due date from form
+        due_date = request.form.get('due_date')
+        if due_date:
+            try:
+                # Ensure date is in MM/DD/YYYY format
+                datetime.strptime(due_date, '%m/%d/%Y')
+            except ValueError:
+                current_app.logger.error(f"Invalid date format received: {due_date}")
+                flash('Please enter the due date in MM/DD/YYYY format', 'error')
+                return redirect(url_for('tasks_bp.tasks'))
+        
+        # Create task data from form
         data = {
             'title': request.form['title'],
             'description': request.form.get('description'),
-            'due_date': datetime.strptime(request.form['due_date'], '%Y-%m-%d').date() if request.form.get('due_date') else None,
+            'due_date': due_date,
             'priority': request.form.get('priority', 'Medium'),
             'status': request.form['status'],
             'person_id': request.form.get('person_id') or None,
-            'church_id': request.form.get('church_id') or None
+            'church_id': request.form.get('church_id') or None,
+            'google_calendar_sync_enabled': bool(request.form.get('google_calendar_sync_enabled'))
         }
         
-        # Validate data
-        task_schema.load(data)
+        # Log the processed data
+        current_app.logger.debug("Processing task data: %s", data)
+        
+        # Validate data using schema
+        try:
+            validated_data = task_schema.load(data)
+            current_app.logger.debug("Data validated successfully: %s", validated_data)
+        except ValidationError as err:
+            current_app.logger.error("Validation error: %s", err.messages)
+            raise
         
         with session_scope() as session:
-            new_task = Task(**data)
+            new_task = Task(**validated_data)
             session.add(new_task)
-            current_app.logger.info(f'Task created via web interface: {data["title"]}')
-        
-        return redirect(url_for('tasks_bp.tasks'))
+            session.flush()  # This gets us the ID of the new task
+            task_id = new_task.id
+            current_app.logger.info(f'Task created successfully: {data["title"]} (ID: {task_id})')
+            flash('Task created successfully!', 'success')
+            
+            if validated_data.get('google_calendar_sync_enabled'):
+                current_app.logger.info("Google Calendar sync enabled for task %s", task_id)
+                return redirect(url_for('tasks_bp.tasks', new_task_id=task_id, sync_enabled=True))
+            
+            return redirect(url_for('tasks_bp.tasks'))
+            
     except ValidationError as err:
-        current_app.logger.warning(f'Validation error in web task creation: {err.messages}')
-        # Flash error messages would go here if we had Flask-Flash set up
+        current_app.logger.warning('Validation error in task creation: %s', err.messages)
+        for field, errors in err.messages.items():
+            flash(f'{field}: {", ".join(errors)}', 'error')
         return redirect(url_for('tasks_bp.tasks'))
     except Exception as e:
-        current_app.logger.error(f'Error in web task creation: {str(e)}')
-        return render_template('500.html'), 500
+        current_app.logger.error('Unexpected error in task creation: %s', str(e), exc_info=True)
+        flash('An unexpected error occurred while creating the task.', 'error')
+        return redirect(url_for('tasks_bp.tasks'))

@@ -74,3 +74,9 @@ def dashboard():
                              churches=total_churches, 
                              tasks=pending_tasks, 
                              communications=recent_communications)
+
+@dashboard_bp.route('/google-settings')
+@auth_required
+def google_settings():
+    """Google integration settings page"""
+    return render_template('google_settings.html')

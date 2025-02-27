@@ -19,60 +19,21 @@ class ContactsService {
         throw new Error(message);
     }
 
-    async fetchContacts(accessToken) {
-        try {
-            const user = this.auth.currentUser;
-            if (!user) {
-                throw new Error('User must be authenticated to fetch contacts');
-            }
-
-            // Use the provided access token from Google OAuth
-            const response = await fetch('/api/contacts/sync', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${await user.getIdToken()}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    access_token: accessToken
-                })
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                this._handleError(new Error(error.message || 'Failed to fetch contacts'));
-                return [];
-            }
-
-            const contacts = await response.json();
-            return contacts;
-        } catch (error) {
-            this._handleError(error);
-            return [];
-        }
-    }
-
     async listContacts() {
         try {
             const user = this.auth.currentUser;
             if (!user) {
                 throw new Error('User must be authenticated to fetch contacts');
             }
-            
-            // Get the Google OAuth token from the current user
-            const googleProvider = user.providerData.find(provider => provider.providerId === 'google.com');
-            if (!googleProvider) {
-                throw new Error('Please sign in with Google to access contacts');
-            }
-            
-            // Get fresh ID token with OAuth access token
-            const idToken = await user.getIdToken(true);
-            
-            // Get stored access token
+
+            // Get access token directly from session storage
             const accessToken = sessionStorage.getItem('googleAccessToken');
             if (!accessToken) {
-                throw new Error('Google authentication required');
+                throw new Error('Google access token not found. Please sign in again.');
             }
+
+            // Get Firebase ID token for backend authentication
+            const idToken = await user.getIdToken();
 
             const response = await fetch('/api/contacts/list', {
                 method: 'POST',
@@ -92,7 +53,6 @@ class ContactsService {
             }
 
             const result = await response.json();
-            console.log('API Response:', result); // Add logging to debug
             return result;
         } catch (error) {
             this._handleError(error);

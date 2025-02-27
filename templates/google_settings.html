@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+
+{% block title %}Google Integration Settings{% endblock %}
+
+{% block page_title %}Google Integration Settings{% endblock %}
+
+{% block page_description %}Configure Google Calendar and Gmail integration{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Google Connection Status</h5>
+        </div>
+        <div class="card-body">
+            <div id="googleStatus" class="mb-3">
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border spinner-border-sm me-2" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <span>Checking Google connection status...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="googleFeatures">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Calendar Integration</h5>
+            </div>
+            <div class="card-body">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="calendarSyncEnabled" checked>
+                    <label class="form-check-label" for="calendarSyncEnabled">Enable Calendar Sync</label>
+                </div>
+                <p class="text-muted">Sync tasks with your Google Calendar. New tasks will be created as events, and updates will be synchronized between the CRM and your calendar.</p>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Gmail Integration</h5>
+            </div>
+            <div class="card-body">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="gmailSyncEnabled" checked>
+                    <label class="form-check-label" for="gmailSyncEnabled">Enable Gmail Integration</label>
+                </div>
+                <p class="text-muted">Send emails through Gmail and track communications in the CRM. Emails sent from the CRM will be saved in your Gmail account.</p>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Connected Google Account</h5>
+            </div>
+            <div class="card-body">
+                <div id="googleAccountInfo">Loading account information...</div>
+                <div class="mt-3">
+                    <button id="signOutBtn" class="btn btn-outline-danger">
+                        <i class="bi bi-box-arrow-right"></i> Sign Out of Google
+                    </button>
+                </div>
+                <p class="text-muted mt-2">Signing out will disconnect all Google integrations.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+    import { initializeFirebase } from '{{ url_for("static", filename="firebase_config.js") }}';
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        checkGoogleStatus();
+        
+        document.getElementById('signOutBtn').addEventListener('click', async () => {
+            if (confirm('Are you sure you want to sign out? This will disconnect all Google integrations.')) {
+                try {
+                    const { auth } = await initializeFirebase();
+                    await auth.signOut();
+                    window.location.href = '/';
+                } catch (error) {
+                    console.error('Error signing out:', error);
+                }
+            }
+        });
+    });
+
+    // Get the current Firebase user and Google token
+    async function getCurrentUser() {
+        try {
+            const { auth } = await initializeFirebase();
+            return new Promise((resolve, reject) => {
+                auth.onAuthStateChanged((user) => {
+                    if (user) {
+                        resolve(user);
+                    } else {
+                        reject(new Error("Not authenticated"));
+                    }
+                });
+            });
+        } catch (error) {
+            console.error("Error getting current user:", error);
+            throw error;
+        }
+    }
+
+    async function checkGoogleStatus() {
+        try {
+            // Get current user and token
+            const user = await getCurrentUser();
+            
+            // Display account info
+            document.getElementById('googleAccountInfo').innerHTML = `
+                <div class="d-flex align-items-center">
+                    ${user.photoURL ? `<img src="${user.photoURL}" alt="Profile" class="rounded-circle me-2" width="32" height="32">` : ''}
+                    <div>
+                        <strong>${user.displayName || user.email}</strong><br>
+                        <small class="text-muted">${user.email}</small>
+                    </div>
+                </div>
+            `;
+            
+            // Check if user has all the required Google scopes
+            const statusElement = document.getElementById('googleStatus');
+            
+            // Get provider data to verify Google auth
+            const googleProvider = user.providerData.find(p => p.providerId === 'google.com');
+            if (googleProvider) {
+                statusElement.innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle-fill me-2"></i>
+                        Google account connected with required permissions
+                    </div>
+                    <p>You have successfully connected your Google account with the required permissions for Calendar and Gmail integration.</p>
+                `;
+            } else {
+                statusElement.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        Not signed in with Google
+                    </div>
+                    <p>You are currently signed in with a non-Google account. To use Google integrations, please sign out and sign back in with your Google account.</p>
+                `;
+            }
+        } catch (error) {
+            console.error('Error checking Google status:', error);
+            const statusElement = document.getElementById('googleStatus');
+            statusElement.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-circle-fill me-2"></i>
+                    Error checking Google connection status
+                </div>
+                <p>Please refresh the page or try signing in again.</p>
+            `;
+        }
+    }
+</script>
+{% endblock %}
