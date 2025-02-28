@@ -1,20 +1,20 @@
 {% extends "base.html" %}
 
-{% block page_title %}Communications{% endblock %}
-{% block page_description %}Manage and track your communications with people and churches{% endblock %}
+{% block page_title %}All Communications{% endblock %}
+{% block page_description %}View all communications with people and churches{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
     <div class="row mb-4">
         <div class="col-md-12 d-flex justify-content-between align-items-center">
-            <h2>Recent Communications</h2>
+            <h2>All Communications</h2>
             <div>
+                <a href="{{ url_for('communications_bp.communications_route') }}" class="btn btn-outline-secondary me-2">
+                    <i class="bi bi-arrow-left"></i> Back to Recent
+                </a>
                 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newCommunicationModal">
                     <i class="bi bi-plus-circle"></i> New Communication
                 </button>
-                <a href="{{ url_for('google_auth.authorize') }}" class="btn btn-outline-primary ms-2">
-                    <i class="bi bi-google"></i> Connect Google Account
-                </a>
             </div>
         </div>
     </div>
@@ -23,7 +23,7 @@
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">Recent Communication History</h5>
+                    <h5 class="mb-0">Communication History</h5>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -39,7 +39,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for comm in communications[:10] %}
+                                {% for comm in communications %}
                                 <tr>
                                     <td>{{ comm.date_sent.strftime('%Y-%m-%d') }}</td>
                                     <td>{{ comm.type }}</td>
@@ -69,11 +69,6 @@
                                 {% endfor %}
                             </tbody>
                         </table>
-                    </div>
-                    <div class="d-flex justify-content-center mt-3">
-                        <a href="/communications/all-communications" class="btn btn-outline-primary">
-                            See All Communications
-                        </a>
                     </div>
                 </div>
             </div>
@@ -108,17 +103,12 @@
                             <label for="subject" class="form-label">Email Subject</label>
                             <input type="text" class="form-control" id="subject" name="subject" placeholder="Enter email subject">
                         </div>
-                        <!-- Add hidden input for signature_id -->
-                        <input type="hidden" id="signature_id" name="signature_id" value="">
                     </div>
 
                     <div class="mb-3">
                         <label for="person_id" class="form-label">Person</label>
                         <select class="form-select" id="person_id" name="person_id">
                             <option value="">Select a person</option>
-                            {% for person in people %}
-                            <option value="{{ person.id }}">{{ person.get_name() }}</option>
-                            {% endfor %}
                         </select>
                     </div>
 
@@ -126,9 +116,6 @@
                         <label for="church_id" class="form-label">Church</label>
                         <select class="form-select" id="church_id" name="church_id">
                             <option value="">Select a church</option>
-                            {% for church in churches %}
-                            <option value="{{ church.id }}">{{ church.get_name() }}</option>
-                            {% endfor %}
                         </select>
                     </div>
 
@@ -159,37 +146,39 @@
         
         if (commType === 'Email') {
             emailFields.style.display = 'block';
-            
-            // Fetch default signature when email type is selected
-            fetchDefaultSignature();
         } else {
             emailFields.style.display = 'none';
         }
     }
     
-    // Function to fetch the default signature
-    function fetchDefaultSignature() {
-        fetch('/api/email-signatures')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.signatures) {
-                    // Find the default signature
-                    const defaultSignature = data.signatures.find(sig => sig.is_default);
-                    if (defaultSignature) {
-                        // Set the signature_id input value
-                        document.getElementById('signature_id').value = defaultSignature.id;
-                        console.log('Default signature set:', defaultSignature.name);
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching signatures:', error);
-            });
-    }
-    
     // Initialize the form on page load
     document.addEventListener('DOMContentLoaded', function() {
         toggleEmailFields();
+        
+        // Fetch people and churches for the dropdown
+        fetch('/communications/api/people')
+            .then(response => response.json())
+            .then(data => {
+                const personSelect = document.getElementById('person_id');
+                data.forEach(person => {
+                    const option = document.createElement('option');
+                    option.value = person.id;
+                    option.textContent = `${person.first_name} ${person.last_name}`;
+                    personSelect.appendChild(option);
+                });
+            });
+            
+        fetch('/communications/api/churches')
+            .then(response => response.json())
+            .then(data => {
+                const churchSelect = document.getElementById('church_id');
+                data.forEach(church => {
+                    const option = document.createElement('option');
+                    option.value = church.id;
+                    option.textContent = church.church_name;
+                    churchSelect.appendChild(option);
+                });
+            });
         
         // Set up form submission via AJAX
         const form = document.getElementById('communicationForm');
@@ -247,8 +236,6 @@
                 }
             });
             
-            console.log('Sending data:', jsonData);
-            
             // Send AJAX request
             fetch(form.action, {
                 method: 'POST',
@@ -259,7 +246,6 @@
                 body: JSON.stringify(jsonData)
             })
             .then(response => {
-                console.log('Response status:', response.status);
                 // Check if the response is JSON
                 const contentType = response.headers.get('content-type');
                 if (contentType && contentType.includes('application/json')) {
@@ -288,8 +274,6 @@
             .then(result => {
                 if (!result) return; // Page is already reloading
                 
-                console.log('Response:', result);
-                
                 if (result.ok) {
                     // Display success message
                     statusMessage.style.display = 'block';
@@ -310,7 +294,6 @@
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
                 showError('An error occurred while sending the communication. Please try again.');
             })
             .finally(() => {
@@ -331,4 +314,4 @@
         }
     });
 </script>
-{% endblock %}
+{% endblock %} 

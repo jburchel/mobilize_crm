@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Import CSV{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Import Contacts from CSV</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="contact_type" class="form-label">Contact Type</label>
+                            <select class="form-select" id="contact_type" name="contact_type" required>
+                                <option value="" selected disabled>Select contact type</option>
+                                <option value="person">People</option>
+                                <option value="church">Churches</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="csv_file" class="form-label">CSV File</label>
+                            <input class="form-control" type="file" id="csv_file" name="csv_file" accept=".csv" required>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <h5>Required Fields</h5>
+                            <div id="person-fields" style="display: none;">
+                                <p><strong>For People:</strong> first_name, last_name, email</p>
+                                <p><strong>Optional fields:</strong> phone, address, city, state, zip_code, country, church_role, spouse_first_name, spouse_last_name, home_country, notes</p>
+                            </div>
+                            <div id="church-fields" style="display: none;">
+                                <p><strong>For Churches:</strong> church_name, email</p>
+                                <p><strong>Optional fields:</strong> phone, address, city, state, zip_code, country, location, website, denomination, senior_pastor_first_name, senior_pastor_last_name, senior_pastor_email, missions_pastor_first_name, missions_pastor_last_name, missions_pastor_email, congregation_size, year_founded, notes</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <button type="submit" class="btn btn-primary">Import</button>
+                            <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">CSV Format Instructions</h4>
+                </div>
+                <div class="card-body">
+                    <p>Your CSV file should have a header row with column names matching the field names listed above.</p>
+                    <p>Example for People:</p>
+                    <pre>first_name,last_name,email,phone,address,city,state,zip_code
+John,Doe,john@example.com,555-123-4567,123 Main St,Anytown,CA,12345</pre>
+                    
+                    <p>Example for Churches:</p>
+                    <pre>church_name,email,phone,address,city,state,zip_code,website
+First Church,info@firstchurch.org,555-987-6543,456 Church Ave,Anytown,CA,12345,www.firstchurch.org</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Show/hide appropriate field requirements based on contact type selection
+    document.getElementById('contact_type').addEventListener('change', function() {
+        const personFields = document.getElementById('person-fields');
+        const churchFields = document.getElementById('church-fields');
+        
+        if (this.value === 'person') {
+            personFields.style.display = 'block';
+            churchFields.style.display = 'none';
+        } else if (this.value === 'church') {
+            personFields.style.display = 'none';
+            churchFields.style.display = 'block';
+        } else {
+            personFields.style.display = 'none';
+            churchFields.style.display = 'none';
+        }
+    });
+</script>
+{% endblock %} 

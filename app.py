@@ -3,17 +3,7 @@ from flask_cors import CORS
 from flask_migrate import Migrate
 from config import Config
 from models import Base, engine
-from routes.dashboard import dashboard_bp
-from routes.people import people_bp
-from routes.churches import churches_bp
-from routes.tasks import tasks_bp
-from routes.communications import communications_bp
-from routes.health import health_bp
-from routes.contacts_api import contacts_api
-from routes.contacts import contacts_bp
-from routes.auth_api import auth_api
-from routes.google_auth import google_auth_bp
-from routes.calendar_api import calendar_api
+from database import db, init_db
 import logging
 from datetime import datetime
 import sys
@@ -31,6 +21,12 @@ try:
     app.config.from_object(Config)
     app.config['DEBUG'] = True
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-please-change')
+    app.config['BASE_URL'] = os.environ.get('BASE_URL', 'http://localhost:5000')
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///mobilize_crm.db'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # Initialize database
+    init_db(app)
     
     # Initialize Firebase Admin SDK
     cred = credentials.Certificate('firebase-credentials.json')
@@ -47,11 +43,27 @@ try:
         response.headers['X-XSS-Protection'] = '1; mode=block'
         return response
 
+    # Import blueprints after app is created to avoid circular imports
+    from routes.dashboard import dashboard_bp
+    from routes.people import people_bp
+    from routes.churches import churches_bp
+    from routes.tasks import tasks_bp
+    from routes.communications import communications_bp
+    from routes.health import health_bp
+    from routes.contacts_api import contacts_api
+    from routes.contacts import contacts_bp
+    from routes.auth_api import auth_api
+    from routes.google_auth import google_auth_bp
+    from routes.calendar_api import calendar_api
+    from routes.gmail_api import gmail_api
+    from routes.import_csv import import_csv_bp
+    from utils.background_jobs import start_background_jobs
+
     # Register blueprints
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
     app.register_blueprint(people_bp)
     app.register_blueprint(churches_bp)
-    app.register_blueprint(tasks_bp)
+    app.register_blueprint(tasks_bp, url_prefix='/tasks')
     app.register_blueprint(communications_bp)
     app.register_blueprint(health_bp)
     app.register_blueprint(contacts_api)
@@ -59,12 +71,18 @@ try:
     app.register_blueprint(auth_api)
     app.register_blueprint(google_auth_bp)
     app.register_blueprint(calendar_api)
+    app.register_blueprint(gmail_api)
+    app.register_blueprint(import_csv_bp)
 
     # Initialize Flask-Migrate
     migrate = Migrate(app, Base)
 
     # Set up logging
     logging.basicConfig(level=logging.INFO)
+
+    # Start background jobs
+    with app.app_context():
+        start_background_jobs(app=app)
 
     # Add template filter for the {% now %} tag
     @app.template_filter('now')
@@ -97,6 +115,11 @@ try:
 
     @app.route('/')
     def home():
+        # Temporarily bypass authentication to always show landing page
+        return render_template('landing.html')
+        
+        # Original code (commented out)
+        """
         # Check Authorization header first
         auth_header = request.headers.get('Authorization')
         if auth_header and auth_header.startswith('Bearer '):
@@ -124,6 +147,7 @@ try:
 
         # No valid token found, show landing page
         return render_template('landing.html')
+        """
 
     if __name__ == '__main__':
         print("Entering main block...")

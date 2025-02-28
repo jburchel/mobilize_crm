@@ -1,0 +1,285 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Email Signature{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <div class="header-left">
+            <h2>Email Settings</h2>
+            <h1>Edit Email Signature</h1>
+        </div>
+        <div class="button-group">
+            <a href="{{ url_for('dashboard_bp.email_signatures') }}" class="button">
+                <i class="bi bi-arrow-left"></i> Back to Signatures
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3><i class="bi bi-pencil-square"></i> Signature Editor</h3>
+                </div>
+                <div class="card-body">
+                    <form id="signatureForm" action="{{ url_for('dashboard_bp.edit_signature', signature_id=signature.id) }}" method="post" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Signature Name</label>
+                            <input type="text" class="form-control" id="name" name="name" required 
+                                   value="{{ signature.name }}" placeholder="e.g., Professional, Personal, Marketing">
+                            <div class="form-text">Give your signature a name to easily identify it later.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="logo" class="form-label">Logo Image (optional)</label>
+                            {% if signature.logo_url %}
+                            <div class="mb-2">
+                                <p>Current logo:</p>
+                                <img src="{{ signature.logo_url }}" alt="Current logo" style="max-width: 200px; max-height: 100px;">
+                            </div>
+                            {% endif %}
+                            <input type="file" class="form-control" id="logo" name="logo" accept="image/*">
+                            <div class="form-text">Upload a new logo to replace the current one. Leave empty to keep the current logo.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="content" class="form-label">Signature Content</label>
+                            <div id="editor"></div>
+                            <input type="hidden" id="content" name="content" value="{{ signature.content }}">
+                            <div class="form-text">Design your signature using the editor above.</div>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="is_default" name="is_default" {% if signature.is_default %}checked{% endif %}>
+                            <label class="form-check-label" for="is_default">Set as default signature</label>
+                            <div class="form-text">This signature will be automatically used for all emails.</div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary" id="previewBtn">
+                                <i class="bi bi-eye"></i> Preview
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3><i class="bi bi-info-circle"></i> Tips</h3>
+                </div>
+                <div class="card-body">
+                    <h5>Elements to include:</h5>
+                    <ul>
+                        <li>Your full name</li>
+                        <li>Job title</li>
+                        <li>Company name</li>
+                        <li>Contact information</li>
+                        <li>Social media links</li>
+                    </ul>
+                    
+                    <h5>Best practices:</h5>
+                    <ul>
+                        <li>Keep it simple and professional</li>
+                        <li>Limit to 4-6 lines of text</li>
+                        <li>Use consistent fonts and colors</li>
+                        <li>Ensure all links work correctly</li>
+                        <li>Test on different devices</li>
+                    </ul>
+                    
+                    <h5>Template examples:</h5>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary btn-sm template-btn" data-template="simple">
+                            Simple Template
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm template-btn" data-template="professional">
+                            Professional Template
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm template-btn" data-template="social">
+                            With Social Media
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="previewModalLabel">Signature Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="signature-preview-container">
+                    <div id="signaturePreview"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .signature-preview-container {
+        border: 1px solid #ddd;
+        padding: 20px;
+        background-color: #f9f9f9;
+        border-radius: 4px;
+    }
+    
+    #editor {
+        height: 300px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .ql-editor {
+        min-height: 250px;
+    }
+</style>
+<!-- Include Quill CSS -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+{% endblock %}
+
+{% block scripts %}
+<!-- Include Quill JS -->
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Quill editor
+    const quill = new Quill('#editor', {
+        theme: 'snow',
+        modules: {
+            toolbar: [
+                [{ 'font': [] }, { 'size': [] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'color': [] }, { 'background': [] }],
+                [{ 'align': [] }],
+                ['link', 'image'],
+                ['clean']
+            ]
+        },
+        placeholder: 'Compose your email signature...'
+    });
+    
+    // Set initial content
+    const initialContent = document.getElementById('content').value;
+    if (initialContent) {
+        quill.clipboard.dangerouslyPasteHTML(initialContent);
+    }
+    
+    // Handle form submission
+    const form = document.getElementById('signatureForm');
+    const contentInput = document.getElementById('content');
+    
+    form.addEventListener('submit', function(e) {
+        // Get the HTML content from Quill editor
+        const editorContent = quill.root.innerHTML;
+        
+        // Set the content to the hidden input
+        contentInput.value = editorContent;
+        
+        // Form will submit normally
+    });
+    
+    // Preview button
+    const previewBtn = document.getElementById('previewBtn');
+    previewBtn.addEventListener('click', function() {
+        const editorContent = quill.root.innerHTML;
+        document.getElementById('signaturePreview').innerHTML = editorContent;
+        
+        // Show the preview modal
+        const previewModal = new bootstrap.Modal(document.getElementById('previewModal'));
+        previewModal.show();
+    });
+    
+    // Logo preview
+    const logoInput = document.getElementById('logo');
+    logoInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                // Insert the image into the Quill editor
+                const range = quill.getSelection() || { index: 0 };
+                quill.insertEmbed(range.index, 'image', e.target.result);
+            };
+            
+            reader.readAsDataURL(this.files[0]);
+        }
+    });
+    
+    // Template buttons
+    const templateButtons = document.querySelectorAll('.template-btn');
+    templateButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            if (!confirm('This will replace your current signature content. Continue?')) {
+                return;
+            }
+            
+            const template = this.getAttribute('data-template');
+            let templateHTML = '';
+            
+            switch(template) {
+                case 'simple':
+                    templateHTML = `
+                        <p><strong>Your Name</strong><br>
+                        Job Title<br>
+                        Company Name<br>
+                        Phone: (123) 456-7890<br>
+                        Email: your.email@example.com</p>
+                    `;
+                    break;
+                case 'professional':
+                    templateHTML = `
+                        <p><strong style="font-size: 16px; color: #2c3e50;">Your Name</strong><br>
+                        <em style="color: #7f8c8d;">Job Title</em> | <span style="color: #3498db;">Company Name</span><br>
+                        <span style="color: #7f8c8d;">Phone:</span> (123) 456-7890 | <span style="color: #7f8c8d;">Email:</span> your.email@example.com<br>
+                        <span style="color: #7f8c8d;">Address:</span> 123 Business Street, City, State ZIP</p>
+                        <p style="font-size: 12px; color: #95a5a6; border-top: 1px solid #ecf0f1; padding-top: 5px;">Confidentiality Notice: This email and any attachments are confidential and may be privileged.</p>
+                    `;
+                    break;
+                case 'social':
+                    templateHTML = `
+                        <p><strong style="font-size: 16px; color: #2c3e50;">Your Name</strong><br>
+                        <em style="color: #7f8c8d;">Job Title</em> | <span style="color: #3498db;">Company Name</span><br>
+                        <span style="color: #7f8c8d;">Phone:</span> (123) 456-7890 | <span style="color: #7f8c8d;">Email:</span> your.email@example.com</p>
+                        <p>
+                            <a href="https://linkedin.com" style="text-decoration: none; margin-right: 10px;">
+                                <img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" alt="LinkedIn" width="20" height="20">
+                            </a>
+                            <a href="https://twitter.com" style="text-decoration: none; margin-right: 10px;">
+                                <img src="https://cdn-icons-png.flaticon.com/512/733/733579.png" alt="Twitter" width="20" height="20">
+                            </a>
+                            <a href="https://facebook.com" style="text-decoration: none;">
+                                <img src="https://cdn-icons-png.flaticon.com/512/174/174848.png" alt="Facebook" width="20" height="20">
+                            </a>
+                        </p>
+                        <p><a href="https://www.example.com" style="color: #3498db; text-decoration: none;">www.example.com</a></p>
+                    `;
+                    break;
+            }
+            
+            // Set the template content to the Quill editor
+            quill.clipboard.dangerouslyPasteHTML(templateHTML);
+        });
+    });
+});
+</script>
+{% endblock %} 

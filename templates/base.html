@@ -47,22 +47,24 @@
                 <li><a href="/" class="nav-link {% if request.endpoint == 'home' or request.endpoint == 'dashboard_bp.dashboard' %}active{% endif %}"><span>📊</span><span>Dashboard</span></a></li>
                 <li><a href="/people" class="nav-link {% if request.endpoint and 'people_bp' in request.endpoint %}active{% endif %}"><span>👥</span><span>People</span></a></li>
                 <li><a href="/churches" class="nav-link {% if request.endpoint and 'churches_bp' in request.endpoint %}active{% endif %}"><span>⛪</span><span>Churches</span></a></li>
-                <li><a href="/tasks" class="nav-link {% if request.endpoint and 'tasks_bp' in request.endpoint %}active{% endif %}"><span>✅</span><span>Tasks</span></a></li>
+                <li><a href="/tasks/" class="nav-link {% if request.endpoint and 'tasks_bp' in request.endpoint %}active{% endif %}"><span>✅</span><span>Tasks</span></a></li>
                 <li><a href="/communications" class="nav-link {% if request.endpoint and 'communications_bp' in request.endpoint %}active{% endif %}"><span>✉️</span><span>Communications</span></a></li>
             </ul>
             <div class="sidebar-spacer"></div>
             <div class="sidebar-footer">
                 <div class="auth-container">
                     <div class="footer-links">
-                        <a href="/contacts" class="nav-link {% if request.endpoint and 'contacts_bp' in request.endpoint %}active{% endif %}"><span><i class="bi bi-google"></i></span><span>Google Contacts</span></a>
+                        <a href="/contacts" class="nav-link {% if request.endpoint and 'contacts_bp' in request.endpoint %}active{% endif %}"><span><i class="bi bi-journal-richtext"></i></span><span>Contacts</span></a>
+                        <a href="/dashboard/email-signatures" class="nav-link {% if request.endpoint == 'dashboard_bp.email_signatures' %}active{% endif %}"><span><i class="bi bi-envelope"></i></span><span>Email Signatures</span></a>
                         <a href="/dashboard/google-settings" class="nav-link {% if request.endpoint == 'dashboard_bp.google_settings' %}active{% endif %}"><span>⚙️</span><span>Google Settings</span></a>
+                        <a href="/import-csv" class="nav-link {% if request.endpoint == 'import_csv_bp.import_csv' %}active{% endif %}"><span><i class="bi bi-file-earmark-arrow-up"></i></span><span>Import CSV</span></a>
                         <button id="sign-out" class="hidden"><span>Sign out</span></button>
                     </div>
                     <button id="sign-in" class="btn-google">
                         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo">
                         Sign in with Google
                     </button>
-                    <span id="auth-error" class="auth-error"></span>
+                    <span id="auth-error" class="auth-error" style="display: none;"></span>
                 </div>
                 <button class="mobile-menu-toggle" aria-label="Toggle sidebar" aria-expanded="false">
                     <i class="bi bi-list"></i>
@@ -78,6 +80,20 @@
             <h2>Something went wrong</h2>
             <button onclick="window.location.reload()">Reload page</button>
         </div>
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
         
         {% block content %}{% endblock %}
     </main>
@@ -100,5 +116,8 @@
     <script type="module" src="{{ url_for('static', filename='firebase_config.js') }}"></script>
     <script type="module" src="{{ url_for('static', filename='auth.js') }}"></script>
     {% block scripts %}{% endblock %}
+    
+    <!-- Additional content like modals -->
+    {% block additional_content %}{% endblock %}
 </body>
 </html>

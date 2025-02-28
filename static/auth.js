@@ -13,9 +13,15 @@ class AuthManager {
             return window.AuthManagerInstance;
         }
         
+        // Don't show errors on initial load
+        this.initialLoad = true;
+        
         this.initialize().catch(error => {
             console.error('Failed to initialize AuthManager:', error);
-            this.handleError(error);
+            // Only handle error if not initial load
+            if (!this.initialLoad) {
+                this.handleError(error);
+            }
         });
 
         // Store instance globally
@@ -112,6 +118,12 @@ class AuthManager {
                 bubbles: true,
                 composed: true 
             }));
+            
+            // After 2 seconds, we're no longer in initial load
+            setTimeout(() => {
+                this.initialLoad = false;
+            }, 2000);
+            
         } catch (error) {
             console.error("Failed to initialize Firebase:", error);
             throw error; // Re-throw to be caught by the constructor
@@ -131,6 +143,12 @@ class AuthManager {
         this.loadingOverlay.style.display = 'flex';
         try {
             console.log("Starting sign-in process...");
+            
+            // No longer in initial load when user attempts to sign in
+            this.initialLoad = false;
+            
+            // Mark that an auth attempt has been made
+            sessionStorage.setItem('authAttempted', 'true');
             
             // Force new sign in to get fresh tokens
             await this.auth.signOut();
@@ -233,8 +251,36 @@ class AuthManager {
                     // Store token in cookie for server-side auth
                     document.cookie = `firebase_token=${token}; path=/; SameSite=Strict`;
                     
-                    // Add Authorization header to all requests
+                    // Set up request interceptor
                     this._setupRequestInterceptor(token);
+                    
+                    // Send Google access token to server if available
+                    const googleAccessToken = sessionStorage.getItem('googleAccessToken');
+                    if (googleAccessToken) {
+                        console.log("Sending Google access token to server...");
+                        fetch('/google/store-token', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({ token: googleAccessToken })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log("Google token storage response:", data);
+                            if (data.success) {
+                                console.log("Google token stored successfully on server");
+                            } else {
+                                console.error("Failed to store Google token:", data.message);
+                            }
+                        })
+                        .catch(error => {
+                            console.error("Error sending Google token to server:", error);
+                        });
+                    } else {
+                        console.log("No Google access token available to send to server");
+                    }
                 });
             } else {
                 // Update auth status
@@ -286,6 +332,13 @@ class AuthManager {
 
     handleError(error) {
         console.error('Auth error:', error);
+        
+        // Don't show errors on initial page load
+        if (this.initialLoad || (error.message?.includes('Firebase') && !sessionStorage.getItem('authAttempted'))) {
+            console.log('Suppressing error message on initial load:', error.message);
+            return;
+        }
+        
         let errorMessage = 'An error occurred during authentication.';
         
         if (error.code === 'auth/failed-persistence') {

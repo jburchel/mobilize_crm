@@ -6,6 +6,9 @@ from firebase_admin import auth
 import os
 import json
 from functools import wraps
+import sqlite3
+from datetime import datetime
+import traceback
 
 google_auth_bp = Blueprint('google_auth', __name__)
 
@@ -47,6 +50,34 @@ def credentials_to_dict(credentials):
         'scopes': credentials.scopes
     }
 
+def get_current_user_id():
+    """Get the current user ID from the session or request.
+    
+    Returns:
+        str: The user ID if available, None otherwise.
+    """
+    # First try to get from session
+    if 'user_id' in session:
+        return session['user_id']
+    
+    # Then try to get from request headers (for API calls)
+    try:
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            # Verify the Firebase token
+            try:
+                decoded_token = auth.verify_id_token(token)
+                return decoded_token['uid']
+            except Exception as e:
+                current_app.logger.error(f"Error verifying Firebase token: {str(e)}")
+                return None
+    except Exception as e:
+        current_app.logger.error(f"Error getting user ID from request: {str(e)}")
+        return None
+    
+    return None
+
 def get_credentials():
     if 'credentials' not in session:
         return None
@@ -72,6 +103,10 @@ def login_required(f):
 def auth_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Check if this is an API request
+        is_api_request = request.path.startswith('/api/') or request.headers.get('Accept') == 'application/json'
+        current_app.logger.debug(f"Auth check for path: {request.path}, is_api_request: {is_api_request}")
+        
         # First check Authorization header
         auth_header = request.headers.get('Authorization')
         if auth_header and auth_header.startswith('Bearer '):
@@ -89,17 +124,222 @@ def auth_required(f):
                 return f(*args, **kwargs)
             except Exception as e:
                 current_app.logger.error(f"Cookie token verification failed: {str(e)}")
+        
+        # Check for X-Google-Token header for Gmail API requests
+        if 'X-Google-Token' in request.headers:
+            current_app.logger.debug("Found X-Google-Token header, allowing request")
+            return f(*args, **kwargs)
                 
-        # No valid authentication found, redirect to home
-        return redirect(url_for('home'))
+        # No valid authentication found
+        if is_api_request:
+            # Return JSON response for API requests
+            return jsonify({
+                'success': False,
+                'message': 'Authentication required'
+            }), 401
+        else:
+            # Redirect to home for web requests
+            return redirect(url_for('home'))
             
     return decorated_function
 
 def get_access_token_from_header():
     """Extract Google access token from Authorization header"""
+    current_app.logger.debug("Attempting to extract Google access token")
+    
+    # First check for X-Google-Token header
     if 'X-Google-Token' in request.headers:
-        return request.headers.get('X-Google-Token')
+        token = request.headers.get('X-Google-Token')
+        current_app.logger.info(f"Found token in X-Google-Token header: {token[:10]}...")
+        return token
+    
+    # Then check for Authorization header
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.startswith('Bearer '):
+        token = auth_header.split('Bearer ')[1]
+        current_app.logger.info(f"Found token in Authorization header: {token[:10]}...")
+        return token
+    
+    # Finally check session
+    if 'credentials' in session and 'token' in session['credentials']:
+        token = session['credentials']['token']
+        current_app.logger.info(f"Found token in session: {token[:10]}...")
+        return token
+    
+    # Log all headers for debugging
+    current_app.logger.debug(f"All request headers: {dict(request.headers)}")
+    current_app.logger.debug(f"Session keys: {session.keys() if session else 'No session'}")
+    
+    # Try to get tokens from database as a last resort
+    try:
+        conn = sqlite3.connect('mobilize_crm.db')
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT token FROM google_tokens 
+            ORDER BY last_used DESC LIMIT 1
+        """)
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result and result[0]:
+            token = result[0]
+            current_app.logger.info(f"Found token in database: {token[:10]}...")
+            return token
+        else:
+            current_app.logger.debug("No token found in database")
+    except Exception as e:
+        current_app.logger.error(f"Error checking database for tokens: {e}")
+    
+    current_app.logger.warning("No Google token found in headers, session, or database")
     return None
+
+def get_user_tokens():
+    """
+    Get Google tokens for background jobs
+    This function retrieves tokens from the database for use in background jobs
+    where there is no active request context
+    
+    Returns:
+        dict: Dictionary containing token information or None if no tokens found
+    """
+    try:
+        # First check if we're in a request context and have credentials in session
+        try:
+            if 'credentials' in session:
+                current_app.logger.info("Found Google credentials in session")
+                return session['credentials']
+        except RuntimeError:
+            # Not in request context
+            current_app.logger.debug("Not in request context, cannot access session")
+            pass
+            
+        # Connect to the database
+        current_app.logger.debug("Attempting to retrieve Google tokens from database")
+        conn = sqlite3.connect('mobilize_crm.db')
+        cursor = conn.cursor()
+        
+        # Create the table if it doesn't exist
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS google_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                token TEXT NOT NULL,
+                refresh_token TEXT,
+                token_uri TEXT NOT NULL,
+                client_id TEXT NOT NULL,
+                client_secret TEXT NOT NULL,
+                scopes TEXT,
+                last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Check if the table has any records
+        cursor.execute("SELECT COUNT(*) FROM google_tokens")
+        count = cursor.fetchone()[0]
+        current_app.logger.debug(f"Found {count} token records in database")
+        
+        # Query for the most recently used token
+        cursor.execute("""
+            SELECT token, refresh_token, token_uri, client_id, client_secret, scopes
+            FROM google_tokens
+            ORDER BY last_used DESC
+            LIMIT 1
+        """)
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if not result:
+            current_app.logger.debug("No tokens found in database")
+            current_app.logger.error("No Google tokens found in database or session")
+            return None
+            
+        # Format the result as a dictionary
+        token_data = {
+            'token': result[0],
+            'refresh_token': result[1],
+            'token_uri': result[2],
+            'client_id': result[3],
+            'client_secret': result[4],
+            'scopes': result[5].split(',') if result[5] else []
+        }
+        
+        current_app.logger.debug(f"Retrieved token from database: {token_data['token'][:10]}...")
+        return token_data
+        
+    except Exception as e:
+        try:
+            current_app.logger.error(f"Error retrieving Google tokens: {e}")
+            current_app.logger.error(f"Traceback: {traceback.format_exc()}")
+        except RuntimeError:
+            # Not in application context
+            print(f"Error retrieving Google tokens: {e}")
+        return None
+
+def save_user_tokens(token_data):
+    """
+    Save Google tokens to the database
+    
+    Args:
+        token_data (dict): Dictionary containing token information
+    """
+    try:
+        current_app.logger.info("Saving Google tokens to database")
+        if not token_data:
+            current_app.logger.error("Cannot save tokens: token_data is None or empty")
+            return
+            
+        current_app.logger.debug(f"Token data keys: {token_data.keys()}")
+        current_app.logger.debug(f"Token preview: {token_data.get('token', '')[:10]}...")
+        
+        # Connect to the database
+        conn = sqlite3.connect('mobilize_crm.db')
+        cursor = conn.cursor()
+        
+        # Create the table if it doesn't exist
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS google_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                token TEXT NOT NULL,
+                refresh_token TEXT,
+                token_uri TEXT NOT NULL,
+                client_id TEXT NOT NULL,
+                client_secret TEXT NOT NULL,
+                scopes TEXT,
+                last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Insert or update the token
+        cursor.execute("""
+            INSERT INTO google_tokens 
+            (token, refresh_token, token_uri, client_id, client_secret, scopes, last_used)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            token_data['token'],
+            token_data.get('refresh_token'),
+            token_data['token_uri'],
+            token_data['client_id'],
+            token_data['client_secret'],
+            ','.join(token_data['scopes']) if token_data.get('scopes') else None,
+            datetime.now()
+        ))
+        
+        conn.commit()
+        
+        # Verify the token was saved
+        cursor.execute("SELECT id FROM google_tokens WHERE token = ? ORDER BY last_used DESC LIMIT 1", 
+                      (token_data['token'],))
+        result = cursor.fetchone()
+        if result:
+            current_app.logger.info(f"Google token saved successfully with ID: {result[0]}")
+        else:
+            current_app.logger.error("Failed to save Google token: No record found after insert")
+            
+        conn.close()
+        
+    except Exception as e:
+        current_app.logger.error(f"Error saving Google tokens: {e}")
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
 
 def build_credentials(token):
     """Build Google credentials object from access token"""
@@ -116,6 +356,10 @@ def build_credentials(token):
 def authorize():
     # Create client_secrets.json file
     create_client_secrets_file()
+    
+    # Get the referrer page to redirect back after authorization
+    referrer = request.referrer or url_for('communications_bp.communications_page')
+    session['oauth_referrer'] = referrer
     
     # Create flow instance to manage the OAuth 2.0 Authorization Grant Flow steps
     flow = Flow.from_client_secrets_file(
@@ -162,7 +406,17 @@ def oauth2callback():
     credentials = flow.credentials
     session['credentials'] = credentials_to_dict(credentials)
     
-    return redirect(url_for('google_auth.google_settings'))
+    # Also save to database for background jobs
+    save_user_tokens(credentials_to_dict(credentials))
+    
+    # Get the referrer page to redirect back
+    referrer = session.pop('oauth_referrer', url_for('communications_bp.communications_page'))
+    
+    # Add a flash message to indicate successful connection
+    from flask import flash
+    flash('Google account connected successfully!', 'success')
+    
+    return redirect(referrer)
 
 @google_auth_bp.route('/google/revoke')
 def revoke():
@@ -217,3 +471,99 @@ def google_status():
             'connected': False,
             'message': 'Invalid or expired Google token'
         })
+
+def get_all_user_tokens():
+    """
+    Get Google tokens for all users
+    This function retrieves tokens from the database for all users
+    
+    Returns:
+        dict: Dictionary mapping user IDs to token information
+    """
+    try:
+        # Connect to the database
+        conn = sqlite3.connect('mobilize_crm.db')
+        cursor = conn.cursor()
+        
+        # Create the table if it doesn't exist (should already exist)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS google_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT,
+                token TEXT NOT NULL,
+                refresh_token TEXT,
+                token_uri TEXT NOT NULL,
+                client_id TEXT NOT NULL,
+                client_secret TEXT NOT NULL,
+                scopes TEXT,
+                last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Query for all tokens
+        cursor.execute("""
+            SELECT user_id, token, refresh_token, token_uri, client_id, client_secret, scopes
+            FROM google_tokens
+            WHERE token IS NOT NULL
+            GROUP BY user_id
+            HAVING MAX(last_used)
+        """)
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        tokens = {}
+        for row in results:
+            user_id = row[0] or 'default'
+            tokens[user_id] = {
+                'access_token': row[1],
+                'refresh_token': row[2],
+                'token_uri': row[3],
+                'client_id': row[4],
+                'client_secret': row[5],
+                'scopes': row[6].split(' ') if row[6] else []
+            }
+        
+        return tokens
+    except Exception as e:
+        current_app.logger.error(f"Error getting all user tokens: {str(e)}")
+        return {}
+
+@google_auth_bp.route('/google/store-token', methods=['POST'])
+@auth_required
+def store_token():
+    """Store Google access token from client-side in server-side session"""
+    try:
+        data = request.json
+        if not data or 'token' not in data:
+            current_app.logger.error("No token provided in request")
+            return jsonify({
+                'success': False,
+                'message': 'No token provided'
+            }), 400
+            
+        token = data['token']
+        current_app.logger.info(f"Received Google access token from client: {token[:10]}...")
+        
+        # Build credentials object
+        credentials = build_credentials(token)
+        
+        # Store in session
+        session['credentials'] = credentials_to_dict(credentials)
+        current_app.logger.info("Stored Google credentials in session")
+        
+        # Also save to database for background jobs
+        save_user_tokens(credentials_to_dict(credentials))
+        current_app.logger.info("Saved Google credentials to database")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Google token stored successfully'
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error storing Google token: {e}")
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500

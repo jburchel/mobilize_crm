@@ -1,12 +1,15 @@
-from flask import Blueprint, render_template, request, redirect, url_for, current_app
-from models import Session, Church, Person, Contacts, session_scope
+from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, abort
+from models import Session, Church, Person, Contacts, session_scope, Communication
 from sqlalchemy import func
 from datetime import datetime
 import logging
+from database import db
+from routes.dashboard import auth_required
 
 churches_bp = Blueprint('churches_bp', __name__)
 
 @churches_bp.route('/churches')
+@auth_required
 def churches():
     with session_scope() as session:
         logging.info("Fetching churches from database...")
@@ -29,16 +32,28 @@ def churches():
             raise
 
 @churches_bp.route('/add_church_form')
+@auth_required
 def add_church_form():
     with session_scope() as session:
         people = session.query(Person).order_by(Person.first_name, Person.last_name).all()
         return render_template('add_church.html', people=people)
 
 @churches_bp.route('/churches/<int:church_id>')
+@auth_required
 def church_detail(church_id):
     with session_scope() as session:
         church = session.query(Church).filter(Church.id == church_id).first()
-        return render_template('church_detail.html', church=church)
+        if church is None:
+            abort(404)
+        
+        # Get the 5 most recent communications for this church
+        recent_communications = session.query(Communication)\
+            .filter(Communication.church_id == church_id)\
+            .order_by(Communication.date_sent.desc())\
+            .limit(5)\
+            .all()
+        
+        return render_template('church_detail.html', church=church, recent_communications=recent_communications)
 
 @churches_bp.route('/add_church', methods=['POST'])
 def add_church():
@@ -187,3 +202,119 @@ def edit_church(church_id):
 
             return redirect(url_for('churches_bp.church_detail', church_id=church_id))
         return "Church not found", 404
+
+@churches_bp.route('/batch_update', methods=['POST'])
+def batch_update():
+    """Handle batch updates for multiple churches"""
+    with session_scope() as session:
+        selected_ids = request.form.get('selected_ids', '')
+        if not selected_ids:
+            flash('No churches selected for update', 'error')
+            return redirect(url_for('churches_bp.churches'))
+        
+        # Parse the comma-separated list of IDs
+        church_ids = [int(id) for id in selected_ids.split(',')]
+        
+        # Get the batch update values from the form
+        batch_pipeline = request.form.get('batch_pipeline')
+        batch_priority = request.form.get('batch_priority')
+        batch_assigned_to = request.form.get('batch_assigned_to')
+        batch_virtuous = request.form.get('batch_virtuous')
+        
+        # Count how many records were updated
+        update_count = 0
+        
+        # Update each selected church
+        for church_id in church_ids:
+            church = session.query(Church).filter(Church.id == church_id).first()
+            if church:
+                # Only update fields that were selected for batch update
+                if batch_pipeline:
+                    church.church_pipeline = batch_pipeline
+                
+                if batch_priority:
+                    church.priority = batch_priority
+                
+                if batch_assigned_to:
+                    church.assigned_to = batch_assigned_to
+                
+                if batch_virtuous:
+                    church.virtuous = (batch_virtuous.lower() == 'true')
+                
+                update_count += 1
+        
+        # Commit the changes
+        session.commit()
+        
+        # Flash a success message
+        flash(f'Successfully updated {update_count} churches', 'success')
+        
+        return redirect(url_for('churches_bp.churches'))
+
+@churches_bp.route('/batch_delete', methods=['POST'])
+def batch_delete():
+    """Handle batch deletion for multiple churches"""
+    with session_scope() as session:
+        selected_ids = request.form.get('selected_ids', '')
+        if not selected_ids:
+            flash('No churches selected for deletion', 'error')
+            return redirect(url_for('churches_bp.churches'))
+        
+        # Parse the comma-separated list of IDs
+        church_ids = [int(id) for id in selected_ids.split(',')]
+        
+        # Count how many records were deleted
+        delete_count = 0
+        
+        # Delete each selected church
+        for church_id in church_ids:
+            church = session.query(Church).filter(Church.id == church_id).first()
+            if church:
+                session.delete(church)
+                delete_count += 1
+        
+        # Commit the changes
+        session.commit()
+        
+        # Flash a success message
+        flash(f'Successfully deleted {delete_count} churches', 'success')
+        
+        return redirect(url_for('churches_bp.churches'))
+
+@churches_bp.route('/api/churches/<int:church_id>', methods=['GET'])
+def get_church_api(church_id):
+    """API endpoint to get a church by ID"""
+    try:
+        with session_scope() as session:
+            church = session.query(Church).filter(Church.id == church_id).first()
+            if not church:
+                return jsonify({'success': False, 'message': 'Church not found'})
+            
+            # Return church data
+            church_data = {
+                'id': church.id,
+                'name': church.get_name(),
+                'church_name': church.church_name,
+                'location': church.location,
+                'email': church.email,
+                'phone': church.phone
+            }
+            
+            return jsonify({'success': True, 'church': church_data})
+    except Exception as e:
+        logging.error(f'Error retrieving church {church_id}: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+@churches_bp.route('/update_church_pipeline/<int:church_id>', methods=['POST'])
+def update_church_pipeline(church_id):
+    with session_scope() as session:
+        church = session.query(Church).filter(Church.id == church_id).first_or_404()
+        
+        # Get the pipeline value from the form
+        pipeline_value = request.form.get('church_pipeline')
+        
+        if pipeline_value:
+            church.church_pipeline = pipeline_value
+            flash(f"Pipeline stage updated to {pipeline_value}", "success")
+        
+        return redirect(url_for('churches_bp.church_detail', church_id=church_id))

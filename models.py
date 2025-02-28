@@ -64,8 +64,8 @@ PREFERRED_CONTACT_METHODS = [
 class ContactsSchema(Schema):
     id = fields.Int(dump_only=True)
     church_name = fields.Str(allow_none=True)
-    first_name = fields.Str(required=True)
-    last_name = fields.Str(required=True)
+    first_name = fields.Str(allow_none=True)
+    last_name = fields.Str(allow_none=True)
     image = fields.Str(allow_none=True)
     preferred_contact_method = fields.Str(validate=validate.OneOf([x[0] for x in PREFERRED_CONTACT_METHODS]))
     phone = fields.Str()
@@ -80,6 +80,7 @@ class ContactsSchema(Schema):
     google_resource_name = fields.Str(allow_none=True)
 
 class PersonSchema(ContactsSchema):
+    first_name = fields.Str(required=True)
     church_role = fields.Str(validate=validate.OneOf(['admin', 'user', 'guest', 'Contact']))
     church_id = fields.Int(allow_none=True)
     affiliated_church = fields.Int(allow_none=True)
@@ -100,6 +101,7 @@ class PersonSchema(ContactsSchema):
     date_closed = fields.Date(allow_none=True)
 
 class ChurchSchema(ContactsSchema):
+    church_name = fields.Str(required=True)
     location = fields.Str(allow_none=True)
     main_contact_id = fields.Int(allow_none=True)
     virtuous = fields.Bool(default=False)
@@ -133,6 +135,8 @@ class TaskSchema(Schema):
     title = fields.Str(required=True, validate=validate.Length(min=1, max=200))
     description = fields.Str(allow_none=True)
     due_date = fields.Str(allow_none=True)
+    due_time = fields.Str(allow_none=True)  # Time in HH:MM format
+    reminder_time = fields.Str(allow_none=True)  # Reminder time in HH:MM format
     priority = fields.Str(validate=validate.OneOf(['Low', 'Medium', 'High']))
     status = fields.Str(required=True, validate=validate.OneOf(['Not Started', 'In Progress', 'Completed']))
     person_id = fields.Int(allow_none=True)
@@ -144,14 +148,26 @@ class TaskSchema(Schema):
     @pre_load
     def process_dates(self, data, **kwargs):
         due_date = data.get('due_date')
-        if due_date and isinstance(due_date, str):
+        logger = logging.getLogger(__name__)
+        
+        # Handle None or empty string
+        if not due_date:
+            logger.info("No due date provided, setting to None")
+            data['due_date'] = None
+            return data
+            
+        if isinstance(due_date, str):
             try:
                 # Try to parse date in MM/DD/YYYY format
-                logger = logging.getLogger(__name__)
                 logger.info(f"Processing due_date: {due_date}")
                 
                 # Strip any whitespace
                 due_date = due_date.strip()
+                
+                # If empty after stripping, set to None
+                if not due_date:
+                    data['due_date'] = None
+                    return data
                 
                 # Parse the date to validate it
                 parsed_date = datetime.strptime(due_date, '%m/%d/%Y').date()
@@ -313,6 +329,8 @@ class Task(Base):
     title = Column(String)
     description = Column(String)
     due_date = Column(Date)
+    due_time = Column(String, nullable=True)  # Store time as HH:MM format
+    reminder_time = Column(String, nullable=True)  # Store reminder time as HH:MM format
     priority = Column(String)
     status = Column(String)
     person_id = Column(Integer, ForeignKey('people.id'))
@@ -337,12 +355,34 @@ class Communication(Base):
     date_sent = Column(Date)
     person_id = Column(Integer, ForeignKey('people.id'))
     church_id = Column(Integer, ForeignKey('churches.id'))
+    # Gmail integration fields
+    gmail_message_id = Column(String, nullable=True)
+    gmail_thread_id = Column(String, nullable=True)
+    email_status = Column(String, nullable=True)  # 'sent', 'draft', 'failed', etc.
+    subject = Column(String, nullable=True)  # Email subject
+    attachments = Column(String, nullable=True)  # JSON string of attachment info
+    last_synced_at = Column(DateTime, nullable=True)  # Timestamp for last sync
 
     person = relationship("Person", back_populates="communications")
     church = relationship("Church", back_populates="communications")
 
     def __repr__(self):
         return f"<Communication(type='{self.type}', date_sent='{self.date_sent}')>"
+
+class EmailSignature(Base):
+    __tablename__ = 'email_signatures'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String, nullable=False)  # Firebase user ID
+    name = Column(String, nullable=False)  # Signature name (e.g., "Default", "Professional", "Personal")
+    content = Column(Text, nullable=False)  # HTML content of the signature
+    logo_url = Column(String, nullable=True)  # URL to the logo image
+    is_default = Column(Boolean, default=False)  # Whether this is the default signature
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def __repr__(self):
+        return f"<EmailSignature(name='{self.name}', user_id='{self.user_id}')>"
 
 engine = create_engine('sqlite:///mobilize_crm.db')
 Base.metadata.create_all(engine)

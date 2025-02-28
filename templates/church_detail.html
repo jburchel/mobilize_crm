@@ -1,15 +1,20 @@
 {% extends 'base.html' %}
 
-{% block title %}Edit Church{% endblock %}
+{% block title %}Church Details{% endblock %}
 
 {% block content %}
     <div class="page-header">
         <div class="header-left">
-            <h2>Edit Church</h2>
+            <h2>Church Details</h2>
             <h1 class="church-name">{{ church.church_name }}</h1>
         </div>
         <div class="button-group">
-            <button type="submit" form="church-form" class="button primary">Save Changes</button>
+            <a href="{{ url_for('churches_bp.edit_church', church_id=church.id) }}" class="button primary">
+                <i class="bi bi-pencil"></i> Edit
+            </a>
+            <button type="button" class="button" id="communicationButton" data-bs-toggle="modal" data-bs-target="#communicationModal">
+                <i class="bi bi-chat-dots me-1"></i> Communication
+            </button>
             <a href="{{ url_for('churches_bp.churches') }}" class="button">Back to Churches</a>
         </div>
     </div>
@@ -20,44 +25,38 @@
             <i class="bi bi-diagram-3"></i>
             <span>Pipeline Progress</span>
         </div>
-        <div class="pipeline-progress six-steps">
+        <div class="pipeline-progress">
             <div class="pipeline-progress-bar" style="width: 
                 {% if church.church_pipeline == 'PROMOTION' %}10%
                 {% elif church.church_pipeline == 'INFORMATION' %}30%
                 {% elif church.church_pipeline == 'INVITATION' %}50%
                 {% elif church.church_pipeline == 'CONFIRMATION' %}70%
-                {% elif church.church_pipeline == 'EN42' %}90%
-                {% elif church.church_pipeline == 'AUTOMATION' %}100%
+                {% elif church.church_pipeline == 'AUTOMATION' %}90%
                 {% else %}0%{% endif %}">
             </div>
             
-            <div class="pipeline-step {% if church.church_pipeline == 'PROMOTION' %}active{% elif church.church_pipeline in ['INFORMATION', 'INVITATION', 'CONFIRMATION', 'EN42', 'AUTOMATION'] %}completed{% endif %}">
+            <div class="pipeline-step {% if church.church_pipeline == 'PROMOTION' %}active{% elif church.church_pipeline in ['INFORMATION', 'INVITATION', 'CONFIRMATION', 'AUTOMATION'] %}completed{% endif %}">
                 <div class="pipeline-step-marker">1</div>
                 <div class="pipeline-step-label">Promotion</div>
             </div>
             
-            <div class="pipeline-step {% if church.church_pipeline == 'INFORMATION' %}active{% elif church.church_pipeline in ['INVITATION', 'CONFIRMATION', 'EN42', 'AUTOMATION'] %}completed{% endif %}">
+            <div class="pipeline-step {% if church.church_pipeline == 'INFORMATION' %}active{% elif church.church_pipeline in ['INVITATION', 'CONFIRMATION', 'AUTOMATION'] %}completed{% endif %}">
                 <div class="pipeline-step-marker">2</div>
                 <div class="pipeline-step-label">Information</div>
             </div>
             
-            <div class="pipeline-step {% if church.church_pipeline == 'INVITATION' %}active{% elif church.church_pipeline in ['CONFIRMATION', 'EN42', 'AUTOMATION'] %}completed{% endif %}">
+            <div class="pipeline-step {% if church.church_pipeline == 'INVITATION' %}active{% elif church.church_pipeline in ['CONFIRMATION', 'AUTOMATION'] %}completed{% endif %}">
                 <div class="pipeline-step-marker">3</div>
                 <div class="pipeline-step-label">Invitation</div>
             </div>
             
-            <div class="pipeline-step {% if church.church_pipeline == 'CONFIRMATION' %}active{% elif church.church_pipeline in ['EN42', 'AUTOMATION'] %}completed{% endif %}">
+            <div class="pipeline-step {% if church.church_pipeline == 'CONFIRMATION' %}active{% elif church.church_pipeline in ['AUTOMATION'] %}completed{% endif %}">
                 <div class="pipeline-step-marker">4</div>
                 <div class="pipeline-step-label">Confirmation</div>
             </div>
             
-            <div class="pipeline-step {% if church.church_pipeline == 'EN42' %}active{% elif church.church_pipeline == 'AUTOMATION' %}completed{% endif %}">
-                <div class="pipeline-step-marker">5</div>
-                <div class="pipeline-step-label">EN42</div>
-            </div>
-            
             <div class="pipeline-step {% if church.church_pipeline == 'AUTOMATION' %}active{% endif %}">
-                <div class="pipeline-step-marker">6</div>
+                <div class="pipeline-step-marker">5</div>
                 <div class="pipeline-step-label">Automation</div>
             </div>
         </div>
@@ -73,8 +72,6 @@
                 This church is in the invitation stage. Invite them to relevant events or meetings.
             {% elif church.church_pipeline == 'CONFIRMATION' %}
                 This church is in the confirmation stage. Follow up to confirm their participation.
-            {% elif church.church_pipeline == 'EN42' %}
-                This church is in the EN42 stage. They are actively engaged in the program.
             {% elif church.church_pipeline == 'AUTOMATION' %}
                 This church is in the automation stage. Regular automated communications are in place.
             {% endif %}
@@ -82,240 +79,230 @@
         </div>
         {% else %}
         <div class="pipeline-info">
-            <p>No pipeline stage set. Select a pipeline stage to track this church's progress.</p>
+            <p>
+                No pipeline stage set. 
+                <select id="quick-pipeline" class="inline-select">
+                    <option value="">Select Pipeline Stage</option>
+                    <option value="PROMOTION">PROMOTION</option>
+                    <option value="INFORMATION">INFORMATION</option>
+                    <option value="INVITATION">INVITATION</option>
+                    <option value="CONFIRMATION">CONFIRMATION</option>
+                    <option value="AUTOMATION">AUTOMATION</option>
+                </select>
+                <button id="quick-pipeline-btn" class="inline-button">Set</button>
+            </p>
         </div>
         {% endif %}
     </div>
 
-    <form id="church-form" method="POST" action="{{ url_for('churches_bp.edit_church', church_id=church.id) }}">
-        <div class="form-container">
-            <!-- Basic Information -->
-            <fieldset>
-                <legend>Basic Information</legend>
-                <div class="form-row">
-                    <div class="form-field full-width">
-                        <label for="church_name">Church Name</label>
-                        <input id="church_name" name="church_name" value="{{ church.church_name }}" required>
+    <div class="content-container">
+        <div class="row">
+            <!-- Church Information Card -->
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3><i class="bi bi-building"></i> Church Information</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-row">
+                            <div class="info-label">Church Name:</div>
+                            <div class="info-value">{{ church.church_name }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Email:</div>
+                            <div class="info-value">{{ church.email or 'Not specified' }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Phone:</div>
+                            <div class="info-value">{{ church.phone or 'Not specified' }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Website:</div>
+                            <div class="info-value">
+                                {% if church.website %}
+                                    <a href="{{ church.website }}" target="_blank">{{ church.website }}</a>
+                                {% else %}
+                                    Not specified
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Address:</div>
+                            <div class="info-value">
+                                {% if church.street_address %}
+                                    {{ church.street_address }}<br>
+                                    {% if church.city or church.state or church.zip_code %}
+                                        {{ church.city or '' }}{% if church.city and church.state %}, {% endif %}
+                                        {{ church.state or '' }} {{ church.zip_code or '' }}<br>
+                                    {% endif %}
+                                    {{ church.country or '' }}
+                                {% else %}
+                                    Not specified
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-field">
-                        <label for="location">Location</label>
-                        <input id="location" name="location" value="{{ church.location }}">
-                    </div>
-                    <div class="form-field">
-                        <label for="website">Website</label>
-                        <input id="website" name="website" type="url" value="{{ church.website }}">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-field">
-                        <label for="phone">Phone</label>
-                        <input id="phone" name="phone" value="{{ church.phone }}">
-                    </div>
-                    <div class="form-field">
-                        <label for="email">Email</label>
-                        <input id="email" name="email" type="email" value="{{ church.email }}" novalidate>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-field">
-                        <label for="denomination">Denomination</label>
-                        <input id="denomination" name="denomination" value="{{ church.denomination }}">
-                    </div>
-                    <div class="form-field">
-                        <label for="congregation_size">Congregation Size</label>
-                        <input id="congregation_size" name="congregation_size" type="number" value="{{ church.congregation_size }}">
-                    </div>
-                    <div class="form-field">
-                        <label for="year_founded">Year Founded</label>
-                        <input id="year_founded" name="year_founded" type="number" value="{{ church.year_founded }}">
-                    </div>
-                </div>
-            </fieldset>
+            </div>
 
-            <!-- Address Information -->
-            <fieldset>
-                <legend>Address Information</legend>
-                <div class="form-row">
-                    <div class="form-field full-width">
-                        <label for="street_address">Street Address</label>
-                        <input id="street_address" name="street_address" value="{{ church.street_address }}">
+            <!-- Administrative Details Card -->
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3><i class="bi bi-gear"></i> Administrative Details</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-row">
+                            <div class="info-label">Pipeline Stage:</div>
+                            <div class="info-value">{{ church.church_pipeline or 'Not specified' }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Priority:</div>
+                            <div class="info-value">{{ church.priority or 'Not specified' }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Assigned To:</div>
+                            <div class="info-value">{{ church.assigned_to or 'Unassigned' }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Source:</div>
+                            <div class="info-value">{{ church.source or 'Not specified' }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Referred By:</div>
+                            <div class="info-value">{{ church.referred_by or 'Not specified' }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Denomination:</div>
+                            <div class="info-value">{{ church.denomination or 'Not specified' }}</div>
+                        </div>
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-field">
-                        <label for="city">City</label>
-                        <input id="city" name="city" value="{{ church.city }}">
-                    </div>
-                    <div class="form-field">
-                        <label for="state">State</label>
-                        <input id="state" name="state" value="{{ church.state }}">
-                    </div>
-                    <div class="form-field">
-                        <label for="zip_code">ZIP Code</label>
-                        <input id="zip_code" name="zip_code" value="{{ church.zip_code }}">
-                    </div>
-                </div>
-            </fieldset>
-
-            <!-- Senior Pastor Information -->
-            <fieldset>
-                <legend>Senior Pastor Information</legend>
-                <div class="form-row">
-                    <div class="form-field">
-                        <label for="senior_pastor_first_name">First Name</label>
-                        <input id="senior_pastor_first_name" name="senior_pastor_first_name" value="{{ church.senior_pastor_first_name }}">
-                    </div>
-                    <div class="form-field">
-                        <label for="senior_pastor_last_name">Last Name</label>
-                        <input id="senior_pastor_last_name" name="senior_pastor_last_name" value="{{ church.senior_pastor_last_name }}">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-field">
-                        <label for="senior_pastor_phone">Phone</label>
-                        <input id="senior_pastor_phone" name="senior_pastor_phone" value="{{ church.senior_pastor_phone }}">
-                    </div>
-                    <div class="form-field">
-                        <label for="senior_pastor_email">Email</label>
-                        <input id="senior_pastor_email" name="senior_pastor_email" type="email" value="{{ church.senior_pastor_email }}" novalidate>
-                    </div>
-                </div>
-            </fieldset>
-
-            <!-- Missions Pastor Information -->
-            <fieldset>
-                <legend>Missions Pastor Information</legend>
-                <div class="form-row">
-                    <div class="form-field">
-                        <label for="missions_pastor_first_name">First Name</label>
-                        <input id="missions_pastor_first_name" name="missions_pastor_first_name" value="{{ church.missions_pastor_first_name }}">
-                    </div>
-                    <div class="form-field">
-                        <label for="missions_pastor_last_name">Last Name</label>
-                        <input id="missions_pastor_last_name" name="missions_pastor_last_name" value="{{ church.missions_pastor_last_name }}">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-field">
-                        <label for="mission_pastor_phone">Phone</label>
-                        <input id="mission_pastor_phone" name="mission_pastor_phone" value="{{ church.mission_pastor_phone }}">
-                    </div>
-                    <div class="form-field">
-                        <label for="mission_pastor_email">Email</label>
-                        <input id="mission_pastor_email" name="mission_pastor_email" type="email" value="{{ church.mission_pastor_email }}" novalidate>
-                    </div>
-                </div>
-            </fieldset>
-
-            <!-- Primary Contact Information -->
-            <fieldset>
-                <legend>Primary Contact Information</legend>
-                <div class="form-row">
-                    <div class="form-field">
-                        <label for="primary_contact_first_name">First Name</label>
-                        <input id="primary_contact_first_name" name="primary_contact_first_name" value="{{ church.primary_contact_first_name }}">
-                    </div>
-                    <div class="form-field">
-                        <label for="primary_contact_last_name">Last Name</label>
-                        <input id="primary_contact_last_name" name="primary_contact_last_name" value="{{ church.primary_contact_last_name }}">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-field">
-                        <label for="primary_contact_phone">Phone</label>
-                        <input id="primary_contact_phone" name="primary_contact_phone" value="{{ church.primary_contact_phone }}">
-                    </div>
-                    <div class="form-field">
-                        <label for="primary_contact_email">Email</label>
-                        <input id="primary_contact_email" name="primary_contact_email" type="email" value="{{ church.primary_contact_email }}" novalidate>
-                    </div>
-                </div>
-            </fieldset>
-
-            <!-- Administrative Information -->
-            <fieldset>
-                <legend>Administrative Details</legend>
-                <div class="form-row">
-                    <div class="form-field">
-                        <label for="church_pipeline">Pipeline Stage</label>
-                        <select id="church_pipeline" name="church_pipeline">
-                            <option value="">Select Pipeline Stage</option>
-                            {% for choice in ['PROMOTION', 'INFORMATION', 'INVITATION', 'CONFIRMATION', 'EN42', 'AUTOMATION'] %}
-                                <option value="{{ choice }}" {% if church.church_pipeline == choice %}selected{% endif %}>{{ choice }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label for="priority">Priority</label>
-                        <select id="priority" name="priority">
-                            <option value="">Select Priority</option>
-                            {% for choice in ['URGENT', 'HIGH', 'MEDIUM', 'LOW'] %}
-                                <option value="{{ choice }}" {% if church.priority == choice %}selected{% endif %}>{{ choice }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label for="assigned_to">Assigned To</label>
-                        <select id="assigned_to" name="assigned_to">
-                            <option value="">Select Assignee</option>
-                            {% for choice in ['BILL JONES', 'JASON MODOMO', 'KEN KATAYAMA', 'MATTHEW RULE', 'CHIP ATKINSON', 'RACHEL LIVELY', 'JIM BURCHEL', 'JILL WALKER', 'KARINA RAMPIN', 'UNASSIGNED'] %}
-                                <option value="{{ choice }}" {% if church.assigned_to == choice %}selected{% endif %}>{{ choice }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-field">
-                        <label for="source">Source</label>
-                        <select id="source" name="source">
-                            <option value="">Select Source</option>
-                            {% for choice in ['WEBFORM', 'INCOMING CALL', 'EMAIL', 'SOCIAL MEDIA', 'COLD CALL', 'PERSPECTIVES', 'REFERAL', 'OTHER', 'UNKNOWN'] %}
-                                <option value="{{ choice }}" {% if church.source == choice %}selected{% endif %}>{{ choice }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label for="referred_by">Referred By</label>
-                        <input id="referred_by" name="referred_by" value="{{ church.referred_by }}">
-                    </div>
-                    <div class="form-field checkbox-field">
-                        <label for="virtuous" class="checkbox-label">
-                            <input type="checkbox" id="virtuous" name="virtuous" {% if church.virtuous %}checked{% endif %}>
-                            <span>Virtuous</span>
-                        </label>
-                    </div>
-                </div>
-            </fieldset>
-
-            <!-- Notes & Additional Information -->
-            <fieldset>
-                <legend>Notes & Additional Information</legend>
-                <div class="form-row">
-                    <div class="form-field full-width">
-                        <label for="info_given">Information Given</label>
-                        <textarea id="info_given" name="info_given" rows="3">{{ church.info_given }}</textarea>
-                    </div>
-                </div>
-            </fieldset>
-
-            <!-- Closure Information -->
-            <fieldset>
-                <legend>Closure Information</legend>
-                <div class="form-row">
-                    <div class="form-field">
-                        <label for="date_closed">Date Closed</label>
-                        <input id="date_closed" name="date_closed" type="date" value="{{ church.date_closed }}">
-                    </div>
-                    <div class="form-field full-width">
-                        <label for="reason_closed">Reason Closed</label>
-                        <textarea id="reason_closed" name="reason_closed" rows="3">{{ church.reason_closed }}</textarea>
-                    </div>
-                </div>
-            </fieldset>
+            </div>
         </div>
-    </form>
+
+        <div class="row">
+            <!-- Notes Card -->
+            <div class="col-md-12">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3><i class="bi bi-journal-text"></i> Notes</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-section">
+                            <h4>Info Given</h4>
+                            <p>{{ church.info_given or 'No information provided' }}</p>
+                        </div>
+                        <div class="info-section">
+                            <h4>Desired Service</h4>
+                            <p>{{ church.desired_service or 'No information provided' }}</p>
+                        </div>
+                        <div class="info-section">
+                            <h4>Initial Notes</h4>
+                            <p>{{ church.initial_notes or 'No notes available' }}</p>
+                        </div>
+                        {% if church.date_closed or church.reason_closed %}
+                        <div class="info-section">
+                            <h4>Closure Information</h4>
+                            {% if church.date_closed %}
+                            <p>Date Closed: {{ church.date_closed }}</p>
+                            {% endif %}
+                            {% if church.reason_closed %}
+                            <p>Reason: {{ church.reason_closed }}</p>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- People from this Church Card -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3><i class="bi bi-people"></i> People from this Church</h3>
+                <a href="{{ url_for('people_bp.people') }}?church_id={{ church.id }}" class="button small">View All</a>
+            </div>
+            <div class="card-body">
+                {% if church.people %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Role</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for person in church.people %}
+                            <tr>
+                                <td>{{ person.first_name }} {{ person.last_name }}</td>
+                                <td>{{ person.church_role or 'Not specified' }}</td>
+                                <td>{{ person.email or 'Not specified' }}</td>
+                                <td>{{ person.phone or 'Not specified' }}</td>
+                                <td>
+                                    <a href="{{ url_for('people_bp.person_detail', person_id=person.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center py-4">No people associated with this church.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Recent Communications Card -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3><i class="bi bi-chat-dots"></i> Recent Communications</h3>
+                <a href="{{ url_for('communications_bp.all_communications_route') }}" class="button small">View All</a>
+            </div>
+            <div class="card-body">
+                {% if recent_communications %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Subject</th>
+                                <th>Message</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for comm in recent_communications %}
+                            <tr>
+                                <td>{{ comm.date_sent.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ comm.type }}</td>
+                                <td>{{ comm.subject or 'N/A' }}</td>
+                                <td>{{ comm.message|truncate(50) }}</td>
+                                <td>
+                                    {% if comm.gmail_message_id %}
+                                    <span class="badge bg-success">Sent</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Logged</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center py-4">No communications found for this church.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 {% endblock %}
 
 {% block styles %}
@@ -347,88 +334,6 @@
     margin: 0;
 }
 
-.form-container {
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-fieldset {
-    border: 1px solid #e5e7eb;
-    border-radius: var(--border-radius);
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    background-color: #fff;
-}
-
-legend {
-    font-weight: 600;
-    padding: 0 0.5rem;
-    color: var(--primary-color);
-}
-
-.form-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 1rem;
-}
-
-.form-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.form-field.full-width {
-    grid-column: 1 / -1;
-}
-
-.form-field label {
-    font-weight: 500;
-    color: var(--text-color);
-}
-
-.form-field input,
-.form-field select,
-.form-field textarea {
-    padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: var(--border-radius);
-    font-size: 1rem;
-    width: 100%;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.form-field input:focus,
-.form-field select:focus,
-.form-field textarea:focus {
-    border-color: var(--primary-color);
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
-}
-
-.form-field textarea {
-    min-height: 100px;
-    resize: vertical;
-}
-
-.checkbox-field {
-    justify-content: center;
-    flex-direction: row;
-    align-items: center;
-}
-
-.checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-}
-
-.checkbox-label input[type="checkbox"] {
-    width: auto;
-}
-
 .button-group {
     display: flex;
     gap: 1rem;
@@ -445,6 +350,11 @@ legend {
     cursor: pointer;
     border: 1px solid transparent;
     transition: all 0.2s;
+}
+
+.button.small {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
 }
 
 .button.primary {
@@ -466,5 +376,481 @@ legend {
     background-color: #f9fafb;
     border-color: #c0c0c0;
 }
+
+.content-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.card {
+    border: 1px solid #e5e7eb;
+    border-radius: var(--border-radius);
+    background-color: #fff;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.card-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #f9fafb;
+}
+
+.card-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+.info-row {
+    display: flex;
+    margin-bottom: 1rem;
+}
+
+.info-label {
+    font-weight: 600;
+    width: 40%;
+    color: var(--text-color);
+}
+
+.info-value {
+    width: 60%;
+}
+
+.info-section {
+    margin-bottom: 1.5rem;
+}
+
+.info-section h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-color);
+}
+
+.info-section p {
+    margin: 0;
+    white-space: pre-line;
+}
+
+/* Pipeline styles */
+.pipeline-container {
+    background-color: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.pipeline-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.pipeline-progress {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    margin: 2rem 0;
+}
+
+.pipeline-progress-bar {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    height: 4px;
+    background-color: var(--primary-color);
+    z-index: 1;
+}
+
+.pipeline-step {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 2;
+}
+
+.pipeline-step-marker {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: #fff;
+    border: 2px solid #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.pipeline-step.active .pipeline-step-marker {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.pipeline-step.completed .pipeline-step-marker {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.pipeline-step-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.pipeline-info {
+    background-color: #f9fafb;
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.pipeline-info p {
+    margin: 0;
+}
+
+/* Inline dropdown and button styles */
+.inline-select {
+    display: inline-block;
+    width: auto;
+    padding: 0.25rem 0.5rem;
+    margin: 0 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: var(--border-radius);
+    font-size: 0.875rem;
+    background-color: white;
+}
+
+.inline-button {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--border-radius);
+    font-size: 0.875rem;
+    font-weight: 500;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.inline-button:hover {
+    background-color: var(--secondary-color);
+}
+
+/* Table styles */
+.table {
+    width: 100%;
+    margin-bottom: 0;
+}
+
+.table th {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.badge {
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+    border-radius: 0.25rem;
+}
 </style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM fully loaded');
+    
+    // More robust modal initialization
+    var communicationBtn = document.getElementById('communicationButton');
+    var communicationModalEl = document.getElementById('communicationModal');
+    
+    if (communicationBtn && communicationModalEl) {
+        console.log('Found communication button and modal');
+        
+        // Try to initialize with Bootstrap's data attributes first
+        // This is the preferred method in Bootstrap 5
+        
+        // Add a fallback click handler in case the data attributes don't work
+        communicationBtn.addEventListener('click', function(e) {
+            console.log('Communication button clicked');
+            e.preventDefault();
+            
+            // Check if Bootstrap is available
+            if (typeof bootstrap !== 'undefined') {
+                console.log('Bootstrap is available');
+                
+                // Try to get existing modal instance
+                var bsModal = bootstrap.Modal.getInstance(communicationModalEl);
+                if (!bsModal) {
+                    console.log('Creating new modal instance');
+                    bsModal = new bootstrap.Modal(communicationModalEl);
+                }
+                
+                // Show the modal
+                bsModal.show();
+            } else {
+                console.error('Bootstrap is not available');
+            }
+        });
+    } else {
+        console.error('Could not find modal or button elements');
+    }
+    
+    // Quick pipeline selection
+    const quickPipelineBtn = document.getElementById('quick-pipeline-btn');
+    if (quickPipelineBtn) {
+        quickPipelineBtn.addEventListener('click', function() {
+            const quickPipeline = document.getElementById('quick-pipeline');
+            const pipelineValue = quickPipeline.value;
+            
+            if (pipelineValue) {
+                // Create a form to submit the pipeline update
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/update_church_pipeline/{{ church.id }}';
+                
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'church_pipeline';
+                input.value = pipelineValue;
+                
+                form.appendChild(input);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    }
+    
+    // Communication form handling
+    const typeSelect = document.getElementById('type');
+    const emailFields = document.getElementById('email-fields');
+    const signatureSelect = document.getElementById('signature_id');
+    const sendBtn = document.getElementById('sendCommunicationBtn');
+    const form = document.getElementById('churchCommunicationForm');
+    const statusMessage = document.getElementById('statusMessage');
+    
+    // Show/hide email fields based on communication type
+    if (typeSelect) {
+        typeSelect.addEventListener('change', function() {
+            if (this.value === 'Email') {
+                emailFields.style.display = 'block';
+                // Load signatures when email type is selected
+                loadSignatures();
+            } else {
+                emailFields.style.display = 'none';
+            }
+        });
+    }
+    
+    // Function to load email signatures
+    function loadSignatures() {
+        fetch('/dashboard/api/email-signatures')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Clear existing options except the default one
+                    while (signatureSelect.options.length > 1) {
+                        signatureSelect.remove(1);
+                    }
+                    
+                    // Add signatures to the select
+                    data.signatures.forEach(signature => {
+                        const option = document.createElement('option');
+                        option.value = signature.id;
+                        option.textContent = signature.name + (signature.is_default ? ' (Default)' : '');
+                        signatureSelect.appendChild(option);
+                    });
+                } else {
+                    console.error('Error loading signatures:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching signatures:', error);
+            });
+    }
+    
+    // Handle form submission
+    if (sendBtn && form) {
+        sendBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Show loading state
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
+            
+            // Get form data
+            const formData = new FormData(form);
+            
+            // Convert FormData to JSON
+            const jsonData = {};
+            formData.forEach((value, key) => {
+                jsonData[key] = value;
+            });
+            
+            // Send AJAX request
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(jsonData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Reset button state
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = 'Send Communication';
+                
+                // Show status message
+                statusMessage.style.display = 'block';
+                
+                if (data.success) {
+                    // Success message
+                    statusMessage.className = 'alert alert-success';
+                    statusMessage.textContent = data.message;
+                    
+                    // Reset form after 2 seconds
+                    setTimeout(() => {
+                        form.reset();
+                        emailFields.style.display = 'none';
+                        statusMessage.style.display = 'none';
+                        
+                        // Close modal
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('communicationModal'));
+                        if (modal) {
+                            modal.hide();
+                        }
+                        
+                        // Reload page to show new communication
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    // Error message
+                    statusMessage.className = 'alert alert-danger';
+                    statusMessage.textContent = data.message || 'An error occurred while sending the communication.';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                
+                // Reset button state
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = 'Send Communication';
+                
+                // Show error message
+                statusMessage.style.display = 'block';
+                statusMessage.className = 'alert alert-danger';
+                statusMessage.textContent = 'An error occurred while sending the communication.';
+            });
+        });
+    }
+
+    // Fetch default signature when page loads
+    fetchDefaultSignature();
+    
+    // Function to fetch the default signature
+    function fetchDefaultSignature() {
+        fetch('/api/email-signatures')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.signatures) {
+                    // Find the default signature
+                    const defaultSignature = data.signatures.find(sig => sig.is_default);
+                    if (defaultSignature) {
+                        // Set the signature_id input value
+                        document.getElementById('signature_id').value = defaultSignature.id;
+                        console.log('Default signature set:', defaultSignature.name);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching signatures:', error);
+            });
+    }
+});
+</script>
+{% endblock %}
+
+{% block additional_content %}
+<!-- Communication Modal -->
+<div class="modal fade" id="communicationModal" tabindex="-1" aria-labelledby="communicationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="communicationModalLabel">Send Communication to {{ church.church_name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="churchCommunicationForm" action="{{ url_for('communications_bp.send_communication_route') }}" method="post">
+                    <input type="hidden" name="church_id" value="{{ church.id }}">
+                    <input type="hidden" id="signature_id" name="signature_id" value="">
+                    
+                    <div class="mb-3">
+                        <label for="type" class="form-label">Communication Type</label>
+                        <select class="form-select" id="type" name="type" required>
+                            <option value="Phone Call">Phone Call</option>
+                            <option value="Email">Email</option>
+                            <option value="Text Message">Text Message</option>
+                            <option value="In-Person Meeting">In-Person Meeting</option>
+                            <option value="Video Call">Video Call</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div id="email-fields" style="display: none;">
+                        <div class="mb-3">
+                            <label for="subject" class="form-label">Email Subject</label>
+                            <input type="text" class="form-control" id="subject" name="subject" placeholder="Enter email subject">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="signature_id" class="form-label">Email Signature</label>
+                            <select class="form-select" id="signature_id" name="signature_id">
+                                <option value="">Use default signature</option>
+                                <!-- Signatures will be loaded via AJAX -->
+                            </select>
+                            <div class="form-text">
+                                <a href="{{ url_for('dashboard_bp.email_signatures') }}" target="_blank">
+                                    <i class="bi bi-pencil-square"></i> Manage signatures
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Message</label>
+                        <textarea class="form-control" id="message" name="message" rows="5" required></textarea>
+                    </div>
+                </form>
+                
+                <!-- Add a status message area -->
+                <div id="statusMessage" class="mt-3" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="sendCommunicationBtn">Send Communication</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

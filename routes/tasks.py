@@ -106,7 +106,7 @@ class TaskDetail(Resource):
             return {'error': 'Internal server error'}, 500
 
 # Web interface routes
-@tasks_bp.route('/tasks')
+@tasks_bp.route('/')
 def tasks():
     current_app.logger.info("Loading tasks page...")
     try:
@@ -119,9 +119,27 @@ def tasks():
             people = session.query(Person).all()
             current_app.logger.debug(f"Found {len(people)} people")
             
+            # Log details about people for debugging
+            current_app.logger.debug("People data for dropdowns:")
+            for person in people:
+                current_app.logger.debug(f"Person: ID={person.id}, Name={person.get_name()}, "
+                                       f"Type={person.type}, Email={person.email}")
+                # Check if get_name method returns a valid value
+                if not person.get_name() or person.get_name().strip() == '':
+                    current_app.logger.warning(f"Person ID {person.id} has empty name: first_name='{person.first_name}', last_name='{person.last_name}'")
+            
             current_app.logger.debug("Querying database for churches...")
             churches = session.query(Church).all()
             current_app.logger.debug(f"Found {len(churches)} churches")
+            
+            # Log details about churches for debugging
+            current_app.logger.debug("Church data for dropdowns:")
+            for church in churches:
+                current_app.logger.debug(f"Church: ID={church.id}, Name={church.get_name()}, "
+                                       f"Type={church.type}, Email={church.email}")
+                # Check if get_name method returns a valid value
+                if not church.get_name() or church.get_name().strip() == '':
+                    current_app.logger.warning(f"Church ID {church.id} has empty name: church_name='{church.church_name}'")
             
             # Add debug logging for template context
             current_app.logger.debug("Rendering template with context: tasks=%d, people=%d, churches=%d", 
@@ -140,14 +158,14 @@ def tasks():
         flash('An unexpected error occurred. Please try again later.', 'error')
         return redirect(url_for('dashboard_bp.dashboard'))
 
-@tasks_bp.route('/add_task', methods=['POST'])
+@tasks_bp.route('/add', methods=['POST'])
 def add_task():
     try:
         # Log incoming form data for debugging
         current_app.logger.info("Received task form data: %s", request.form)
         
         # Get the due date from form
-        due_date = request.form.get('due_date')
+        due_date = request.form.get('due_date', '').strip()
         if due_date:
             try:
                 # Ensure date is in MM/DD/YYYY format
@@ -162,7 +180,9 @@ def add_task():
         data = {
             'title': request.form['title'],
             'description': request.form.get('description'),
-            'due_date': due_date,  # Keep as string, schema will handle conversion
+            'due_date': due_date if due_date else None,  # Handle empty string
+            'due_time': request.form.get('due_time'),  # Get due time
+            'reminder_time': request.form.get('reminder_time'),  # Get reminder time
             'priority': request.form.get('priority', 'Medium'),
             'status': request.form['status'],
             'person_id': request.form.get('person_id') or None,
@@ -198,21 +218,21 @@ def add_task():
     except ValidationError as err:
         current_app.logger.warning('Validation error in task creation: %s', err.messages)
         for field, errors in err.messages.items():
-            flash(f'{field}: {", ".join(errors)}', 'error')
+            flash(f"{field}: {', '.join(errors)}", 'error')
         return redirect(url_for('tasks_bp.tasks'))
     except Exception as e:
-        current_app.logger.error('Unexpected error in task creation: %s', str(e), exc_info=True)
-        flash('An unexpected error occurred while creating the task.', 'error')
+        current_app.logger.error('Error in task creation: %s', str(e), exc_info=True)
+        flash('An error occurred while creating the task. Please try again.', 'error')
         return redirect(url_for('tasks_bp.tasks'))
 
-@tasks_bp.route('/edit_task/<int:task_id>', methods=['POST'])
+@tasks_bp.route('/edit/<int:task_id>', methods=['POST'])
 def edit_task(task_id):
     try:
         # Log incoming form data for debugging
-        current_app.logger.info("Received edit task form data: %s", request.form)
+        current_app.logger.info("Received task edit form data: %s", request.form)
         
         # Get the due date from form
-        due_date = request.form.get('due_date')
+        due_date = request.form.get('due_date', '').strip()
         if due_date:
             try:
                 # Ensure date is in MM/DD/YYYY format
@@ -227,7 +247,9 @@ def edit_task(task_id):
         data = {
             'title': request.form['title'],
             'description': request.form.get('description'),
-            'due_date': due_date,  # Keep as string, schema will handle conversion
+            'due_date': due_date if due_date else None,  # Handle empty string
+            'due_time': request.form.get('due_time'),  # Get due time
+            'reminder_time': request.form.get('reminder_time'),  # Get reminder time
             'priority': request.form.get('priority', 'Medium'),
             'status': request.form['status'],
             'person_id': request.form.get('person_id') or None,
@@ -236,7 +258,7 @@ def edit_task(task_id):
         }
         
         # Log the processed data
-        current_app.logger.debug("Processing task data: %s", data)
+        current_app.logger.debug("Processing task edit data: %s", data)
         
         # Validate data using schema
         try:
@@ -244,9 +266,7 @@ def edit_task(task_id):
             current_app.logger.debug("Data validated successfully: %s", validated_data)
         except ValidationError as err:
             current_app.logger.error("Validation error: %s", err.messages)
-            for field, errors in err.messages.items():
-                flash(f"{field}: {', '.join(errors)}", 'error')
-            return redirect(url_for('tasks_bp.tasks'))
+            raise
         
         with session_scope() as session:
             task = session.query(Task).get(task_id)
@@ -254,14 +274,101 @@ def edit_task(task_id):
                 flash('Task not found', 'error')
                 return redirect(url_for('tasks_bp.tasks'))
                 
-            # Update task with validated data
+            # Update task fields
             for key, value in validated_data.items():
                 setattr(task, key, value)
+                
+            # If sync is enabled and task has changed, mark for re-sync
+            if task.google_calendar_sync_enabled:
+                task.last_synced_at = None
+                
+            current_app.logger.info(f'Task updated successfully: {task.title} (ID: {task_id})')
+            flash('Task updated successfully!', 'success')
             
-            flash('Task updated successfully', 'success')
+            if task.google_calendar_sync_enabled:
+                return redirect(url_for('tasks_bp.tasks', updated_task_id=task_id, sync_enabled=True))
+            
             return redirect(url_for('tasks_bp.tasks'))
             
+    except ValidationError as err:
+        current_app.logger.warning('Validation error in task update: %s', err.messages)
+        for field, errors in err.messages.items():
+            flash(f"{field}: {', '.join(errors)}", 'error')
+        return redirect(url_for('tasks_bp.tasks'))
     except Exception as e:
-        current_app.logger.error(f"Error updating task: {e}")
-        flash('An unexpected error occurred. Please try again later.', 'error')
+        current_app.logger.error('Error in task update: %s', str(e), exc_info=True)
+        flash('An error occurred while updating the task. Please try again.', 'error')
+        return redirect(url_for('tasks_bp.tasks'))
+
+@tasks_bp.route('/get_task/<int:task_id>', methods=['GET'])
+def get_task(task_id):
+    """Get task data for the edit form"""
+    try:
+        with session_scope() as session:
+            task = session.query(Task).get(task_id)
+            if not task:
+                return jsonify({'success': False, 'message': 'Task not found'})
+            
+            # Convert task to dictionary
+            task_data = {
+                'id': task.id,
+                'title': task.title,
+                'description': task.description,
+                'due_date': task.due_date.strftime('%m/%d/%Y') if task.due_date else '',
+                'due_time': task.due_time,
+                'reminder_time': task.reminder_time,
+                'priority': task.priority,
+                'status': task.status,
+                'person_id': task.person_id,
+                'church_id': task.church_id,
+                'google_calendar_sync_enabled': task.google_calendar_sync_enabled
+            }
+            
+            current_app.logger.info(f'Task data retrieved for ID {task_id}: {task_data}')
+            return jsonify({'success': True, 'task': task_data})
+    except Exception as e:
+        current_app.logger.error(f'Error retrieving task {task_id}: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+@tasks_bp.route('/get_description/<int:task_id>', methods=['GET'])
+def get_task_description(task_id):
+    """Get task description for the edit form"""
+    try:
+        with session_scope() as session:
+            task = session.query(Task).get(task_id)
+            if not task:
+                return jsonify({'success': False, 'message': 'Task not found'})
+            
+            return jsonify({'success': True, 'description': task.description})
+    except Exception as e:
+        current_app.logger.error(f'Error retrieving task description {task_id}: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+@tasks_bp.route('/delete/<int:task_id>', methods=['POST'])
+def delete_task(task_id):
+    """Delete a task"""
+    try:
+        with session_scope() as session:
+            task = session.query(Task).get(task_id)
+            if not task:
+                flash('Task not found', 'error')
+                return redirect(url_for('tasks_bp.tasks'))
+            
+            # Check if task has a Google Calendar event
+            has_calendar_event = task.google_calendar_event_id is not None
+            
+            # Delete the task
+            session.delete(task)
+            
+            current_app.logger.info(f'Task deleted successfully: ID {task_id}')
+            
+            if has_calendar_event:
+                flash('Task and its Google Calendar event were deleted successfully!', 'success')
+            else:
+                flash('Task deleted successfully!', 'success')
+            
+            return redirect(url_for('tasks_bp.tasks'))
+    except Exception as e:
+        current_app.logger.error(f'Error deleting task {task_id}: {str(e)}', exc_info=True)
+        flash(f'An error occurred while deleting the task: {str(e)}', 'error')
         return redirect(url_for('tasks_bp.tasks'))

@@ -48,38 +48,41 @@ This document outlines the steps needed to integrate Google Calendar with the Ta
 
 ### Synchronization Logic
 - [x] Implement bi-directional sync between tasks and calendar events
-- [ ] Create background job for periodic synchronization
-- [ ] Add conflict resolution strategy for conflicting updates
+- [x] Create background job for periodic synchronization
+- [x] Add conflict resolution strategy for conflicting updates
 - [x] Implement proper error handling and user notifications
 
 ## 3. Gmail Integration with Communications
 
 ### Backend Development
-- [ ] Create a new blueprint/module for Gmail integration
-- [ ] Implement token handling and API client initialization
-- [ ] Develop functions to:
-  - [ ] Send emails through Gmail API
-  - [ ] Retrieve and store relevant emails
-  - [ ] Attach emails to appropriate person/church records
-  - [ ] Parse email threads and conversations
+- [x] Create a new blueprint/module for Gmail integration
+- [x] Implement token handling and API client initialization
+- [x] Develop functions to:
+  - [x] Send emails through Gmail API
+  - [x] Retrieve and store relevant emails
+  - [x] Attach emails to appropriate person/church records
+  - [x] Parse email threads and conversations
 
 ### Database Updates
-- [ ] Add fields to the Communication model:
-  - [ ] `gmail_message_id` - Store Gmail message IDs
-  - [ ] `gmail_thread_id` - Store Gmail thread IDs
-  - [ ] `email_status` - Track email delivery status
-  - [ ] `attachments` - Store information about email attachments
+- [x] Add fields to the Communication model:
+  - [x] `gmail_message_id` - Store Gmail message IDs
+  - [x] `gmail_thread_id` - Store Gmail thread IDs
+  - [x] `email_status` - Track email delivery status
+  - [x] `subject` - Store email subject
+  - [x] `attachments` - Store information about email attachments
+  - [x] `last_synced_at` - Timestamp for tracking sync status
 
 ### Frontend Development
-- [ ] Enhance the communications interface to support email composition
+- [x] Enhance the communications interface to support email composition
 - [ ] Add email templates functionality
 - [ ] Implement email history view for person/church records
 - [ ] Create controls for email attachments
 - [ ] Add email tracking and notification features
 
 ### Integration Features
-- [ ] Implement email threading and conversation tracking
-- [ ] Create automated email logging to communications history
+- [x] Implement email threading and conversation tracking
+- [x] Create automated email logging to communications history
+- [x] Create background job for periodic email synchronization
 - [ ] Add capability to schedule emails for future delivery
 - [ ] Develop email templates for common communications
 

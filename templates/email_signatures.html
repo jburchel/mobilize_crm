@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+
+{% block title %}Email Signatures{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <div class="header-left">
+            <h2>Email Settings</h2>
+            <h1>Email Signatures</h1>
+        </div>
+        <div class="button-group">
+            <a href="{{ url_for('dashboard_bp.create_signature') }}" class="button primary">
+                <i class="bi bi-plus-lg"></i> Create New Signature
+            </a>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3><i class="bi bi-envelope-check"></i> Your Email Signatures</h3>
+        </div>
+        <div class="card-body">
+            {% if signatures %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Preview</th>
+                                <th>Default</th>
+                                <th>Last Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for signature in signatures %}
+                            <tr>
+                                <td>{{ signature.name }}</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-primary preview-signature" 
+                                            data-bs-toggle="modal" data-bs-target="#previewModal" 
+                                            data-signature-content="{{ signature.content }}">
+                                        Preview
+                                    </button>
+                                </td>
+                                <td>
+                                    {% if signature.is_default %}
+                                        <span class="badge bg-success">Default</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">No</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ signature.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    <div class="btn-group">
+                                        <a href="{{ url_for('dashboard_bp.edit_signature', signature_id=signature.id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-pencil"></i> Edit
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-outline-danger delete-signature" 
+                                                data-signature-id="{{ signature.id }}" data-signature-name="{{ signature.name }}">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <p>You don't have any email signatures yet. <a href="{{ url_for('dashboard_bp.create_signature') }}">Create your first signature</a> to enhance your email communications.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3><i class="bi bi-info-circle"></i> About Email Signatures</h3>
+        </div>
+        <div class="card-body">
+            <p>Email signatures help you maintain a professional appearance in your communications. You can create multiple signatures for different purposes:</p>
+            <ul>
+                <li><strong>Professional signature</strong> for formal communications</li>
+                <li><strong>Personal signature</strong> for more casual emails</li>
+                <li><strong>Different signatures</strong> for various roles or departments</li>
+            </ul>
+            <p>Your signature can include:</p>
+            <ul>
+                <li>Your name and title</li>
+                <li>Contact information</li>
+                <li>Company logo</li>
+                <li>Social media links</li>
+                <li>Legal disclaimers</li>
+            </ul>
+            <p>Set one signature as your default, and it will be automatically applied to all your emails.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="previewModalLabel">Signature Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="signature-preview-container">
+                    <div id="signaturePreview"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the signature "<span id="signatureName"></span>"?</p>
+                <p class="text-danger">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .signature-preview-container {
+        border: 1px solid #ddd;
+        padding: 20px;
+        background-color: #f9f9f9;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Preview signature
+    const previewButtons = document.querySelectorAll('.preview-signature');
+    previewButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const signatureContent = this.getAttribute('data-signature-content');
+            document.getElementById('signaturePreview').innerHTML = signatureContent;
+        });
+    });
+    
+    // Delete signature
+    const deleteButtons = document.querySelectorAll('.delete-signature');
+    const confirmDeleteButton = document.getElementById('confirmDelete');
+    let signatureIdToDelete = null;
+    
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            signatureIdToDelete = this.getAttribute('data-signature-id');
+            const signatureName = this.getAttribute('data-signature-name');
+            document.getElementById('signatureName').textContent = signatureName;
+            
+            // Show the delete confirmation modal
+            const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            deleteModal.show();
+        });
+    });
+    
+    confirmDeleteButton.addEventListener('click', function() {
+        if (signatureIdToDelete) {
+            // Send delete request
+            fetch(`/dashboard/email-signatures/delete/${signatureIdToDelete}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Reload the page to show updated list
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while deleting the signature.');
+            });
+        }
+    });
+});
+</script>
+{% endblock %} 

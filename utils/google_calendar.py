@@ -5,7 +5,7 @@ This module provides functions to interact with Google Calendar API
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google.oauth2.credentials import Credentials
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from flask import current_app
 import logging
 
@@ -14,6 +14,10 @@ logger = logging.getLogger(__name__)
 def build_calendar_service(token):
     """Build a Google Calendar service object with the provided token"""
     try:
+        if not token:
+            logger.error("No token provided to build calendar service")
+            return None
+            
         credentials = Credentials(
             token=token,
             refresh_token=None,
@@ -25,118 +29,226 @@ def build_calendar_service(token):
         return build('calendar', 'v3', credentials=credentials)
     except Exception as e:
         logger.error(f"Error building calendar service: {e}")
-        raise
+        return None
 
 def get_calendar_list(service):
     """Get list of calendars for the authenticated user"""
     try:
+        if not service:
+            logger.error("Calendar service is not available")
+            return []
+            
         calendar_list = service.calendarList().list().execute()
         return calendar_list.get('items', [])
     except HttpError as error:
         logger.error(f"Error retrieving calendar list: {error}")
-        raise
+        return []
+    except Exception as e:
+        logger.error(f"Unexpected error retrieving calendar list: {e}")
+        return []
 
-def create_event_from_task(service, task, calendar_id='primary'):
+def create_event_from_task(service, task):
     """
     Create a Google Calendar event from a task
     
     Args:
         service: Google Calendar service object
-        task: Task model instance
-        calendar_id: ID of the calendar to create the event in (default: primary)
+        task: Task object to create event from
         
     Returns:
         Created event object from Google Calendar API
     """
     try:
-        # Ensure we have a valid date
-        if not task.due_date:
-            logger.error(f"Task {task.id} has no due date")
-            raise ValueError("Task must have a due date to create a calendar event")
+        # Get task details
+        title = task.title
+        description = task.description or ''
+        due_date = task.due_date
         
-        # Format event data from task
-        event_data = {
-            'summary': task.title,
-            'description': task.description or '',
-            'start': {
-                'date': task.due_date.isoformat() if task.due_date else datetime.now().date().isoformat(),
-            },
-            'end': {
-                'date': task.due_date.isoformat() if task.due_date else 
-                      (datetime.now() + timedelta(days=1)).date().isoformat(),
-            },
-        }
+        # Handle time component
+        start_datetime = None
+        end_datetime = None
         
-        # Add metadata to link back to the CRM task
-        event_data['extendedProperties'] = {
-            'private': {
-                'mobilizeCrmTaskId': str(task.id),
-                'mobilizeCrmTaskStatus': task.status,
-                'mobilizeCrmTaskPriority': task.priority,
+        if due_date:
+            # If we have a due_time, use it to create a datetime event
+            if task.due_time:
+                # Parse the time string (HH:MM)
+                hour, minute = map(int, task.due_time.split(':'))
+                
+                # Create datetime objects for start and end
+                start_datetime = datetime.combine(due_date, time(hour, minute, 0))
+                end_datetime = start_datetime + timedelta(hours=1)  # Default to 1 hour duration
+                
+                # Format for Google Calendar API
+                start = {
+                    'dateTime': start_datetime.isoformat(),
+                    'timeZone': 'America/Los_Angeles'  # Use appropriate timezone
+                }
+                end = {
+                    'dateTime': end_datetime.isoformat(),
+                    'timeZone': 'America/Los_Angeles'  # Use appropriate timezone
+                }
+            else:
+                # All-day event
+                start = {
+                    'date': due_date.isoformat()
+                }
+                end = {
+                    'date': due_date.isoformat()
+                }
+        else:
+            # If no due date, default to today
+            today = datetime.now().date()
+            start = {
+                'date': today.isoformat()
+            }
+            end = {
+                'date': today.isoformat()
+            }
+        
+        # Create event object
+        event = {
+            'summary': title,
+            'description': description,
+            'start': start,
+            'end': end,
+            'extendedProperties': {
+                'private': {
+                    'mobilizeCrmTaskId': str(task.id),
+                    'mobilizeCrmTaskStatus': task.status,
+                    'mobilizeCrmTaskPriority': task.priority
+                }
             }
         }
         
-        # Create the event
-        event = service.events().insert(calendarId=calendar_id, body=event_data).execute()
+        # Add reminder if specified
+        if task.reminder_time and task.reminder_time != '':
+            # Convert reminder_time to minutes before event
+            minutes = int(task.reminder_time)
+            
+            event['reminders'] = {
+                'useDefault': False,
+                'overrides': [
+                    {'method': 'popup', 'minutes': minutes}
+                ]
+            }
+        else:
+            # Use default reminders
+            event['reminders'] = {
+                'useDefault': True
+            }
         
-        logger.info(f"Created calendar event with ID: {event.get('id')} for task: {task.id}")
-        return event
-    
+        # Create the event
+        created_event = service.events().insert(calendarId='primary', body=event).execute()
+        logger.info(f"Event created: {created_event.get('htmlLink')}")
+        
+        return created_event
+        
     except HttpError as error:
         logger.error(f"Error creating calendar event: {error}")
         raise
 
-def update_event_from_task(service, task, event_id, calendar_id='primary'):
+def update_event_from_task(service, task, event_id):
     """
     Update a Google Calendar event from a task
     
     Args:
         service: Google Calendar service object
-        task: Task model instance
-        event_id: Google Calendar event ID to update
-        calendar_id: ID of the calendar containing the event (default: primary)
+        task: Task object to update event from
+        event_id: ID of the event to update
         
     Returns:
         Updated event object from Google Calendar API
     """
     try:
-        # Ensure we have a valid date
-        if not task.due_date:
-            logger.error(f"Task {task.id} has no due date")
-            raise ValueError("Task must have a due date to update a calendar event")
-            
-        # Format event data from task
-        event_data = {
-            'summary': task.title,
-            'description': task.description or '',
-            'start': {
-                'date': task.due_date.isoformat() if task.due_date else datetime.now().date().isoformat(),
-            },
-            'end': {
-                'date': task.due_date.isoformat() if task.due_date else 
-                      (datetime.now() + timedelta(days=1)).date().isoformat(),
-            },
-        }
+        # Get task details
+        title = task.title
+        description = task.description or ''
+        due_date = task.due_date
         
-        # Update metadata
-        event_data['extendedProperties'] = {
-            'private': {
-                'mobilizeCrmTaskId': str(task.id),
-                'mobilizeCrmTaskStatus': task.status,
-                'mobilizeCrmTaskPriority': task.priority,
+        # Handle time component
+        start_datetime = None
+        end_datetime = None
+        
+        if due_date:
+            # If we have a due_time, use it to create a datetime event
+            if task.due_time:
+                # Parse the time string (HH:MM)
+                hour, minute = map(int, task.due_time.split(':'))
+                
+                # Create datetime objects for start and end
+                start_datetime = datetime.combine(due_date, time(hour, minute, 0))
+                end_datetime = start_datetime + timedelta(hours=1)  # Default to 1 hour duration
+                
+                # Format for Google Calendar API
+                start = {
+                    'dateTime': start_datetime.isoformat(),
+                    'timeZone': 'America/Los_Angeles'  # Use appropriate timezone
+                }
+                end = {
+                    'dateTime': end_datetime.isoformat(),
+                    'timeZone': 'America/Los_Angeles'  # Use appropriate timezone
+                }
+            else:
+                # All-day event
+                start = {
+                    'date': due_date.isoformat()
+                }
+                end = {
+                    'date': due_date.isoformat()
+                }
+        else:
+            # If no due date, default to today
+            today = datetime.now().date()
+            start = {
+                'date': today.isoformat()
+            }
+            end = {
+                'date': today.isoformat()
+            }
+        
+        # Create event object
+        event = {
+            'summary': title,
+            'description': description,
+            'start': start,
+            'end': end,
+            'extendedProperties': {
+                'private': {
+                    'mobilizeCrmTaskId': str(task.id),
+                    'mobilizeCrmTaskStatus': task.status,
+                    'mobilizeCrmTaskPriority': task.priority
+                }
             }
         }
         
+        # Add reminder if specified
+        if task.reminder_time and task.reminder_time != '':
+            # Convert reminder_time to minutes before event
+            minutes = int(task.reminder_time)
+            
+            event['reminders'] = {
+                'useDefault': False,
+                'overrides': [
+                    {'method': 'popup', 'minutes': minutes}
+                ]
+            }
+        else:
+            # Use default reminders
+            event['reminders'] = {
+                'useDefault': True
+            }
+        
         # Update the event
-        event = service.events().update(
-            calendarId=calendar_id, 
+        updated_event = service.events().update(
+            calendarId='primary', 
             eventId=event_id, 
-            body=event_data
+            body=event
         ).execute()
         
-        logger.info(f"Updated calendar event with ID: {event.get('id')} for task: {task.id}")
-        return event
-    
+        logger.info(f"Event updated: {updated_event.get('htmlLink')}")
+        
+        return updated_event
+        
     except HttpError as error:
         logger.error(f"Error updating calendar event: {error}")
         raise
@@ -179,6 +291,10 @@ def get_events(service, time_min=None, time_max=None, calendar_id='primary', max
         if time_max is None:
             time_max = (datetime.utcnow() + timedelta(days=30)).isoformat() + 'Z'
         
+        if not service:
+            logger.error("Calendar service is not available")
+            return []
+            
         events_result = service.events().list(
             calendarId=calendar_id,
             timeMin=time_min,
@@ -193,4 +309,7 @@ def get_events(service, time_min=None, time_max=None, calendar_id='primary', max
     
     except HttpError as error:
         logger.error(f"Error getting calendar events: {error}")
-        raise
+        return []
+    except Exception as e:
+        logger.error(f"Unexpected error getting calendar events: {e}")
+        return []

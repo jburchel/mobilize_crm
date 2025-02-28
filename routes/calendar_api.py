@@ -53,12 +53,62 @@ def sync_task_to_calendar(task_id):
             try:
                 # Check if the task already has a Google Calendar event
                 if task.google_calendar_event_id:
-                    # Update existing event
-                    event = update_event_from_task(
-                        calendar_service, 
-                        task, 
-                        task.google_calendar_event_id
-                    )
+                    # Check for conflicts before updating
+                    try:
+                        # Try to get the event to see if it still exists
+                        event = calendar_service.events().get(
+                            calendarId='primary', 
+                            eventId=task.google_calendar_event_id
+                        ).execute()
+                        
+                        # Check if the event has been modified in Google Calendar
+                        # Compare last sync time with last modification time in Google Calendar
+                        if task.last_synced_at:
+                            updated_time = datetime.fromisoformat(event['updated'].replace('Z', '+00:00'))
+                            
+                            # If the event was updated in Google Calendar after our last sync
+                            if task.last_synced_at < updated_time:
+                                # Conflict detected - event was modified in Google Calendar
+                                logger.info(f"Conflict detected for task {task_id}: Event modified in Google Calendar")
+                                
+                                # Resolve conflict based on strategy:
+                                # 1. CRM wins - always update Google Calendar with CRM data (current behavior)
+                                # 2. Google Calendar wins - update CRM with Google Calendar data
+                                # 3. Last modified wins - compare timestamps and use the most recent
+                                # 4. Prompt user - not possible in background job
+                                
+                                # For this implementation, we'll use strategy 1: CRM wins
+                                logger.info(f"Resolving conflict: CRM data takes precedence")
+                                
+                                # Continue with update as normal
+                                event = update_event_from_task(
+                                    calendar_service, 
+                                    task, 
+                                    task.google_calendar_event_id
+                                )
+                            else:
+                                # No conflict, proceed with normal update
+                                event = update_event_from_task(
+                                    calendar_service, 
+                                    task, 
+                                    task.google_calendar_event_id
+                                )
+                        else:
+                            # No last sync time, just update
+                            event = update_event_from_task(
+                                calendar_service, 
+                                task, 
+                                task.google_calendar_event_id
+                            )
+                            
+                    except Exception as e:
+                        # Event might have been deleted in Google Calendar
+                        logger.warning(f"Event {task.google_calendar_event_id} not found in Google Calendar: {e}")
+                        logger.info(f"Creating new event for task {task_id}")
+                        
+                        # Create a new event
+                        event = create_event_from_task(calendar_service, task)
+                        task.google_calendar_event_id = event['id']
                 else:
                     # Create new event
                     event = create_event_from_task(calendar_service, task)
@@ -205,49 +255,77 @@ def get_upcoming_events():
         logger.info(f"Fetching events between {time_min} and {time_max}")
         
         # Get events from Google Calendar
-        events = get_events(
-            calendar_service,
-            time_min=time_min.isoformat() + 'Z',
-            time_max=time_max.isoformat() + 'Z'
-        )
-        logger.info(f"Found {len(events)} events in Google Calendar")
+        try:
+            events = get_events(
+                calendar_service,
+                time_min=time_min.isoformat() + 'Z',
+                time_max=time_max.isoformat() + 'Z'
+            )
+            logger.info(f"Found {len(events)} events in Google Calendar")
+        except Exception as e:
+            logger.error(f"Error fetching events from Google Calendar: {e}", exc_info=True)
+            events = []
         
         # Get synced tasks from database
         with session_scope() as session:
-            tasks = session.query(Task).filter(
-                Task.google_calendar_sync_enabled == True,
-                Task.due_date >= time_min.date(),
-                Task.due_date <= time_max.date()
-            ).all()
-            logger.info(f"Found {len(tasks)} synced tasks in database")
+            try:
+                tasks = session.query(Task).filter(
+                    Task.google_calendar_sync_enabled == True,
+                    Task.due_date >= time_min.date(),
+                    Task.due_date <= time_max.date()
+                ).all()
+                logger.info(f"Found {len(tasks)} synced tasks in database")
+            except Exception as e:
+                logger.error(f"Error fetching tasks from database: {e}", exc_info=True)
+                tasks = []
             
             # Format events for response
             formatted_events = []
             
             # Add Google Calendar events
             for event in events:
-                # Only include events that are linked to CRM tasks
-                task_id = event.get('extendedProperties', {}).get('private', {}).get('mobilizeCrmTaskId')
-                if task_id:
+                try:
+                    # Include all events, not just those linked to CRM tasks
                     start = event['start'].get('dateTime', event['start'].get('date'))
+                    
+                    # Check if this is a CRM task event
+                    task_id = event.get('extendedProperties', {}).get('private', {}).get('mobilizeCrmTaskId')
+                    
+                    # If it's a CRM task, use the stored status and priority
+                    if task_id:
+                        status = event.get('extendedProperties', {}).get('private', {}).get('mobilizeCrmTaskStatus', 'Not Started')
+                        priority = event.get('extendedProperties', {}).get('private', {}).get('mobilizeCrmTaskPriority', 'Medium')
+                    else:
+                        # For regular Google Calendar events
+                        status = 'Calendar Event'
+                        priority = 'Medium'
+                    
                     formatted_events.append({
                         'id': event['id'],
                         'title': event['summary'],
                         'start': start,
-                        'status': event.get('extendedProperties', {}).get('private', {}).get('mobilizeCrmTaskStatus', 'Not Started'),
-                        'priority': event.get('extendedProperties', {}).get('private', {}).get('mobilizeCrmTaskPriority', 'Medium')
+                        'status': status,
+                        'priority': priority,
+                        'is_crm_task': bool(task_id)
                     })
+                except Exception as e:
+                    logger.error(f"Error processing event: {e}", exc_info=True)
+                    continue
             
             # Add any tasks that should be synced but aren't yet
             for task in tasks:
-                if not task.google_calendar_event_id:
-                    formatted_events.append({
-                        'id': f'task_{task.id}',
-                        'title': task.title,
-                        'start': task.due_date.isoformat() if task.due_date else datetime.now().isoformat(),
-                        'status': task.status,
-                        'priority': task.priority
-                    })
+                try:
+                    if not task.google_calendar_event_id:
+                        formatted_events.append({
+                            'id': f'task_{task.id}',
+                            'title': task.title,
+                            'start': task.due_date.isoformat() if task.due_date else datetime.now().isoformat(),
+                            'status': task.status,
+                            'priority': task.priority
+                        })
+                except Exception as e:
+                    logger.error(f"Error processing task: {e}", exc_info=True)
+                    continue
             
             # Sort events by start time
             formatted_events.sort(key=lambda x: x['start'])

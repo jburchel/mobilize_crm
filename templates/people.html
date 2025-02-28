@@ -12,11 +12,83 @@
         <input type="text" id="peopleSearch" placeholder="Search people..." class="search-input">
     </div>
 
+    <!-- Batch Update Controls -->
+    <div class="batch-update-container" id="batchUpdateContainer" style="display: none;">
+        <form id="batchUpdateForm" method="POST" action="{{ url_for('people_bp.batch_update') }}">
+            <div class="batch-update-fields">
+                <div class="batch-field">
+                    <label for="batch_pipeline">Pipeline Stage:</label>
+                    <select name="batch_pipeline" id="batch_pipeline">
+                        <option value="">No Change</option>
+                        <option value="PROMOTION">Promotion</option>
+                        <option value="INFORMATION">Information</option>
+                        <option value="INVITATION">Invitation</option>
+                        <option value="CONFIRMATION">Confirmation</option>
+                        <option value="AUTOMATION">Automation</option>
+                    </select>
+                </div>
+                <div class="batch-field">
+                    <label for="batch_priority">Priority:</label>
+                    <select name="batch_priority" id="batch_priority">
+                        <option value="">No Change</option>
+                        <option value="URGENT">Urgent</option>
+                        <option value="HIGH">High</option>
+                        <option value="MEDIUM">Medium</option>
+                        <option value="LOW">Low</option>
+                    </select>
+                </div>
+                <div class="batch-field">
+                    <label for="batch_assigned_to">Assigned To:</label>
+                    <select name="batch_assigned_to" id="batch_assigned_to">
+                        <option value="">No Change</option>
+                        <option value="UNASSIGNED">Unassigned</option>
+                        <option value="BILL JONES">Bill Jones</option>
+                        <option value="JASON MODOMO">Jason Modomo</option>
+                        <option value="KEN KATAYAMA">Ken Katayama</option>
+                        <option value="MATTHEW RULE">Matthew Rule</option>
+                        <option value="CHIP ATKINSON">Chip Atkinson</option>
+                        <option value="RACHEL LIVELY">Rachel Lively</option>
+                        <option value="JIM BURCHEL">Jim Burchel</option>
+                        <option value="JILL WALKER">Jill Walker</option>
+                    </select>
+                </div>
+                <div class="batch-field">
+                    <label for="batch_virtuous">Virtuous:</label>
+                    <select name="batch_virtuous" id="batch_virtuous">
+                        <option value="">No Change</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                    </select>
+                </div>
+            </div>
+            <div class="batch-update-actions">
+                <button type="submit" class="button primary">Update Selected</button>
+                <button type="button" id="cancelBatchUpdate" class="button secondary">Cancel</button>
+            </div>
+            <input type="hidden" name="selected_ids" id="selectedIds">
+        </form>
+        
+        <!-- Batch Delete Form -->
+        <form id="batchDeleteForm" method="POST" action="{{ url_for('people_bp.batch_delete') }}" style="margin-top: 1rem;">
+            <div class="batch-delete-warning">
+                <i class="bi bi-exclamation-triangle"></i>
+                <span>Warning: Deletion is permanent and cannot be undone.</span>
+            </div>
+            <div class="batch-update-actions">
+                <button type="button" id="deleteSelectedBtn" class="button danger">Delete Selected</button>
+            </div>
+            <input type="hidden" name="selected_ids" id="deleteSelectedIds">
+        </form>
+    </div>
+
     <div class="card">
         <h3>All People</h3>
         <table class="people-table">
             <thead>
                 <tr>
+                    <th class="checkbox-column">
+                        <input type="checkbox" id="selectAll" title="Select All">
+                    </th>
                     <th class="name-column">Name</th>
                     <th class="email-column">Email</th>
                     <th class="phone-column">Phone</th>
@@ -26,6 +98,9 @@
             <tbody id="peopleTableBody">
                 {% for person in people %}
                 <tr class="person-row" data-search-text="{{ person.first_name }} {{ person.last_name }} {{ person.email }} {{ person.church.church_name if person.church else '' }}">
+                    <td class="checkbox-column">
+                        <input type="checkbox" class="person-checkbox" data-id="{{ person.id }}">
+                    </td>
                     <td class="name-column"><a href="{{ url_for('people_bp.person_detail', person_id=person.id) }}">{{ person.first_name }} {{ person.last_name }}</a></td>
                     <td class="email-column">{{ person.email }}</td>
                     <td class="phone-column">{{ person.phone }}</td>
@@ -43,7 +118,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('peopleSearch');
     const tbody = document.getElementById('peopleTableBody');
     const rows = tbody.getElementsByClassName('person-row');
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const personCheckboxes = document.getElementsByClassName('person-checkbox');
+    const batchUpdateContainer = document.getElementById('batchUpdateContainer');
+    const batchUpdateForm = document.getElementById('batchUpdateForm');
+    const selectedIdsInput = document.getElementById('selectedIds');
+    const cancelBatchUpdateBtn = document.getElementById('cancelBatchUpdate');
 
+    // Search functionality
     searchInput.addEventListener('input', function() {
         const searchText = this.value.toLowerCase();
         
@@ -52,6 +134,126 @@ document.addEventListener('DOMContentLoaded', function() {
             row.style.display = text.includes(searchText) ? '' : 'none';
         }
     });
+
+    // Select all checkbox
+    selectAllCheckbox.addEventListener('change', function() {
+        const isChecked = this.checked;
+        
+        for (const checkbox of personCheckboxes) {
+            // Only check visible rows
+            const row = checkbox.closest('tr');
+            if (row.style.display !== 'none') {
+                checkbox.checked = isChecked;
+            }
+        }
+        
+        updateBatchUpdateVisibility();
+    });
+
+    // Individual checkboxes
+    for (const checkbox of personCheckboxes) {
+        checkbox.addEventListener('change', function() {
+            updateBatchUpdateVisibility();
+            
+            // Update "select all" checkbox state
+            let allChecked = true;
+            let allUnchecked = true;
+            
+            for (const cb of personCheckboxes) {
+                const row = cb.closest('tr');
+                if (row.style.display !== 'none') {
+                    if (cb.checked) {
+                        allUnchecked = false;
+                    } else {
+                        allChecked = false;
+                    }
+                }
+            }
+            
+            selectAllCheckbox.checked = allChecked;
+            selectAllCheckbox.indeterminate = !allChecked && !allUnchecked;
+        });
+    }
+
+    // Cancel batch update
+    cancelBatchUpdateBtn.addEventListener('click', function() {
+        // Uncheck all checkboxes
+        selectAllCheckbox.checked = false;
+        for (const checkbox of personCheckboxes) {
+            checkbox.checked = false;
+        }
+        
+        // Hide batch update container
+        batchUpdateContainer.style.display = 'none';
+    });
+
+    // Form submission
+    batchUpdateForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Collect selected IDs
+        const selectedIds = [];
+        for (const checkbox of personCheckboxes) {
+            if (checkbox.checked) {
+                selectedIds.push(checkbox.dataset.id);
+            }
+        }
+        
+        if (selectedIds.length === 0) {
+            alert('Please select at least one person to update.');
+            return;
+        }
+        
+        // Update hidden input with selected IDs
+        selectedIdsInput.value = selectedIds.join(',');
+        
+        // Submit the form
+        this.submit();
+    });
+
+    // Delete button click handler
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const batchDeleteForm = document.getElementById('batchDeleteForm');
+    const deleteSelectedIdsInput = document.getElementById('deleteSelectedIds');
+    
+    deleteSelectedBtn.addEventListener('click', function() {
+        // Collect selected IDs
+        const selectedIds = [];
+        for (const checkbox of personCheckboxes) {
+            if (checkbox.checked) {
+                selectedIds.push(checkbox.dataset.id);
+            }
+        }
+        
+        if (selectedIds.length === 0) {
+            alert('Please select at least one person to delete.');
+            return;
+        }
+        
+        // Confirm deletion
+        const confirmMessage = `Are you sure you want to delete ${selectedIds.length} ${selectedIds.length > 1 ? 'people' : 'person'}? This action cannot be undone.`;
+        if (confirm(confirmMessage)) {
+            // Update hidden input with selected IDs
+            deleteSelectedIdsInput.value = selectedIds.join(',');
+            
+            // Submit the form
+            batchDeleteForm.submit();
+        }
+    });
+
+    // Function to show/hide batch update container based on selections
+    function updateBatchUpdateVisibility() {
+        let hasChecked = false;
+        
+        for (const checkbox of personCheckboxes) {
+            if (checkbox.checked) {
+                hasChecked = true;
+                break;
+            }
+        }
+        
+        batchUpdateContainer.style.display = hasChecked ? 'block' : 'none';
+    }
 });
 </script>
 {% endblock %}
@@ -106,20 +308,25 @@ a.button.primary:hover {
     table-layout: fixed;
 }
 
+.checkbox-column {
+    width: 40px;
+    text-align: center;
+}
+
 .name-column {
-    width: 22%;
+    width: 20%;
 }
 
 .email-column {
-    width: 28%;
+    width: 25%;
 }
 
 .phone-column {
-    width: 18%;
+    width: 15%;
 }
 
 .church-column {
-    width: 32%;
+    width: 30%;
 }
 
 /* Ensure text wrapping and overflow handling */
@@ -136,6 +343,84 @@ a.button.primary:hover {
     overflow: visible;
     z-index: 1;
     position: relative;
+}
+
+/* Batch update styles */
+.batch-update-container {
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.batch-update-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.batch-field {
+    display: flex;
+    flex-direction: column;
+    min-width: 200px;
+}
+
+.batch-field label {
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+
+.batch-field select {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: var(--border-radius);
+}
+
+.batch-update-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.button.secondary {
+    background-color: #6c757d;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--border-radius);
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+}
+
+.button.secondary:hover {
+    background-color: #5a6268;
+    transform: translateY(-1px);
+}
+
+/* Add styles for batch delete */
+.batch-delete-warning {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    color: #dc3545;
+    font-weight: 500;
+}
+
+.button.danger {
+    background-color: #dc3545;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--border-radius);
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+}
+
+.button.danger:hover {
+    background-color: #c82333;
+    transform: translateY(-1px);
 }
 </style>
 {% endblock %}
