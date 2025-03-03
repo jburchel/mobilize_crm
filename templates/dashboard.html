@@ -1,7 +1,16 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h2>Dashboard</h2>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Dashboard</h2>
+        <div class="d-flex align-items-center">
+            <button id="syncEmailsBtn" class="btn btn-primary btn-sm">
+                <i class="bi bi-arrow-repeat"></i> Sync Emails Now
+            </button>
+            <span id="syncStatus" class="ms-2" style="display: none;"></span>
+        </div>
+    </div>
+    
     <div class="dashboard-stats">
         <div class="stat-card">
             <h3>People</h3>
@@ -10,6 +19,22 @@
         <div class="stat-card">
             <h3>Churches</h3>
             <p class="stat-value">{{ churches }}</p>
+        </div>
+    </div>
+
+    <!-- Recent Synced Emails Section -->
+    <div class="card mb-4" id="syncResultsCard" style="display: none;">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Recent Email Sync Results</h4>
+            <button class="btn btn-sm btn-link" id="dismissSyncResults">Dismiss</button>
+        </div>
+        <div class="card-body">
+            <div id="syncResultsContent">
+                <p>No recent email synchronization activity.</p>
+            </div>
+            <div class="text-muted mt-2">
+                <small>To view all communications, visit the <a href="/communications">Communications</a> page.</small>
+            </div>
         </div>
     </div>
 
@@ -48,5 +73,126 @@
     color: var(--primary-color);
     margin: 0.5rem 0;
 }
+
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
 </style>
 {% endblock %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const syncEmailsBtn = document.getElementById('syncEmailsBtn');
+    const syncStatus = document.getElementById('syncStatus');
+    const syncResultsCard = document.getElementById('syncResultsCard');
+    const syncResultsContent = document.getElementById('syncResultsContent');
+    const dismissSyncResults = document.getElementById('dismissSyncResults');
+    
+    if (dismissSyncResults) {
+        dismissSyncResults.addEventListener('click', function() {
+            syncResultsCard.style.display = 'none';
+        });
+    }
+    
+    if (syncEmailsBtn) {
+        syncEmailsBtn.addEventListener('click', async function() {
+            try {
+                // Update button state
+                syncEmailsBtn.disabled = true;
+                syncEmailsBtn.innerHTML = '<i class="bi bi-arrow-repeat spinning"></i> Syncing...';
+                syncStatus.textContent = "Starting email sync...";
+                syncStatus.style.display = 'inline';
+                
+                // Try to get access token from session storage
+                let accessToken = sessionStorage.getItem('googleAccessToken');
+                const userId = sessionStorage.getItem('userId');
+                const firebaseToken = sessionStorage.getItem('authToken');
+                
+                // If no token in sessionStorage, try to get it from auth.js
+                if (!accessToken) {
+                    const authToken = sessionStorage.getItem('authToken');
+                    if (authToken) {
+                        // We have auth but not Google token - likely needs to reconnect Google
+                        syncStatus.textContent = "Please reconnect your Google account";
+                        
+                        // Redirect to Google integration page
+                        setTimeout(() => {
+                            window.location.href = '/google/authorize';
+                        }, 2000);
+                        return;
+                    } else {
+                        syncStatus.textContent = "You need to sign in first";
+                        syncEmailsBtn.disabled = false;
+                        syncEmailsBtn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Sync Emails Now';
+                        return;
+                    }
+                }
+                
+                if (!userId) {
+                    syncStatus.textContent = "User ID not found. Please sign in again.";
+                    syncEmailsBtn.disabled = false;
+                    syncEmailsBtn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Sync Emails Now';
+                    return;
+                }
+                
+                // Call the force sync endpoint
+                const response = await fetch('/api/gmail/force-sync-emails', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${firebaseToken}`,
+                        'X-Google-Token': accessToken,
+                        'X-User-ID': userId
+                    }
+                });
+                
+                const result = await response.json();
+                console.log("Email sync result:", result);
+                
+                // Update UI based on result
+                if (result.success) {
+                    syncStatus.textContent = "Email sync completed successfully!";
+                    
+                    // Update the sync results card
+                    if (syncResultsCard && syncResultsContent) {
+                        // Show sync results with timestamp
+                        const now = new Date();
+                        const timeString = now.toLocaleTimeString();
+                        const dateString = now.toLocaleDateString();
+                        
+                        let content = `
+                            <p><strong>Last Sync:</strong> ${dateString} at ${timeString}</p>
+                            <p><strong>Emails Found:</strong> ${result.total_messages_found || 0}</p>
+                            <p><strong>New Emails Synced:</strong> ${result.synced_count || 0}</p>
+                        `;
+                        
+                        if (result.synced_count > 0) {
+                            content += `<p>✅ ${result.synced_count} new emails have been added to your communications.</p>`;
+                        } else {
+                            content += `<p>ℹ️ No new emails were found to sync.</p>`;
+                        }
+                        
+                        syncResultsContent.innerHTML = content;
+                        syncResultsCard.style.display = 'block';
+                    }
+                } else {
+                    syncStatus.textContent = `Sync failed: ${result.message}`;
+                }
+            } catch (error) {
+                console.error("Error syncing emails:", error);
+                syncStatus.textContent = "Sync failed due to an error";
+            } finally {
+                // Reset button state after a delay
+                setTimeout(() => {
+                    syncEmailsBtn.disabled = false;
+                    syncEmailsBtn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Sync Emails Now';
+                }, 2000);
+            }
+        });
+    }
+});
+</script>

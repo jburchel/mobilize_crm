@@ -172,7 +172,12 @@ def sync_gmail_emails():
                 # Call the sync_emails endpoint
                 response = requests.post(
                     f"{base_url}/api/gmail/sync-emails",
-                    headers={'Authorization': f'Bearer {tokens["access_token"]}'}
+                    headers={
+                        # Use X-Google-Token header which is explicitly allowed in auth_required
+                        'X-Google-Token': tokens["access_token"],
+                        # Pass the user ID in the custom header
+                        'X-User-ID': user_id
+                    }
                 )
                 
                 if response.status_code == 200:

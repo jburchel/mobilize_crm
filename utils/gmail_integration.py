@@ -354,50 +354,133 @@ def list_messages(service, user_id, query=''):
         return []
 
 def get_message_content(service, user_id, msg_id):
-    """Get the content of a specific message.
-
-    Args:
-        service: Authorized Gmail API service instance.
-        user_id: User's email address. The special value "me" can be used to indicate the authenticated user.
-        msg_id: The ID of the message to retrieve.
-
-    Returns:
-        A dictionary with message details including subject, sender, body, etc.
-    """
+    """Get message content from Gmail API and process it into a usable format"""
     try:
-        message = service.users().messages().get(userId=user_id, id=msg_id, format='full').execute()
-        
+        message = get_message(service, user_id, msg_id)
+        if not message:
+            return None
+            
         # Extract headers
-        headers = {}
-        for header in message['payload']['headers']:
-            headers[header['name'].lower()] = header['value']
+        headers = message['payload']['headers']
+        subject = ''
+        from_email = ''
+        to_email = ''
+        date = ''
+        thread_id = message.get('threadId', '')
         
-        # Extract subject, from, to
-        subject = headers.get('subject', '')
-        sender = headers.get('from', '')
-        recipient = headers.get('to', '')
-        
-        # Extract message body
-        body = ''
+        for header in headers:
+            name = header['name'].lower()
+            if name == 'subject':
+                subject = header['value']
+            elif name == 'from':
+                from_email = header['value']
+            elif name == 'to':
+                to_email = header['value']
+            elif name == 'date':
+                date = header['value']
+                
+        # Extract body
+        body = ""
         if 'parts' in message['payload']:
+            # Multi-part message
             for part in message['payload']['parts']:
                 if part['mimeType'] == 'text/plain':
-                    body = base64.urlsafe_b64decode(part['body']['data']).decode('utf-8')
-                    break
+                    if 'data' in part['body']:
+                        text = base64.urlsafe_b64decode(part['body']['data']).decode('utf-8', errors='replace')
+                        body = text
+                        break
+                elif part['mimeType'] == 'text/html':
+                    # If we don't have plain text yet, use HTML (will be our fallback)
+                    if not body and 'data' in part['body']:
+                        html = base64.urlsafe_b64decode(part['body']['data']).decode('utf-8', errors='replace')
+                        # Very simple HTML to text conversion
+                        from html.parser import HTMLParser
+                        
+                        class MLStripper(HTMLParser):
+                            def __init__(self):
+                                super().__init__()
+                                self.reset()
+                                self.strict = False
+                                self.convert_charrefs = True
+                                self.text = []
+                            def handle_data(self, d):
+                                self.text.append(d)
+                            def get_data(self):
+                                return ''.join(self.text)
+                                
+                        stripper = MLStripper()
+                        stripper.feed(html)
+                        body = stripper.get_data()
+                elif 'parts' in part:
+                    # Handle nested multipart messages
+                    for subpart in part['parts']:
+                        if subpart['mimeType'] == 'text/plain':
+                            if 'data' in subpart['body']:
+                                text = base64.urlsafe_b64decode(subpart['body']['data']).decode('utf-8', errors='replace')
+                                body = text
+                                break
+                        elif subpart['mimeType'] == 'text/html' and not body:
+                            if 'data' in subpart['body']:
+                                html = base64.urlsafe_b64decode(subpart['body']['data']).decode('utf-8', errors='replace')
+                                # Strip HTML tags for plain text
+                                from html.parser import HTMLParser
+                                
+                                class MLStripper(HTMLParser):
+                                    def __init__(self):
+                                        super().__init__()
+                                        self.reset()
+                                        self.strict = False
+                                        self.convert_charrefs = True
+                                        self.text = []
+                                    def handle_data(self, d):
+                                        self.text.append(d)
+                                    def get_data(self):
+                                        return ''.join(self.text)
+                                        
+                                stripper = MLStripper()
+                                stripper.feed(html)
+                                body = stripper.get_data()
         elif 'body' in message['payload'] and 'data' in message['payload']['body']:
-            body = base64.urlsafe_b64decode(message['payload']['body']['data']).decode('utf-8')
-        
+            # Single part message
+            body = base64.urlsafe_b64decode(message['payload']['body']['data']).decode('utf-8', errors='replace')
+            
+        # If body is still empty, try one more approach
+        if not body:
+            try:
+                # Try to get full message with raw format to extract body
+                full_message = service.users().messages().get(
+                    userId=user_id, id=msg_id, format='raw').execute()
+                if 'raw' in full_message:
+                    # Decode the raw message
+                    raw_email = base64.urlsafe_b64decode(full_message['raw'].encode('ASCII'))
+                    # Parse the email using email package
+                    import email
+                    email_message = email.message_from_bytes(raw_email)
+                    
+                    # Get the body from the email
+                    if email_message.is_multipart():
+                        for part in email_message.walk():
+                            if part.get_content_type() == 'text/plain':
+                                body = part.get_payload(decode=True).decode('utf-8', errors='replace')
+                                break
+                    else:
+                        body = email_message.get_payload(decode=True).decode('utf-8', errors='replace')
+            except Exception as e:
+                logger.warning(f"Error extracting raw email body: {str(e)}")
+                
+        # Return processed message content
         return {
-            'id': message['id'],
-            'thread_id': message['threadId'],
+            'id': msg_id,
+            'thread_id': thread_id,
             'subject': subject,
-            'from': sender,
-            'to': recipient,
+            'from': from_email,
+            'to': to_email,
             'body': body,
-            'date': datetime.fromtimestamp(int(message['internalDate'])/1000).strftime('%Y-%m-%d %H:%M:%S')
+            'date': date
         }
-    except HttpError as error:
-        logger.error(f"An error occurred: {error}")
+    except Exception as e:
+        logger.error(f"Error getting message content: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return None
 
 def create_draft(service, user_id, message_body):

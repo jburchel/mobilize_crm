@@ -229,6 +229,10 @@ class AuthManager {
                 this.signInButton.classList.add('hidden');
                 this.signOutButton.classList.remove('hidden');
                 
+                // Store the user ID in session storage for use by other components
+                sessionStorage.setItem('userId', user.uid);
+                console.log("User ID stored in session storage:", user.uid);
+                
                 // Show navigation menu and adjust sidebar
                 if (this.navbar) {
                     this.navbar.classList.remove('hidden');
@@ -243,12 +247,10 @@ class AuthManager {
                     }
                 }
 
-                // Get the user's ID token and set up auth
+                // Fetch ID token and set up auth
                 user.getIdToken().then(token => {
                     // Store the token for API calls
                     sessionStorage.setItem('authToken', token);
-                    
-                    // Store token in cookie for server-side auth
                     document.cookie = `firebase_token=${token}; path=/; SameSite=Strict`;
                     
                     // Set up request interceptor
@@ -281,6 +283,9 @@ class AuthManager {
                     } else {
                         console.log("No Google access token available to send to server");
                     }
+                    
+                    // Trigger Gmail sync on login
+                    this.triggerEmailSync();
                 });
             } else {
                 // Update auth status
@@ -377,6 +382,65 @@ class AuthManager {
             detail: { error: errorMessage },
             bubbles: true
         }));
+    }
+
+    // Add new method to trigger email sync
+    async triggerEmailSync() {
+        try {
+            console.log("Triggering email sync after login...");
+            const accessToken = sessionStorage.getItem('googleAccessToken');
+            const userId = sessionStorage.getItem('userId');
+            const firebaseToken = sessionStorage.getItem('authToken');
+            
+            if (!accessToken) {
+                console.warn("No Google access token available for email sync");
+                return;
+            }
+            
+            if (!userId) {
+                console.warn("No user ID available for email sync");
+                return;
+            }
+            
+            // Show sync status
+            if (this.syncStatus) {
+                this.syncStatus.textContent = "Syncing emails...";
+                this.syncStatus.style.display = 'block';
+            }
+            
+            // Call the force sync endpoint
+            const response = await fetch('/api/gmail/force-sync-emails', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${firebaseToken}`,
+                    'X-Google-Token': accessToken,
+                    'X-User-ID': userId
+                }
+            });
+            
+            const result = await response.json();
+            console.log("Email sync result:", result);
+            
+            // Update sync status
+            if (this.syncStatus) {
+                this.syncStatus.textContent = result.success ? 
+                    "Email sync complete" : 
+                    "Email sync failed: " + (result.message || "Unknown error");
+                    
+                // Hide the status after a few seconds
+                setTimeout(() => {
+                    this.syncStatus.style.display = 'none';
+                }, 3000);
+            }
+        } catch (error) {
+            console.error("Error syncing emails:", error);
+            if (this.syncStatus) {
+                this.syncStatus.textContent = "Email sync failed: " + (error.message || "Unknown error");
+                setTimeout(() => {
+                    this.syncStatus.style.display = 'none';
+                }, 3000);
+            }
+        }
     }
 }
 
