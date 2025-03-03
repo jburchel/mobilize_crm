@@ -2,6 +2,70 @@ import { initializeFirebase } from './firebase_config.js';
 import { signInWithPopup, signOut, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { ContactsService } from './contacts_service.js';
 
+// Email sync indicator
+let emailSyncInProgress = false;
+let emailSyncIndicator = null;
+
+// Initialize the email sync indicator when the DOM loads
+document.addEventListener('DOMContentLoaded', () => {
+    emailSyncIndicator = document.getElementById('emailSyncIndicator');
+});
+
+// Global functions to show/hide the email sync indicator
+function showEmailSyncIndicator() {
+    if (emailSyncIndicator) {
+        emailSyncIndicator.classList.add('active');
+        emailSyncInProgress = true;
+    }
+}
+
+function hideEmailSyncIndicator() {
+    if (emailSyncIndicator) {
+        emailSyncIndicator.classList.remove('active');
+        emailSyncInProgress = false;
+    }
+}
+
+function isEmailSyncInProgress() {
+    return emailSyncInProgress;
+}
+
+// Make these functions available globally
+window.showEmailSyncIndicator = showEmailSyncIndicator;
+window.hideEmailSyncIndicator = hideEmailSyncIndicator;
+window.isEmailSyncInProgress = isEmailSyncInProgress;
+
+// Function to check if a background sync is in progress
+async function checkBackgroundSync() {
+    try {
+        const userId = sessionStorage.getItem('userId');
+        const authToken = sessionStorage.getItem('authToken');
+        
+        if (!userId || !authToken) return;
+        
+        const response = await fetch('/api/gmail/sync-status', {
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'X-User-ID': userId
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.sync_in_progress) {
+            showEmailSyncIndicator();
+        } else if (emailSyncInProgress && !result.manual_sync_in_progress) {
+            // Only hide if we're not in the middle of a manual sync
+            hideEmailSyncIndicator();
+        }
+    } catch (error) {
+        console.error('Error checking sync status:', error);
+    }
+}
+
+// Poll for background sync status every 10 seconds
+setInterval(checkBackgroundSync, 10000);
+
 class AuthManager {
     constructor() {
         console.log("Starting AuthManager initialization...");

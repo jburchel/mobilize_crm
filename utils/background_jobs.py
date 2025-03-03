@@ -15,6 +15,9 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+# Global scheduler instance
+scheduler = None
+
 def sync_calendar_tasks():
     """
     Synchronize tasks with Google Calendar
@@ -193,6 +196,41 @@ def sync_gmail_emails():
     
     logger.info("Completed Gmail email synchronization job")
 
+def is_job_running(job_id):
+    """
+    Check if a specific background job is currently running
+    
+    Args:
+        job_id: ID of the job to check
+        
+    Returns:
+        bool: True if the job is running, False otherwise
+    """
+    global scheduler
+    
+    if not scheduler:
+        return False
+        
+    try:
+        job = scheduler.get_job(job_id)
+        if not job:
+            return False
+            
+        # Check if the job is currently executing
+        # This is a bit of a hack since APScheduler doesn't provide a direct way to check
+        # We'll consider the job running if it's 5 minutes from the last execution
+        now = datetime.now()
+        if job.next_run_time and job.next_run_time > now:
+            # The job is scheduled to run in the future
+            last_run = job.next_run_time - timedelta(minutes=job.trigger.interval.minutes)
+            # If it was supposed to run within the last 5 minutes, consider it running
+            return (now - last_run).total_seconds() < 300  # 5 minutes in seconds
+            
+        return False
+    except Exception as e:
+        logger.error(f"Error checking if job {job_id} is running: {str(e)}")
+        return False
+
 def start_background_jobs(app=None):
     """
     Start all background jobs
@@ -203,6 +241,7 @@ def start_background_jobs(app=None):
     logger.info("Starting background jobs")
     
     # Create scheduler
+    global scheduler
     scheduler = BackgroundScheduler()
     
     # Create wrapper functions that run in the app context

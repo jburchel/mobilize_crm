@@ -47,6 +47,10 @@
         <div class="header-content">
             <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
             <p class="page-description">{% block page_description %}Your latest mobilization numbers{% endblock %}</p>
+            <div id="emailSyncIndicator" class="email-sync-indicator">
+                <i class="bi bi-arrow-repeat spinning"></i>
+                <span>Syncing emails...</span>
+            </div>
         </div>
     </header>
 

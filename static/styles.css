@@ -639,6 +639,34 @@ body.sidebar-collapsed .main-content {
     100% { transform: rotate(360deg); }
 }
 
+/* Spinning icon animation for Bootstrap icons */
+.bi.spinning, 
+.bi-arrow-repeat.spinning {
+    animation: spin 1.5s linear infinite;
+    display: inline-block;
+}
+
+/* Email sync indicator in navbar */
+.email-sync-indicator {
+    display: none;
+    align-items: center;
+    padding: 5px 10px;
+    margin-left: 15px;
+    border-radius: 20px;
+    background-color: rgba(57, 169, 73, 0.1);
+    color: var(--secondary-color);
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.email-sync-indicator.active {
+    display: flex;
+}
+
+.email-sync-indicator .bi-arrow-repeat {
+    margin-right: 5px;
+}
+
 /* Pipeline Visualization Styles */
 .pipeline-container {
     margin: 2rem 0;

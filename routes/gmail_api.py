@@ -855,4 +855,35 @@ def force_sync_emails():
         return jsonify({
             'success': False,
             'message': f'Error triggering manual Gmail sync: {str(e)}'
+        }), 500
+
+@gmail_api.route('/api/gmail/sync-status', methods=['GET'])
+@auth_required
+def get_sync_status():
+    """Check if there's a background email sync in progress"""
+    try:
+        from utils.background_jobs import is_job_running
+        from routes.google_auth import get_current_user_id
+        
+        # Get the user ID
+        user_id = get_current_user_id() or request.headers.get('X-User-ID')
+        
+        # Check if the background sync job is running
+        background_sync = is_job_running('sync_gmail_emails')
+        
+        # Check if there's a manual sync in progress from session
+        manual_sync = False  # We don't track manual syncs right now
+        
+        return jsonify({
+            'success': True,
+            'sync_in_progress': background_sync,
+            'manual_sync_in_progress': manual_sync,
+            'user_id': user_id
+        })
+    
+    except Exception as e:
+        logger.error(f"Error checking sync status: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error checking sync status: {str(e)}'
         }), 500 

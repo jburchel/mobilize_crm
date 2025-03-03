@@ -108,6 +108,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 syncStatus.textContent = "Starting email sync...";
                 syncStatus.style.display = 'inline';
                 
+                // Show global sync indicator
+                if (window.showEmailSyncIndicator) {
+                    window.showEmailSyncIndicator();
+                }
+                
                 // Try to get access token from session storage
                 let accessToken = sessionStorage.getItem('googleAccessToken');
                 const userId = sessionStorage.getItem('userId');
@@ -190,6 +195,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 setTimeout(() => {
                     syncEmailsBtn.disabled = false;
                     syncEmailsBtn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Sync Emails Now';
+                    
+                    // Hide global sync indicator
+                    if (window.hideEmailSyncIndicator) {
+                        window.hideEmailSyncIndicator();
+                    }
                 }, 2000);
             }
         });
