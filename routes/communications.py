@@ -282,8 +282,210 @@ def get_people_api():
         return jsonify(people_data)
 
 @communications_bp.route('/communications/api/churches')
-def get_churches_api():
+def api_get_churches():
     with session_scope() as session:
-        churches_list = session.query(Church).all()
-        churches_data = [{'id': church.id, 'church_name': church.church_name} for church in churches_list]
-        return jsonify(churches_data)
+        churches = session.query(Church).all()
+        return jsonify({
+            'success': True,
+            'churches': [{'id': church.id, 'name': church.get_name()} for church in churches]
+        })
+
+@communications_bp.route('/communications/<int:comm_id>')
+def view_communication(comm_id):
+    """View a single communication with reply/forward options"""
+    with session_scope() as session:
+        communication = session.query(Communication).filter_by(id=comm_id).first()
+        
+        if not communication:
+            return render_template('error.html', 
+                                  error_title="Communication Not Found",
+                                  error_message="The requested communication could not be found."), 404
+        
+        # Get recipient information
+        recipient = None
+        if communication.person_id:
+            recipient = session.query(Person).filter_by(id=communication.person_id).first()
+        elif communication.church_id:
+            recipient = session.query(Church).filter_by(id=communication.church_id).first()
+        
+        # Get all people and churches for the reply form
+        people = session.query(Person).all()
+        churches = session.query(Church).all()
+        
+        return render_template('view_communication.html',
+                              communication=communication,
+                              recipient=recipient,
+                              people=people,
+                              churches=churches)
+
+@communications_bp.route('/communications/reply/<int:comm_id>', methods=['POST'])
+def reply_to_communication(comm_id):
+    """Handle reply to a specific communication"""
+    if not request.is_json:
+        return jsonify({
+            'success': False,
+            'message': 'JSON request expected'
+        }), 400
+    
+    data = request.json
+    reply_type = data.get('reply_type', 'reply')  # reply, reply_all, or forward
+    message = data.get('message')
+    
+    if not message:
+        return jsonify({
+            'success': False,
+            'message': 'Message content is required'
+        }), 400
+    
+    with session_scope() as session:
+        # Get the original communication
+        original = session.query(Communication).filter_by(id=comm_id).first()
+        if not original:
+            return jsonify({
+                'success': False,
+                'message': 'Original communication not found'
+            }), 404
+        
+        # Determine recipient
+        recipient_person_id = None
+        recipient_church_id = None
+        to_email = None
+        recipient_name = None
+        
+        if reply_type == 'forward':
+            # For forwarding, use the explicitly provided recipient
+            recipient_person_id = data.get('person_id')
+            recipient_church_id = data.get('church_id')
+            
+            if recipient_person_id:
+                person = session.query(Person).filter_by(id=recipient_person_id).first()
+                if person and person.email:
+                    to_email = person.email
+                    recipient_name = person.get_name()
+            elif recipient_church_id:
+                church = session.query(Church).filter_by(id=recipient_church_id).first()
+                if church and church.email:
+                    to_email = church.email
+                    recipient_name = church.get_name()
+        else:
+            # For replies, use the original sender
+            if original.email_status == 'received':
+                # If we received it, reply to the original person/church
+                recipient_person_id = original.person_id
+                recipient_church_id = original.church_id
+                
+                if recipient_person_id:
+                    person = session.query(Person).filter_by(id=recipient_person_id).first()
+                    if person and person.email:
+                        to_email = person.email
+                        recipient_name = person.get_name()
+                elif recipient_church_id:
+                    church = session.query(Church).filter_by(id=recipient_church_id).first()
+                    if church and church.email:
+                        to_email = church.email
+                        recipient_name = church.get_name()
+            else:
+                # If we sent it, reply to the same recipient
+                recipient_person_id = original.person_id
+                recipient_church_id = original.church_id
+                
+                if recipient_person_id:
+                    person = session.query(Person).filter_by(id=recipient_person_id).first()
+                    if person and person.email:
+                        to_email = person.email
+                        recipient_name = person.get_name()
+                elif recipient_church_id:
+                    church = session.query(Church).filter_by(id=recipient_church_id).first()
+                    if church and church.email:
+                        to_email = church.email
+                        recipient_name = church.get_name()
+        
+        if not to_email:
+            return jsonify({
+                'success': False,
+                'message': 'Recipient has no email address'
+            }), 400
+        
+        # Prepare subject
+        if reply_type == 'forward':
+            subject = f"Fw: {original.subject}"
+        else:
+            subject = f"Re: {original.subject}"
+        
+        # Try to send via Gmail API
+        tokens = get_user_tokens()
+        if tokens:
+            access_token = tokens.get('token') or tokens.get('access_token')
+            if access_token:
+                try:
+                    # Format the message - include original text for replies
+                    formatted_message = message
+                    if reply_type != 'forward':
+                        # For replies, add the original message below
+                        formatted_message += f"\n\n--- Original Message ---\n"
+                        formatted_message += f"From: {original.from_name if hasattr(original, 'from_name') else 'Unknown'}\n"
+                        formatted_message += f"Date: {original.date_sent}\n"
+                        formatted_message += f"Subject: {original.subject}\n\n"
+                        formatted_message += original.message
+                    
+                    # Prepare data for Gmail API
+                    email_data = {
+                        'to': to_email,
+                        'subject': subject,
+                        'message': formatted_message,
+                        'person_id': recipient_person_id,
+                        'church_id': recipient_church_id,
+                        'signature_id': data.get('signature_id'),
+                        'gmail_thread_id': original.gmail_thread_id  # Link to original thread
+                    }
+                    
+                    # Call Gmail API endpoint
+                    api_url = url_for('gmail_api.send_email', _external=True)
+                    
+                    headers = {
+                        'Content-Type': 'application/json',
+                        'X-Google-Token': access_token
+                    }
+                    
+                    response = requests.post(api_url, json=email_data, headers=headers)
+                    
+                    if response.status_code == 200:
+                        response_data = response.json()
+                        
+                        # Create a new communication record
+                        new_comm = Communication(
+                            type='Email',
+                            message=formatted_message,
+                            date_sent=datetime.now().date(),
+                            person_id=recipient_person_id,
+                            church_id=recipient_church_id,
+                            subject=subject,
+                            email_status='sent',
+                            gmail_message_id=response_data.get('message_id'),
+                            gmail_thread_id=original.gmail_thread_id or response_data.get('thread_id')
+                        )
+                        session.add(new_comm)
+                        session.commit()
+                        
+                        return jsonify({
+                            'success': True,
+                            'message': f'Successfully sent {reply_type} to {recipient_name}',
+                            'communication_id': new_comm.id
+                        })
+                    else:
+                        return jsonify({
+                            'success': False,
+                            'message': f'Failed to send email: {response.text}'
+                        }), 500
+                except Exception as e:
+                    current_app.logger.error(f"Error sending reply/forward: {str(e)}")
+                    current_app.logger.error(traceback.format_exc())
+                    return jsonify({
+                        'success': False,
+                        'message': f'Error sending email: {str(e)}'
+                    }), 500
+        
+        return jsonify({
+            'success': False,
+            'message': 'Google connection required to send emails'
+        }), 400

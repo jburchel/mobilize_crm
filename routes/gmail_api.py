@@ -591,15 +591,15 @@ def sync_emails():
             query = ""
             if contact_emails:
                 # Create a query to find emails from or to any of our contacts
-                # We'll filter more precisely after retrieving the messages
-                sample_contacts = list(contact_emails.keys())[:5]  # Take a few contacts for the query
-                for i, email in enumerate(sample_contacts):
-                    if i > 0:
-                        query += " OR "
-                    query += f"from:{email} OR to:{email}"
+                # Using a broader query to catch more emails
+                query = "in:inbox OR in:sent newer_than:30d"
+                
+                # Log the contacts we're searching for
+                logger.info(f"Looking for emails involving {len(contact_emails)} contacts")
+                for email, info in list(contact_emails.items())[:5]:
+                    logger.info(f"Sample contact: {email} ({info['type']} ID: {info['id']})")
             
             # Get recent emails (last 30 days)
-            query = f"({query}) newer_than:30d"
             logger.info(f"Gmail query: {query}")
             
             messages = list_messages(gmail_service, 'me', query)
@@ -640,7 +640,7 @@ def sync_emails():
                     contact_info = contact_emails[to_email]
                     email_status = 'sent'
                 
-                # Only process emails related to contacts
+                # Process emails related to contacts (both received from contacts and sent to contacts)
                 if contact_info and email_status:
                     # Create a new communication record
                     new_communication = Communication(
@@ -671,4 +671,26 @@ def sync_emails():
         return jsonify({
             'success': False,
             'message': f'Error syncing emails: {str(e)}'
+        }), 500
+
+@gmail_api.route('/api/gmail/force-sync-emails', methods=['GET'])
+def force_sync_emails():
+    """Force sync emails for testing purposes (temporary debug endpoint)"""
+    from utils.background_jobs import sync_gmail_emails
+    
+    try:
+        # Run the sync job directly
+        current_app.logger.info("Manually triggering Gmail email sync")
+        sync_gmail_emails()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Gmail email sync triggered manually'
+        })
+    
+    except Exception as e:
+        current_app.logger.error(f"Error triggering manual Gmail sync: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error triggering manual Gmail sync: {str(e)}'
         }), 500 

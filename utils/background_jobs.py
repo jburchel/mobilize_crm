@@ -142,6 +142,7 @@ def sync_gmail_emails():
     Background job to sync emails from Gmail for all users with Google integration
     """
     logger.info("Starting Gmail email synchronization job")
+    logger.info("This job will sync both emails received FROM contacts and emails sent TO contacts in the CRM")
     
     try:
         # Get all users with Google tokens
@@ -165,7 +166,7 @@ def sync_gmail_emails():
                 
                 if not base_url:
                     # Default to localhost if BASE_URL is not configured
-                    base_url = "http://localhost:5000"
+                    base_url = "http://localhost:8000"
                     logger.warning(f"BASE_URL not configured, using default: {base_url}")
                 
                 # Call the sync_emails endpoint

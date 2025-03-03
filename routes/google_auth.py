@@ -27,18 +27,19 @@ SCOPES = ['https://www.googleapis.com/auth/calendar',
 # Create client_secret.json file if it doesn't exist
 def create_client_secrets_file():
     if not os.path.exists(CLIENT_SECRETS_FILE):
-        client_config = {
+        client_secrets = {
             "web": {
-                "client_id": current_app.config['GOOGLE_CLIENT_ID'],
-                "client_secret": current_app.config['GOOGLE_CLIENT_SECRET'],
+                "client_id": os.environ.get("GOOGLE_CLIENT_ID"),
+                "project_id": os.environ.get("GOOGLE_PROJECT_ID"),
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                 "token_uri": "https://oauth2.googleapis.com/token",
                 "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-                "redirect_uris": ["http://localhost:5000/google/oauth2callback"]
+                "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET"),
+                "redirect_uris": ["http://localhost:8000/google/oauth2callback"]
             }
         }
         with open(CLIENT_SECRETS_FILE, 'w') as f:
-            json.dump(client_config, f)
+            json.dump(client_secrets, f)
 
 def credentials_to_dict(credentials):
     return {
@@ -222,13 +223,15 @@ def get_user_tokens():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS google_tokens (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                token TEXT NOT NULL,
-                refresh_token TEXT,
-                token_uri TEXT NOT NULL,
-                client_id TEXT NOT NULL,
-                client_secret TEXT NOT NULL,
-                scopes TEXT,
-                last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                user_id VARCHAR NOT NULL,
+                access_token VARCHAR NOT NULL,
+                refresh_token VARCHAR,
+                token_uri VARCHAR,
+                client_id VARCHAR,
+                client_secret VARCHAR,
+                scopes VARCHAR,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
         
@@ -239,9 +242,9 @@ def get_user_tokens():
         
         # Query for the most recently used token
         cursor.execute("""
-            SELECT token, refresh_token, token_uri, client_id, client_secret, scopes
+            SELECT access_token, refresh_token, token_uri, client_id, client_secret, scopes
             FROM google_tokens
-            ORDER BY last_used DESC
+            ORDER BY updated_at DESC
             LIMIT 1
         """)
         
@@ -255,7 +258,7 @@ def get_user_tokens():
             
         # Format the result as a dictionary
         token_data = {
-            'token': result[0],
+            'token': result[0],  # This is the access_token column
             'refresh_token': result[1],
             'token_uri': result[2],
             'client_id': result[3],
@@ -299,22 +302,25 @@ def save_user_tokens(token_data):
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS google_tokens (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                token TEXT NOT NULL,
-                refresh_token TEXT,
-                token_uri TEXT NOT NULL,
-                client_id TEXT NOT NULL,
-                client_secret TEXT NOT NULL,
-                scopes TEXT,
-                last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                user_id VARCHAR NOT NULL,
+                access_token VARCHAR NOT NULL,
+                refresh_token VARCHAR,
+                token_uri VARCHAR,
+                client_id VARCHAR,
+                client_secret VARCHAR,
+                scopes VARCHAR,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
         
         # Insert or update the token
         cursor.execute("""
             INSERT INTO google_tokens 
-            (token, refresh_token, token_uri, client_id, client_secret, scopes, last_used)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (user_id, access_token, refresh_token, token_uri, client_id, client_secret, scopes, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
+            get_current_user_id(),
             token_data['token'],
             token_data.get('refresh_token'),
             token_data['token_uri'],
@@ -327,7 +333,7 @@ def save_user_tokens(token_data):
         conn.commit()
         
         # Verify the token was saved
-        cursor.execute("SELECT id FROM google_tokens WHERE token = ? ORDER BY last_used DESC LIMIT 1", 
+        cursor.execute("SELECT id FROM google_tokens WHERE access_token = ? ORDER BY updated_at DESC LIMIT 1", 
                       (token_data['token'],))
         result = cursor.fetchone()
         if result:
@@ -489,24 +495,25 @@ def get_all_user_tokens():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS google_tokens (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id TEXT,
-                token TEXT NOT NULL,
-                refresh_token TEXT,
-                token_uri TEXT NOT NULL,
-                client_id TEXT NOT NULL,
-                client_secret TEXT NOT NULL,
-                scopes TEXT,
-                last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                user_id VARCHAR NOT NULL,
+                access_token VARCHAR NOT NULL,
+                refresh_token VARCHAR,
+                token_uri VARCHAR,
+                client_id VARCHAR,
+                client_secret VARCHAR,
+                scopes VARCHAR,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
         
         # Query for all tokens
         cursor.execute("""
-            SELECT user_id, token, refresh_token, token_uri, client_id, client_secret, scopes
+            SELECT user_id, access_token, refresh_token, token_uri, client_id, client_secret, scopes
             FROM google_tokens
-            WHERE token IS NOT NULL
+            WHERE access_token IS NOT NULL
             GROUP BY user_id
-            HAVING MAX(last_used)
+            HAVING MAX(updated_at)
         """)
         
         results = cursor.fetchall()

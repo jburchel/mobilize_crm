@@ -20,8 +20,9 @@ try:
     app = Flask(__name__)
     app.config.from_object(Config)
     app.config['DEBUG'] = True
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-please-change')
-    app.config['BASE_URL'] = os.environ.get('BASE_URL', 'http://localhost:5000')
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key')
+    app.config['DATABASE'] = os.environ.get('DATABASE', 'mobilize_crm.db')
+    app.config['BASE_URL'] = os.environ.get('BASE_URL', 'http://localhost:8000')
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///mobilize_crm.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
@@ -150,11 +151,8 @@ try:
         """
 
     if __name__ == '__main__':
-        print("Entering main block...")
-        try:
-            print("Server starting at http://127.0.0.1:5000")
-            app.run(host='127.0.0.1', port=5000)
-        except Exception as e:
-            print(f"Error starting server: {e}")
+        print('Entering main block...')
+        print("Server starting at http://127.0.0.1:8000")
+        app.run(debug=True, port=8000)
 except Exception as e:
     print(f"Error during app initialization: {e}")
