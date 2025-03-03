@@ -248,7 +248,7 @@ def send_email():
                 new_communication = Communication(
                     type='Email',
                     message=message_text,
-                    date_sent=datetime.now().date(),
+                    date_sent=datetime.now(),
                     person_id=person_id,
                     church_id=church_id,
                     gmail_message_id=sent_message['id'],
@@ -376,7 +376,7 @@ def create_email_draft():
             new_communication = Communication(
                 type='Email',
                 message=message_text,
-                date_sent=datetime.now().date(),
+                date_sent=datetime.now(),
                 person_id=person_id,
                 church_id=church_id,
                 gmail_message_id=draft['message']['id'],
@@ -646,7 +646,7 @@ def sync_emails():
                     new_communication = Communication(
                         type='Email',
                         message=content['body'],
-                        date_sent=datetime.strptime(content['date'], '%Y-%m-%d %H:%M:%S').date(),
+                        date_sent=datetime.now(),
                         person_id=contact_info['id'] if contact_info['type'] == 'person' else None,
                         church_id=contact_info['id'] if contact_info['type'] == 'church' else None,
                         gmail_message_id=content['id'],

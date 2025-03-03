@@ -24,9 +24,35 @@ def communications_route():
 @communications_bp.route('/communications/all-communications')
 def all_communications_route():
     with session_scope() as session:
-        communications_list = session.query(Communication).order_by(Communication.date_sent.desc()).all()
+        # Get filter parameters
+        person_id = request.args.get('person_id')
+        church_id = request.args.get('church_id')
+        
+        # Start with a base query
+        query = session.query(Communication).order_by(Communication.date_sent.desc())
+        
+        # Apply filters if provided
+        if person_id:
+            query = query.filter(Communication.person_id == person_id)
+        if church_id:
+            query = query.filter(Communication.church_id == church_id)
+        
+        communications_list = query.all()
+        
+        # Get filter info for the title
+        filter_name = None
+        if person_id:
+            person = session.query(Person).filter(Person.id == person_id).first()
+            if person:
+                filter_name = f"{person.first_name} {person.last_name}"
+        elif church_id:
+            church = session.query(Church).filter(Church.id == church_id).first()
+            if church:
+                filter_name = church.church_name
+        
         return render_template('all_communications.html', 
-                             communications=communications_list)
+                             communications=communications_list,
+                             filter_name=filter_name)
 
 @communications_bp.route('/send_communication', methods=['POST'])
 def send_communication_route():
@@ -48,7 +74,7 @@ def send_communication_route():
             message = form_data.get('message')
             person_id = form_data.get('person_id') or None
             church_id = form_data.get('church_id') or None
-            date_sent = datetime.now().date()
+            date_sent = datetime.now()
             subject = form_data.get('subject', 'Mobilize CRM Communication')
             
             # Validate required fields
@@ -456,7 +482,7 @@ def reply_to_communication(comm_id):
                         new_comm = Communication(
                             type='Email',
                             message=formatted_message,
-                            date_sent=datetime.now().date(),
+                            date_sent=datetime.now(),
                             person_id=recipient_person_id,
                             church_id=recipient_church_id,
                             subject=subject,

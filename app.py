@@ -116,39 +116,28 @@ try:
 
     @app.route('/')
     def home():
-        # Temporarily bypass authentication to always show landing page
-        return render_template('landing.html')
-        
-        # Original code (commented out)
-        """
-        # Check Authorization header first
+        # Check if user is authenticated
         auth_header = request.headers.get('Authorization')
+        token = None
+        
+        # Check Authorization header
         if auth_header and auth_header.startswith('Bearer '):
-            try:
-                token = auth_header.split('Bearer ')[1]
-                decoded_token = auth.verify_id_token(token)
-                app.logger.info("Valid bearer token found")
-                return redirect(url_for('dashboard_bp.dashboard'))
-            except Exception as e:
-                app.logger.warning(f"Bearer token verification failed: {str(e)}")
-
-        # Check cookie token
-        token = request.cookies.get('firebase_token')
+            token = auth_header.split('Bearer ')[1]
+            
+        # If no auth header, check cookie
+        if not token:
+            token = request.cookies.get('firebase_token')
+            
         if token:
             try:
                 decoded_token = auth.verify_id_token(token)
-                app.logger.info("Valid cookie token found")
+                app.logger.info("Valid token found, redirecting to dashboard")
                 return redirect(url_for('dashboard_bp.dashboard'))
             except Exception as e:
-                app.logger.warning(f"Cookie token verification failed: {str(e)}")
-                # Clear invalid token
-                response = make_response(render_template('landing.html'))
-                response.delete_cookie('firebase_token')
-                return response
-
-        # No valid token found, show landing page
+                app.logger.warning(f"Token verification failed: {str(e)}")
+                
+        # If not authenticated or token invalid, show landing page
         return render_template('landing.html')
-        """
 
     if __name__ == '__main__':
         print('Entering main block...')

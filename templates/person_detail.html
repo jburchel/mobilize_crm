@@ -257,7 +257,7 @@
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h3><i class="bi bi-chat-dots"></i> Recent Communications</h3>
-                <a href="{{ url_for('communications_bp.all_communications_route') }}" class="button small">View All</a>
+                <a href="{{ url_for('communications_bp.all_communications_route', person_id=person.id) }}" class="button small">View All</a>
             </div>
             <div class="card-body">
                 {% if recent_communications %}
@@ -275,7 +275,7 @@
                         <tbody>
                             {% for comm in recent_communications %}
                             <tr>
-                                <td>{{ comm.date_sent.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ comm.date_sent.strftime('%Y-%m-%d %H:%M') }}</td>
                                 <td>{{ comm.type }}</td>
                                 <td>
                                     <a href="{{ url_for('communications_bp.view_communication', comm_id=comm.id) }}">
@@ -584,6 +584,40 @@ document.addEventListener('DOMContentLoaded', function() {
     if (communicationBtn && communicationModalEl) {
         console.log('Found communication button and modal');
         
+        // Add event listener for when the modal is fully shown
+        communicationModalEl.addEventListener('shown.bs.modal', function() {
+            console.log('Modal fully shown event triggered');
+            
+            // Initialize the email fields based on the selected communication type
+            const typeSelect = document.getElementById('type');
+            if (typeSelect) {
+                console.log('Current communication type:', typeSelect.value);
+                
+                // If Email is already selected, show email fields and fetch signatures
+                if (typeSelect.value === 'Email') {
+                    const emailFields = document.getElementById('email-fields');
+                    if (emailFields) {
+                        emailFields.style.display = 'block';
+                    }
+                    
+                    // Small delay to ensure DOM is fully ready
+                    setTimeout(() => {
+                        // Clear any existing message content
+                        const messageArea = document.getElementById('message');
+                        if (messageArea) {
+                            messageArea.value = '';
+                        }
+                        
+                        // Load available signatures
+                        loadSignatures();
+                        
+                        // Fetch and insert default signature
+                        fetchDefaultSignature();
+                    }, 300);
+                }
+            }
+        });
+        
         // Try to initialize with Bootstrap's data attributes first
         // This is the preferred method in Bootstrap 5
         
@@ -605,6 +639,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Show the modal
                 bsModal.show();
+                
+                // Initialize the email fields visibility
+                setTimeout(() => {
+                    const typeSelect = document.getElementById('type');
+                    if (typeSelect && typeSelect.value === 'Email') {
+                        const emailFields = document.getElementById('email-fields');
+                        if (emailFields) {
+                            emailFields.style.display = 'block';
+                            // Fetch the default signature
+                            fetchDefaultSignature();
+                        }
+                    }
+                }, 300); // Small delay to ensure modal is fully open
             } else {
                 console.error('Bootstrap is not available');
             }
@@ -649,14 +696,24 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show/hide email fields based on communication type
     if (typeSelect) {
         typeSelect.addEventListener('change', function() {
+            console.log('Communication type changed:', this.value);
             if (this.value === 'Email') {
                 emailFields.style.display = 'block';
                 // Load signatures when email type is selected
                 loadSignatures();
+                // Fetch default signature to insert in message body
+                fetchDefaultSignature();
             } else {
                 emailFields.style.display = 'none';
             }
         });
+        
+        // Initialize the email fields on page load if Email is selected
+        if (typeSelect.value === 'Email' && emailFields) {
+            emailFields.style.display = 'block';
+            loadSignatures();
+            fetchDefaultSignature();
+        }
     }
     
     // Function to load email signatures
@@ -768,17 +825,84 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to fetch the default signature
     function fetchDefaultSignature() {
-        fetch('/api/email-signatures')
-            .then(response => response.json())
+        console.log('⚡ fetchDefaultSignature called in person_detail.html');
+        
+        // Check if the textarea element exists
+        const messageArea = document.getElementById('message');
+        console.log('Message area found?', !!messageArea);
+        if (!messageArea) {
+            console.error('Message textarea not found when fetching signature');
+            return; // Exit if the textarea doesn't exist
+        }
+        
+        // Check if we're in email mode
+        const typeSelect = document.getElementById('type');
+        console.log('Type select found?', !!typeSelect, 'Value:', typeSelect ? typeSelect.value : 'not found');
+        if (typeSelect && typeSelect.value !== 'Email') {
+            console.log('Not in Email mode, skipping signature fetch');
+            return; // Exit if not in email mode
+        }
+        
+        fetch('/dashboard/api/email-signatures')
+            .then(response => {
+                console.log('Signature API response status:', response.status);
+                return response.json();
+            })
             .then(data => {
-                if (data.success && data.signatures) {
+                console.log('Signature data received:', JSON.stringify(data));
+                if (data.success && data.signatures && data.signatures.length > 0) {
                     // Find the default signature
                     const defaultSignature = data.signatures.find(sig => sig.is_default);
-                    if (defaultSignature) {
+                    console.log('Default signature found?', !!defaultSignature);
+                    console.log('Default signature content exists?', defaultSignature && !!defaultSignature.content);
+                    
+                    if (defaultSignature && defaultSignature.content) {
                         // Set the signature_id input value
-                        document.getElementById('signature_id').value = defaultSignature.id;
-                        console.log('Default signature set:', defaultSignature.name);
+                        const signatureIdElement = document.getElementById('hidden_signature_id');
+                        console.log('Signature ID element found?', !!signatureIdElement);
+                        if (signatureIdElement) {
+                            signatureIdElement.value = defaultSignature.id;
+                            console.log('Default signature ID set:', defaultSignature.id);
+                        } else {
+                            console.error('hidden_signature_id input not found');
+                        }
+                        
+                        // Create a temporary div to decode HTML entities for the textarea
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = defaultSignature.content;
+                        const decodedContent = tempDiv.innerText;
+                        
+                        // Insert signature into the message textarea as plain text
+                        console.log('Current message area value length:', messageArea.value.length);
+                        if (messageArea.value.trim() === '') {
+                            // Only add signature if textarea is empty
+                            messageArea.value = '\n\n' + decodedContent;
+                            console.log('✅ Signature inserted into message body, new length:', messageArea.value.length);
+                            
+                            // Set cursor position before the signature
+                            messageArea.focus();
+                            messageArea.setSelectionRange(0, 0);
+                            
+                            // Show HTML preview of the signature
+                            const previewContainer = document.getElementById('signature-preview-container');
+                            const previewContent = document.getElementById('signature-preview-content');
+                            
+                            if (previewContainer && previewContent) {
+                                // Display the container
+                                previewContainer.style.display = 'block';
+                                
+                                // Set the HTML content
+                                previewContent.innerHTML = defaultSignature.content;
+                                console.log('✅ Signature preview displayed with HTML formatting');
+                            }
+                        } else {
+                            console.log('Textarea already has content, not adding signature');
+                        }
+                    } else {
+                        console.warn('No default signature content found');
                     }
+                } else {
+                    console.warn('No signatures available or API returned no success');
                 }
             })
             .catch(error => {
@@ -801,7 +925,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="modal-body">
                 <form id="personCommunicationForm" action="{{ url_for('communications_bp.send_communication_route') }}" method="post">
                     <input type="hidden" name="person_id" value="{{ person.id }}">
-                    <input type="hidden" id="signature_id" name="signature_id" value="">
+                    <input type="hidden" id="hidden_signature_id" name="signature_id" value="">
                     
                     <div class="mb-3">
                         <label for="type" class="form-label">Communication Type</label>
@@ -814,27 +938,37 @@ document.addEventListener('DOMContentLoaded', function() {
                         </select>
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="subject" class="form-label">Email Subject</label>
-                        <input type="text" class="form-control" id="subject" name="subject" placeholder="Enter email subject">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="signature_id" class="form-label">Email Signature</label>
-                        <select class="form-select" id="signature_id" name="signature_id">
-                            <option value="">Use default signature</option>
-                            <!-- Signatures will be loaded via AJAX -->
-                        </select>
-                        <div class="form-text">
-                            <a href="{{ url_for('dashboard_bp.email_signatures') }}" target="_blank">
-                                <i class="bi bi-pencil-square"></i> Manage signatures
-                            </a>
+                    <div id="email-fields" style="display: none;">
+                        <div class="mb-3">
+                            <label for="subject" class="form-label">Email Subject</label>
+                            <input type="text" class="form-control" id="subject" name="subject" placeholder="Enter email subject">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="signature_id" class="form-label">Email Signature</label>
+                            <select class="form-select" id="signature_id" name="signature_id">
+                                <option value="">Use default signature</option>
+                                <!-- Signatures will be loaded via AJAX -->
+                            </select>
+                            <div class="form-text">
+                                <a href="{{ url_for('dashboard_bp.email_signatures') }}" target="_blank">
+                                    <i class="bi bi-pencil-square"></i> Manage signatures
+                                </a>
+                            </div>
                         </div>
                     </div>
 
                     <div class="mb-3">
                         <label for="message" class="form-label">Message</label>
                         <textarea class="form-control" id="message" name="message" rows="5" required></textarea>
+                    </div>
+                    
+                    <!-- Signature Preview -->
+                    <div class="mb-3" id="signature-preview-container" style="display: none;">
+                        <label class="form-label">Signature Preview:</label>
+                        <div class="signature-preview p-3 border rounded bg-light">
+                            <div id="signature-preview-content"></div>
+                        </div>
                     </div>
                 </form>
                 

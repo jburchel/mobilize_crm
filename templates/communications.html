@@ -41,7 +41,7 @@
                             <tbody>
                                 {% for comm in communications[:10] %}
                                 <tr>
-                                    <td>{{ comm.date_sent.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ comm.date_sent.strftime('%Y-%m-%d %H:%M') }}</td>
                                     <td>{{ comm.type }}</td>
                                     <td>
                                         {% if comm.type == 'Email' %}
@@ -116,7 +116,7 @@
                             <label for="subject" class="form-label">Email Subject</label>
                             <input type="text" class="form-control" id="subject" name="subject" placeholder="Enter email subject">
                         </div>
-                        <!-- Add hidden input for signature_id -->
+                        <!-- Hidden input for default signature -->
                         <input type="hidden" id="signature_id" name="signature_id" value="">
                     </div>
 
@@ -143,6 +143,14 @@
                     <div class="mb-3">
                         <label for="message" class="form-label">Message</label>
                         <textarea class="form-control" id="message" name="message" rows="5" required></textarea>
+                    </div>
+                    
+                    <!-- Signature Preview -->
+                    <div class="mb-3" id="signature-preview-container" style="display: none;">
+                        <label class="form-label">Signature Preview:</label>
+                        <div class="signature-preview p-3 border rounded bg-light">
+                            <div id="signature-preview-content"></div>
+                        </div>
                     </div>
                 </form>
                 
@@ -177,17 +185,84 @@
     
     // Function to fetch the default signature
     function fetchDefaultSignature() {
-        fetch('/api/email-signatures')
-            .then(response => response.json())
+        console.log('⚡ fetchDefaultSignature called in communications.html');
+        
+        // Check if the textarea element exists
+        const messageArea = document.getElementById('message');
+        console.log('Message area found?', !!messageArea);
+        if (!messageArea) {
+            console.error('Message textarea not found when fetching signature');
+            return; // Exit if the textarea doesn't exist
+        }
+        
+        // Check if we're in email mode
+        const typeSelect = document.getElementById('type');
+        console.log('Type select found?', !!typeSelect, 'Value:', typeSelect ? typeSelect.value : 'not found');
+        if (typeSelect && typeSelect.value !== 'Email') {
+            console.log('Not in Email mode, skipping signature fetch');
+            return; // Exit if not in email mode
+        }
+        
+        fetch('/dashboard/api/email-signatures')
+            .then(response => {
+                console.log('Signature API response status:', response.status);
+                return response.json();
+            })
             .then(data => {
-                if (data.success && data.signatures) {
+                console.log('Signature data received:', JSON.stringify(data));
+                if (data.success && data.signatures && data.signatures.length > 0) {
                     // Find the default signature
                     const defaultSignature = data.signatures.find(sig => sig.is_default);
-                    if (defaultSignature) {
+                    console.log('Default signature found?', !!defaultSignature);
+                    console.log('Default signature content exists?', defaultSignature && !!defaultSignature.content);
+                    
+                    if (defaultSignature && defaultSignature.content) {
                         // Set the signature_id input value
-                        document.getElementById('signature_id').value = defaultSignature.id;
-                        console.log('Default signature set:', defaultSignature.name);
+                        const signatureIdElement = document.getElementById('signature_id');
+                        console.log('Signature ID element found?', !!signatureIdElement);
+                        if (signatureIdElement) {
+                            signatureIdElement.value = defaultSignature.id;
+                            console.log('Default signature ID set:', defaultSignature.id);
+                        } else {
+                            console.error('signature_id input not found');
+                        }
+                        
+                        // Create a temporary div to decode HTML entities for the textarea
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = defaultSignature.content;
+                        const decodedContent = tempDiv.innerText;
+                        
+                        // Insert signature into the message textarea as plain text
+                        console.log('Current message area value length:', messageArea.value.length);
+                        if (messageArea.value.trim() === '') {
+                            // Only add signature if textarea is empty
+                            messageArea.value = '\n\n' + decodedContent;
+                            console.log('✅ Signature inserted into message body, new length:', messageArea.value.length);
+                            
+                            // Set cursor position before the signature
+                            messageArea.focus();
+                            messageArea.setSelectionRange(0, 0);
+                            
+                            // Show HTML preview of the signature
+                            const previewContainer = document.getElementById('signature-preview-container');
+                            const previewContent = document.getElementById('signature-preview-content');
+                            
+                            if (previewContainer && previewContent) {
+                                // Display the container
+                                previewContainer.style.display = 'block';
+                                
+                                // Set the HTML content
+                                previewContent.innerHTML = defaultSignature.content;
+                                console.log('✅ Signature preview displayed with HTML formatting');
+                            }
+                        } else {
+                            console.log('Textarea already has content, not adding signature');
+                        }
+                    } else {
+                        console.warn('No default signature content found');
                     }
+                } else {
+                    console.warn('No signatures available or API returned no success');
                 }
             })
             .catch(error => {
@@ -198,6 +273,20 @@
     // Initialize the form on page load
     document.addEventListener('DOMContentLoaded', function() {
         toggleEmailFields();
+        
+        // Ensure modal events are properly bound
+        const newCommButton = document.querySelector('[data-bs-toggle="modal"][data-bs-target="#newCommunicationModal"]');
+        if (newCommButton) {
+            newCommButton.addEventListener('click', function() {
+                // Small delay to ensure the modal is fully opened
+                setTimeout(() => {
+                    const typeSelect = document.getElementById('type');
+                    if (typeSelect && typeSelect.value === 'Email') {
+                        fetchDefaultSignature();
+                    }
+                }, 300);
+            });
+        }
         
         // Set up form submission via AJAX
         const form = document.getElementById('communicationForm');

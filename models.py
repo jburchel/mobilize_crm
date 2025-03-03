@@ -196,7 +196,7 @@ class CommunicationSchema(Schema):
     id = fields.Int(dump_only=True)
     comm_type = fields.Str(required=True, validate=validate.OneOf(['Email', 'SMS', 'Phone', 'Letter']))
     message = fields.Str(required=True)
-    date_sent = fields.Date(required=True)
+    date_sent = fields.DateTime(required=True)
     person_id = fields.Int(allow_none=True)
     church_id = fields.Int(allow_none=True)
 
@@ -352,7 +352,7 @@ class Communication(Base):
     id = Column(Integer, primary_key=True)
     type = Column(String)
     message = Column(String)
-    date_sent = Column(Date)
+    date_sent = Column(DateTime, default=datetime.now)
     person_id = Column(Integer, ForeignKey('people.id'))
     church_id = Column(Integer, ForeignKey('churches.id'))
     # Gmail integration fields

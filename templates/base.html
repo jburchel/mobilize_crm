@@ -19,11 +19,21 @@
 <body>
     <div class="container-fluid">
         <!-- Port change notice -->
-        <div class="alert alert-info alert-dismissible fade show mt-2" role="alert">
+        <div id="port-notice" class="alert alert-info alert-dismissible fade show mt-2" role="alert" style="display: none;">
             <strong>Notice:</strong> The application is now running on port 8000. Please use <a href="http://localhost:8000">http://localhost:8000</a> to access the application.
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     </div>
+
+    <script>
+        // Show port notice only once
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!localStorage.getItem('port_notice_seen')) {
+                document.getElementById('port-notice').style.display = 'block';
+                localStorage.setItem('port_notice_seen', 'true');
+            }
+        });
+    </script>
 
     <!-- Loading overlay -->
     <div id="loading-overlay" class="loading-overlay">

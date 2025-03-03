@@ -328,6 +328,7 @@ def get_email_signatures_api():
             signatures_data = [{
                 'id': signature.id,
                 'name': signature.name,
+                'content': signature.content,
                 'is_default': signature.is_default,
                 'created_at': signature.created_at.isoformat() if signature.created_at else None,
                 'updated_at': signature.updated_at.isoformat() if signature.updated_at else None
