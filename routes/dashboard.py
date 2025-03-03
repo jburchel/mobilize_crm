@@ -344,3 +344,75 @@ def get_email_signatures_api():
             'success': False,
             'message': f'Error getting email signatures: {str(e)}'
         }), 500
+
+@dashboard_bp.route('/api/pipeline-stats', methods=['GET'])
+@auth_required
+def pipeline_stats():
+    """API endpoint to get pipeline statistics for both People and Churches"""
+    try:
+        with session_scope() as session:
+            # Get people pipeline statistics
+            people_pipeline_stats = (
+                session.query(
+                    Person.people_pipeline,
+                    func.count(Person.id).label('count')
+                )
+                .filter(Person.people_pipeline.isnot(None))
+                .group_by(Person.people_pipeline)
+                .all()
+            )
+            
+            # Get church pipeline statistics
+            church_pipeline_stats = (
+                session.query(
+                    Church.church_pipeline,
+                    func.count(Church.id).label('count')
+                )
+                .filter(Church.church_pipeline.isnot(None))
+                .group_by(Church.church_pipeline)
+                .all()
+            )
+            
+            # Convert to dictionaries
+            people_stats = {
+                'PROMOTION': 0,
+                'INFORMATION': 0,
+                'INVITATION': 0,
+                'CONFIRMATION': 0,
+                'AUTOMATION': 0
+            }
+            
+            church_stats = {
+                'PROMOTION': 0,
+                'INFORMATION': 0,
+                'INVITATION': 0,
+                'CONFIRMATION': 0,
+                'AUTOMATION': 0
+            }
+            
+            # Fill in the actual counts
+            for stage, count in people_pipeline_stats:
+                if stage in people_stats:
+                    people_stats[stage] = count
+                    
+            for stage, count in church_pipeline_stats:
+                if stage in church_stats:
+                    church_stats[stage] = count
+            
+            # Format the data for the chart
+            result = {
+                'people': {
+                    'labels': list(people_stats.keys()),
+                    'counts': list(people_stats.values())
+                },
+                'churches': {
+                    'labels': list(church_stats.keys()),
+                    'counts': list(church_stats.values())
+                }
+            }
+            
+            return jsonify(result)
+    
+    except Exception as e:
+        current_app.logger.error(f"Error retrieving pipeline stats: {str(e)}")
+        return jsonify({'error': str(e)}), 500
