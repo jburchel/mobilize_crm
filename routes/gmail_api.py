@@ -2,7 +2,23 @@
 Blueprint for Gmail integration with Communications
 """
 from flask import Blueprint, request, jsonify, current_app
-from models import Communication, Person, Church, session_scope
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from models import Communication, Person, Church, EmailSignature
+from database import db, session_scope
+from routes.google_auth import get_access_token_from_header, get_current_user_id
+from routes.dashboard import auth_required
+import base64
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import json
+import logging
+import traceback
+from datetime import datetime
+import time
+import threading
+import re
+import os
 from utils.gmail_integration import (
     build_gmail_service,
     create_message,
@@ -14,14 +30,6 @@ from utils.gmail_integration import (
     create_draft,
     send_draft
 )
-from routes.google_auth import auth_required, get_access_token_from_header
-import logging
-from datetime import datetime
-import json
-import os
-import traceback
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
 from sqlalchemy import func, desc
 
 gmail_api = Blueprint('gmail_api', __name__)
@@ -129,7 +137,6 @@ def send_email():
         signature_html = None
         if signature_id:
             try:
-                from models import EmailSignature, session_scope
                 with session_scope() as session:
                     signature = session.query(EmailSignature).filter_by(id=signature_id).first()
                     if signature:
@@ -144,7 +151,6 @@ def send_email():
         # If no specific signature was requested, try to get the default signature
         if not signature_html:
             try:
-                from models import EmailSignature, session_scope
                 from routes.google_auth import get_current_user_id
                 user_id = get_current_user_id()
                 if user_id:

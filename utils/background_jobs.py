@@ -4,7 +4,8 @@ This module provides functions for running background tasks
 """
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from models import Task, session_scope
+from models import Task
+from database import db, session_scope
 from utils.google_calendar import build_calendar_service, update_event_from_task, create_event_from_task
 from routes.google_auth import get_user_tokens, get_all_user_tokens
 import logging
@@ -12,6 +13,9 @@ from datetime import datetime, timedelta
 import atexit
 from flask import current_app
 import requests
+import threading
+import time
+import traceback
 
 logger = logging.getLogger(__name__)
 

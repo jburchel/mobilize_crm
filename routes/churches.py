@@ -1,30 +1,58 @@
-from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, abort
-from models import Session, Church, Person, Contacts, session_scope, Communication
-from sqlalchemy import func
+from models import Session, Church, Person, Contacts, Communication
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort, current_app
 from datetime import datetime
-import logging
-from database import db
+from sqlalchemy import func, or_
+from database import db, session_scope
 from routes.dashboard import auth_required
+from routes.google_auth import get_current_user_id
+import logging
 
 churches_bp = Blueprint('churches_bp', __name__)
 
 @churches_bp.route('/churches')
 @auth_required
 def churches():
+    user_id = get_current_user_id()
+    current_app.logger.info(f"Getting churches for user_id: {user_id}")
+    
+    # Debug: Check if format parameter is present
+    format_param = request.args.get('format')
+    current_app.logger.info(f"Format parameter: {format_param}")
+    
     with session_scope() as session:
         logging.info("Fetching churches from database...")
         try:
-            # Get all contacts of type 'church' with debug info
-            churches_query = session.query(Church).filter(Church.type == 'church')
-            logging.info(f"SQL Query: {str(churches_query)}")
+            # Get all churches without filtering by user_id since Church model doesn't have user_id field
+            query = session.query(Church)
             
-            churches_list = churches_query.all()
+            # Print the SQL query for debugging
+            current_app.logger.info(f"SQL Query: {query}")
             
-            logging.info(f"Found {len(churches_list)} churches")
-            for church in churches_list:
-                logging.info(f"Church details: ID={church.id}, Type={church.type}, "
-                           f"Name={church.get_name()}, Church Name={church.church_name}, "
-                           f"Location={church.location}, Email={church.email}")
+            churches_list = query.all()
+            current_app.logger.info(f"Found {len(churches_list)} churches")
+            
+            # Return JSON response for debugging
+            if format_param == 'json':
+                current_app.logger.info("Returning JSON response")
+                churches_data = []
+                for church in churches_list:
+                    churches_data.append({
+                        'id': church.id,
+                        'church_name': church.church_name,
+                        'email': church.email,
+                        'phone': church.phone,
+                        'city': church.city,
+                        'state': church.state,
+                        'location': church.location,
+                        'pipeline': church.church_pipeline,
+                        'priority': church.priority
+                    })
+                response = jsonify({
+                    'count': len(churches_list),
+                    'churches': churches_data[:10]  # Return first 10 for brevity
+                })
+                current_app.logger.info(f"JSON response: {response}")
+                return response
             
             return render_template('churches.html', churches=churches_list)
         except Exception as e:
@@ -318,3 +346,46 @@ def update_church_pipeline(church_id):
             flash(f"Pipeline stage updated to {pipeline_value}", "success")
         
         return redirect(url_for('churches_bp.church_detail', church_id=church_id))
+
+@churches_bp.route('/api/churches')
+@auth_required
+def churches_api():
+    """API endpoint for churches that returns JSON data"""
+    user_id = get_current_user_id()
+    current_app.logger.info(f"API: Getting churches for user_id: {user_id}")
+    
+    with session_scope() as session:
+        logging.info("API: Fetching churches from database...")
+        try:
+            # Get all churches without filtering by user_id since Church model doesn't have user_id field
+            query = session.query(Church)
+            
+            # Print the SQL query for debugging
+            current_app.logger.info(f"API: SQL Query: {query}")
+            
+            churches_list = query.all()
+            current_app.logger.info(f"API: Found {len(churches_list)} churches")
+            
+            # Prepare JSON response
+            churches_data = []
+            for church in churches_list:
+                churches_data.append({
+                    'id': church.id,
+                    'church_name': church.church_name,
+                    'email': church.email,
+                    'phone': church.phone,
+                    'city': church.city,
+                    'state': church.state,
+                    'location': church.location,
+                    'pipeline': church.church_pipeline,
+                    'priority': church.priority
+                })
+            
+            # Return JSON response
+            return jsonify({
+                'count': len(churches_list),
+                'churches': churches_data[:10]  # Return first 10 for brevity
+            })
+        except Exception as e:
+            logging.error(f"API: Error fetching churches: {str(e)}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
