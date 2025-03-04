@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 *.so
 .Python
+env/
 build/
 develop-eggs/
 dist/
@@ -15,17 +16,23 @@ lib64/
 parts/
 sdist/
 var/
-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 
 # Virtual Environment
-venv*/
-.env
-.venv
-env/
+venv/
 ENV/
+.env
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
 
 # IDE
 .idea/
@@ -33,26 +40,16 @@ ENV/
 *.swp
 *.swo
 
-# Flask
-instance/
-.webassets-cache
+# OS
+.DS_Store
+Thumbs.db
 
-# Database
-*.db
-*.sqlite3
-mobilize_crm.db
-
-# Logs
-*.log
-
-# Local configuration
+# Firebase
 firebase-credentials.json
 
-# OS specific
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.dbclient_secret.json
+# Google Cloud
+app.yaml
+.gcloudignore
+
+# Deployment
+.dockerignore

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Mobilize CRM - Church relationship management system">
+    <meta name="theme-color" content="#ffffff">
+    <!-- Security headers -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <link rel="icon" type="image/png" href="/static/logo.png">
+    <title>Welcome to Mobilize CRM</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/static/styles.css">
+    
+<style>
+.landing-page {
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+.hero {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: var(--white-color);
+    padding: 2rem 2rem;  /* Further reduced from 2.5rem to 2rem */
+    text-align: center;
+    margin-bottom: 1.5rem;  /* Reduced from 2rem to 1.5rem */
+    position: relative;
+    border-radius: 12px;
+}
+
+.hero-content {
+    max-width: 800px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
+}
+
+.hero h1 {
+    font-size: 2.5rem; /* Reduced from 3rem */
+    margin-bottom: 0.5rem; /* Reduced from 1rem */
+    color: var(--white-color);
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.lead {
+    font-size: 1.25rem; /* Reduced from 1.5rem */
+    margin-bottom: 0.75rem; /* Reduced from 1rem */
+    opacity: 1;
+    color: var(--white-color);
+}
+
+.features {
+    padding: 4rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: var(--white-color);
+    border-radius: 12px;
+}
+
+.features h2 {
+    text-align: center;
+    margin-bottom: 3rem;
+    font-size: 2rem;
+    color: var(--primary-color);
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2rem;
+    padding: 0 1rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.feature-card {
+    background: var(--white-color);
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(24, 57, 99, 0.1);
+    text-align: center;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(24, 57, 99, 0.1);
+    min-width: 250px;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(24, 57, 99, 0.15);
+    border-color: var(--secondary-color);
+}
+
+.feature-icon {
+    font-size: 3rem;
+    margin-bottom: 1.5rem;
+    display: inline-block;
+}
+
+.feature-card h3 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.feature-card p {
+    color: var(--neutral-color);
+    line-height: 1.6;
+    font-size: 1.1rem;
+}
+
+.hero .btn-google {
+    margin-top: 2rem;
+    background: var(--white-color);
+    color: var(--text-color);
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    display: inline-flex;
+    align-items: center;
+    gap: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+}
+
+.hero .btn-google:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow);
+}
+
+.hero .btn-google img {
+    width: 24px;
+    height: 24px;
+}
+
+.landing-auth {
+    margin-top: 1.5rem; /* Reduced from 2rem */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem; /* Reduced from 1rem */
+}
+
+.hero .auth-error {
+    color: #fff;
+    background: rgba(239, 68, 68, 0.9);
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius);
+    font-size: 0.875rem;
+    text-align: center;
+    display: none; /* Hide by default */
+}
+
+.landing-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1rem; /* Reduced from 2rem to 1rem */
+}
+
+.landing-brand .brand-logo {
+    width: 36px; /* Reduced from 48px */
+    height: 36px; /* Reduced from 48px */
+    object-fit: contain;
+}
+
+.landing-brand .brand-text {
+    font-size: 1.5rem; /* Reduced from 1.75rem */
+    font-weight: 600;
+    color: var(--white-color);
+}
+
+@media (max-width: 1200px) {
+    .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .hero {
+        padding: 1.5rem;  /* Further reduced from 2rem to 1.5rem */
+    }
+    
+    .hero h1 {
+        font-size: 2rem; /* Reduced from 2.5rem */
+    }
+    
+    .lead {
+        font-size: 1.1rem; /* Reduced from 1.25rem */
+    }
+    
+    .features-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .feature-card {
+        padding: 2rem;
+    }
+
+    .landing-brand .brand-logo {
+        width: 32px; /* Reduced from 40px */
+        height: 32px; /* Reduced from 40px */
+    }
+    
+    .landing-brand .brand-text {
+        font-size: 1.25rem; /* Reduced from 1.5rem */
+    }
+}
+</style>
+
+</head>
+<body>
+    <div class="container-fluid">
+        <!-- Port change notice -->
+        <div id="port-notice" class="alert alert-info alert-dismissible fade show mt-2" role="alert" style="display: none;">
+            <strong>Notice:</strong> The application is now running on port 8000. Please use <a href="http://localhost:8000">http://localhost:8000</a> to access the application.
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </div>
+
+    <script>
+        // Show port notice only once and only in development environment
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if we're in production by looking at the URL
+            const isProduction = !window.location.hostname.includes('localhost');
+            
+            // Only show the notice in development environment
+            if (!isProduction && !localStorage.getItem('port_notice_seen')) {
+                document.getElementById('port-notice').style.display = 'block';
+                localStorage.setItem('port_notice_seen', 'true');
+            }
+        });
+    </script>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner" role="status" aria-label="Loading">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    
+
+    <main class="main-content" role="main">
+        <!-- Error boundary -->
+        <div id="error-boundary" class="error-boundary hidden">
+            <h2>Something went wrong</h2>
+            <button onclick="window.location.reload()">Reload page</button>
+        </div>
+        
+        <!-- Flash Messages -->
+        
+            
+        
+        
+        
+<div class="landing-page">
+    <section class="hero">
+        <div class="hero-content">
+            <div class="landing-brand">
+                <img src="/static/logo.png" alt="Mobilize CRM Logo" class="brand-logo">
+                <span class="brand-text">Crossover Global</span>
+            </div>
+            <h1>Welcome to Mobilize CRM</h1>
+            <p class="lead">Crossover Global's Complete CRM Solution for Mobilizers</p>
+            <div class="landing-auth">
+                <button id="landing-sign-in" class="btn-google">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo">
+                    Sign in with Google
+                </button>
+                <span id="landing-auth-error" class="auth-error" style="display: none;"></span>
+            </div>
+        </div>
+    </section>
+
+    <section class="features">
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>Centralized Management</h3>
+                <p>Manage all your church relationships and communications in one place</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🤝</div>
+                <h3>Relationship Focused</h3>
+                <p>Build and maintain strong connections with churches and their leaders</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📅</div>
+                <h3>Task Management</h3>
+                <p>Stay organized with our intuitive task tracking system</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📱</div>
+                <h3>Contact Integration</h3>
+                <p>Seamlessly integrate with your Google contacts</p>
+            </div>
+        </div>
+    </section>
+</div>
+
+    </main>
+
+    
+
+    <!-- Load scripts at the end of body -->
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+    <script type="module" src="/static/firebase_config.js"></script>
+    <script type="module" src="/static/auth.js"></script>
+    
+    
+    <!-- Additional content like modals -->
+    
+</body>
+</html>

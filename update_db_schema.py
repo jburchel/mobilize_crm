@@ -4,6 +4,8 @@ This script adds the new Gmail integration fields to the Communications table
 """
 import sqlite3
 import logging
+import os
+import sys
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -58,5 +60,36 @@ def update_communications_table():
     finally:
         conn.close()
 
+def update_schema():
+    """Update the database schema to add new fields."""
+    try:
+        # Connect to the database
+        conn = sqlite3.connect('mobilize_crm.db')
+        cursor = conn.cursor()
+        
+        # Check if user_id column exists in people table
+        cursor.execute("PRAGMA table_info(people)")
+        columns = cursor.fetchall()
+        column_names = [column[1] for column in columns]
+        
+        # Add user_id column if it doesn't exist
+        if 'user_id' not in column_names:
+            print("Adding user_id column to people table...")
+            cursor.execute("ALTER TABLE people ADD COLUMN user_id TEXT")
+            conn.commit()
+            print("Added user_id column to people table.")
+        else:
+            print("user_id column already exists in people table.")
+        
+        # ... existing code ...
+        
+        conn.close()
+        print("Database schema update completed successfully.")
+        return True
+    except Exception as e:
+        print(f"Error updating database schema: {e}")
+        return False
+
 if __name__ == "__main__":
-    update_communications_table() 
+    update_communications_table()
+    update_schema() 

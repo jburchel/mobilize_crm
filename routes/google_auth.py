@@ -27,6 +27,18 @@ SCOPES = ['https://www.googleapis.com/auth/calendar',
 # Create client_secret.json file if it doesn't exist
 def create_client_secrets_file():
     if not os.path.exists(CLIENT_SECRETS_FILE):
+        # Get the base URL from the application config
+        base_url = current_app.config.get('BASE_URL', 'http://localhost:8000')
+        
+        # Construct the redirect URI using the base URL
+        redirect_uri = f"{base_url}/google/oauth2callback"
+        
+        # For Cloud Run, ensure we're using HTTPS
+        if 'run.app' in redirect_uri:
+            redirect_uri = redirect_uri.replace('http://', 'https://')
+        
+        current_app.logger.info(f"Creating client_secret.json with redirect URI: {redirect_uri}")
+        
         client_secrets = {
             "web": {
                 "client_id": os.environ.get("GOOGLE_CLIENT_ID"),
@@ -35,7 +47,7 @@ def create_client_secrets_file():
                 "token_uri": "https://oauth2.googleapis.com/token",
                 "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
                 "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET"),
-                "redirect_uris": ["http://localhost:8000/google/oauth2callback"]
+                "redirect_uris": [redirect_uri]
             }
         }
         with open(CLIENT_SECRETS_FILE, 'w') as f:
@@ -364,7 +376,7 @@ def authorize():
     create_client_secrets_file()
     
     # Get the referrer page to redirect back after authorization
-    referrer = request.referrer or url_for('communications_bp.communications_page')
+    referrer = request.referrer or url_for('communications_bp.communications_route')
     session['oauth_referrer'] = referrer
     
     # Create flow instance to manage the OAuth 2.0 Authorization Grant Flow steps
@@ -416,7 +428,7 @@ def oauth2callback():
     save_user_tokens(credentials_to_dict(credentials))
     
     # Get the referrer page to redirect back
-    referrer = session.pop('oauth_referrer', url_for('communications_bp.communications_page'))
+    referrer = session.pop('oauth_referrer', url_for('communications_bp.communications_route'))
     
     # Add a flash message to indicate successful connection
     from flask import flash

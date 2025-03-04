@@ -23,7 +23,7 @@
                         <strong>Type:</strong> {{ communication.type }}
                     </div>
                     <div class="mb-3">
-                        <strong>Date:</strong> {{ communication.date_sent.strftime('%Y-%m-%d') }}
+                        <strong>Date:</strong> {% if communication.date_sent %}{{ communication.date_sent.strftime('%Y-%m-%d') }}{% else %}N/A{% endif %}
                     </div>
                     <div class="mb-3">
                         <strong>With:</strong> 

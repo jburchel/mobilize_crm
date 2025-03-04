@@ -281,7 +281,7 @@
                         <tbody>
                             {% for comm in recent_communications %}
                             <tr>
-                                <td>{{ comm.date_sent.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{% if comm.date_sent %}{{ comm.date_sent.strftime('%Y-%m-%d %H:%M') }}{% else %}N/A{% endif %}</td>
                                 <td>{{ comm.type }}</td>
                                 <td>
                                     <a href="{{ url_for('communications_bp.view_communication', comm_id=comm.id) }}">

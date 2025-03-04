@@ -6,9 +6,14 @@ from googleapiclient.errors import HttpError
 import firebase_admin
 from firebase_admin import auth
 from sqlalchemy import or_
-from models import Person, Church, Contacts, session_scope
+from models import Person, Church, Contacts
+from database import db, session_scope
 import os
 import traceback
+from datetime import datetime
+import json
+import logging
+from routes.google_auth import get_access_token_from_header
 
 contacts_api = Blueprint('contacts_api', __name__)
 

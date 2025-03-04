@@ -99,6 +99,7 @@ class PersonSchema(ContactsSchema):
     desired_service = fields.Str(allow_none=True)
     reason_closed = fields.Str(allow_none=True)
     date_closed = fields.Date(allow_none=True)
+    user_id = fields.Str(allow_none=True)
 
 class ChurchSchema(ContactsSchema):
     church_name = fields.Str(required=True)
@@ -266,6 +267,7 @@ class Person(Contacts):
     desired_service = Column(Text)
     reason_closed = Column(Text)
     date_closed = Column(Date)
+    user_id = Column(String(128), nullable=True)
     
     church = relationship("Church", back_populates="people", foreign_keys=[church_id])
     tasks = relationship("Task", back_populates="person")

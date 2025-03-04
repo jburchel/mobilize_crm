@@ -41,7 +41,7 @@
                             <tbody>
                                 {% for comm in communications[:10] %}
                                 <tr>
-                                    <td>{{ comm.date_sent.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>{% if comm.date_sent %}{{ comm.date_sent.strftime('%Y-%m-%d %H:%M') }}{% else %}N/A{% endif %}</td>
                                     <td>{{ comm.type }}</td>
                                     <td>
                                         {% if comm.type == 'Email' %}

@@ -26,9 +26,13 @@
     </div>
 
     <script>
-        // Show port notice only once
+        // Show port notice only once and only in development environment
         document.addEventListener('DOMContentLoaded', function() {
-            if (!localStorage.getItem('port_notice_seen')) {
+            // Check if we're in production by looking at the URL
+            const isProduction = !window.location.hostname.includes('localhost');
+            
+            // Only show the notice in development environment
+            if (!isProduction && !localStorage.getItem('port_notice_seen')) {
                 document.getElementById('port-notice').style.display = 'block';
                 localStorage.setItem('port_notice_seen', 'true');
             }

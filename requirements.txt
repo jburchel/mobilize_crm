@@ -26,3 +26,10 @@ marshmallow-sqlalchemy==0.30.0
 Flask-Talisman==1.1.0
 psutil==5.9.8
 bleach==6.1.0
+APScheduler==3.10.4
+
+# Production dependencies
+gunicorn==21.2.0
+psycopg2-binary==2.9.10
+google-cloud-logging==3.8.0
+google-cloud-secret-manager==2.16.4

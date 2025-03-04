@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, make_response
 from flask_cors import CORS
 from flask_migrate import Migrate
-from config import Config
+from config import get_config
 from models import Base, engine
 from database import db, init_db
 import logging
@@ -10,28 +10,69 @@ import sys
 import firebase_admin
 from firebase_admin import credentials, auth
 import os
+import base64
+import json
+import tempfile
 
 print("Script starting...")
 print("Python version:", sys.version)
-print("Current working directory:", sys.path[0])
+print("Current working directory:", os.getcwd())
 print("__name__ is:", __name__)
 
 try:
+    # Get the appropriate configuration based on environment
+    config_class = get_config()
+    
+    # Create Flask app
     app = Flask(__name__)
-    app.config.from_object(Config)
-    app.config['DEBUG'] = True
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key')
-    app.config['DATABASE'] = os.environ.get('DATABASE', 'mobilize_crm.db')
-    app.config['BASE_URL'] = os.environ.get('BASE_URL', 'http://localhost:8000')
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///mobilize_crm.db'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config.from_object(config_class)
+    
+    # Print environment info
+    env = os.environ.get('FLASK_ENV', 'development')
+    print(f"Running in {env} environment")
+    print(f"Using database: {app.config['SQLALCHEMY_DATABASE_URI']}")
     
     # Initialize database
     init_db(app)
     
     # Initialize Firebase Admin SDK
-    cred = credentials.Certificate('firebase-credentials.json')
-    firebase_admin.initialize_app(cred)
+    try:
+        firebase_credentials_base64 = os.environ.get('FIREBASE_CREDENTIALS_BASE64')
+        if firebase_credentials_base64:
+            print(f"Found FIREBASE_CREDENTIALS_BASE64 environment variable, length: {len(firebase_credentials_base64)}")
+            try:
+                # Decode the base64 credentials
+                firebase_credentials_json = base64.b64decode(firebase_credentials_base64).decode('utf-8')
+                print("Successfully decoded base64 credentials")
+                
+                # Create a temporary file with the credentials
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.json') as temp_file:
+                    temp_file.write(firebase_credentials_json.encode('utf-8'))
+                    temp_file_path = temp_file.name
+                    print(f"Created temporary credentials file at: {temp_file_path}")
+                
+                # Initialize Firebase with the temporary file
+                cred = credentials.Certificate(temp_file_path)
+                firebase_admin.initialize_app(cred)
+                print("Successfully initialized Firebase Admin SDK")
+                
+                # Clean up the temporary file
+                os.unlink(temp_file_path)
+                print("Cleaned up temporary credentials file")
+            except Exception as e:
+                print(f"Error processing Firebase credentials from environment: {e}")
+                print("Falling back to file-based credentials")
+                # Fall back to the file-based credentials
+                cred = credentials.Certificate('firebase-credentials.json')
+                firebase_admin.initialize_app(cred)
+        else:
+            print("No FIREBASE_CREDENTIALS_BASE64 environment variable found")
+            # Fall back to the file-based credentials
+            cred = credentials.Certificate('firebase-credentials.json')
+            firebase_admin.initialize_app(cred)
+    except Exception as e:
+        print(f"Error during Firebase initialization: {e}")
+        raise
 
     # Initialize CORS with credentials support
     CORS(app, supports_credentials=True)

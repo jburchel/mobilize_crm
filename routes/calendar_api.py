@@ -2,7 +2,10 @@
 Blueprint for Google Calendar integration with Tasks
 """
 from flask import Blueprint, request, jsonify, current_app
-from models import Task, session_scope
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from models import Task
+from database import db, session_scope
 from utils.google_calendar import (
     build_calendar_service, 
     create_event_from_task, 
@@ -13,6 +16,7 @@ from utils.google_calendar import (
 from routes.google_auth import auth_required, get_access_token_from_header
 import logging
 from datetime import datetime, timedelta
+import json
 
 calendar_api = Blueprint('calendar_api', __name__)
 logger = logging.getLogger(__name__)

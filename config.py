@@ -6,12 +6,15 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-class Config:
+class BaseConfig:
+    """Base configuration with common settings"""
     # Flask
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-key-please-change'
+    DEBUG = False
+    TESTING = False
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-key-please-change')
+    BASE_URL = os.environ.get('BASE_URL', 'http://localhost:8000')
     
     # Database
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///mobilize_crm.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Email
@@ -63,19 +66,64 @@ class Config:
         if not os.path.exists('logs'):
             os.mkdir('logs')
             
-        formatter = logging.Formatter(Config.LOG_FORMAT)
+        formatter = logging.Formatter(BaseConfig.LOG_FORMAT)
         
-        if Config.LOG_TO_STDOUT:
+        if BaseConfig.LOG_TO_STDOUT:
             stream_handler = logging.StreamHandler()
             stream_handler.setFormatter(formatter)
             app.logger.addHandler(stream_handler)
         else:
             file_handler = RotatingFileHandler(
-                Config.LOG_FILE,
-                maxBytes=Config.LOG_MAX_SIZE,
-                backupCount=Config.LOG_BACKUP_COUNT
+                BaseConfig.LOG_FILE,
+                maxBytes=BaseConfig.LOG_MAX_SIZE,
+                backupCount=BaseConfig.LOG_BACKUP_COUNT
             )
             file_handler.setFormatter(formatter)
             app.logger.addHandler(file_handler)
         
-        app.logger.setLevel(getattr(logging, Config.LOG_LEVEL.upper()))
+        app.logger.setLevel(getattr(logging, BaseConfig.LOG_LEVEL.upper()))
+
+
+class DevelopmentConfig(BaseConfig):
+    """Development environment configuration"""
+    DEBUG = True
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///mobilize_crm.db'
+
+
+class ProductionConfig(BaseConfig):
+    """Production environment configuration"""
+    # Check if a direct connection string is provided
+    DB_CONNECTION_STRING = os.environ.get('DB_CONNECTION_STRING')
+    
+    if DB_CONNECTION_STRING:
+        SQLALCHEMY_DATABASE_URI = DB_CONNECTION_STRING
+    else:
+        # For Supabase PostgreSQL using individual variables
+        DB_USER = os.environ.get('DB_USER', 'postgres')
+        DB_PASS = os.environ.get('DB_PASS')
+        DB_NAME = os.environ.get('DB_NAME', 'postgres')
+        DB_HOST = os.environ.get('DB_HOST')
+        DB_PORT = os.environ.get('DB_PORT', '5432')
+        
+        # Construct the database URI
+        SQLALCHEMY_DATABASE_URI = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    
+    # SSL mode for Supabase connection
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "connect_args": {"sslmode": "require"}
+    }
+    
+    # Production-specific settings
+    LOG_TO_STDOUT = True  # Cloud Run logs to stdout
+
+
+# Function to get the right config based on environment
+def get_config():
+    env = os.environ.get('FLASK_ENV', 'development')
+    if env == 'production':
+        return ProductionConfig
+    return DevelopmentConfig
+
+
+# For backward compatibility - this is what the app currently uses
+Config = get_config()

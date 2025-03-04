@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify
 from sqlalchemy import func
-from models import Session, Person, Church, Task, Communication, EmailSignature, session_scope
+from models import Session, Person, Church, Task, Communication, EmailSignature
+from database import db, session_scope
 from firebase_admin import auth
 from functools import wraps
 from routes.google_auth import get_current_user_id
@@ -40,11 +41,21 @@ def auth_required(f):
 @dashboard_bp.route('/')
 @auth_required
 def dashboard():
+    user_id = get_current_user_id()
     with session_scope() as session:
-        total_people = session.query(func.count(Person.id)).scalar()
-        total_churches = session.query(func.count(Church.id)).scalar()
+        # Count only the user's people
+        total_people = session.query(func.count(Person.id)).filter(
+            Person.type == 'person',
+            Person.user_id == user_id
+        ).scalar()
+        
+        # Show all churches
+        total_churches = session.query(func.count(Church.id)).filter(
+            Church.type == 'church'
+        ).scalar()
         
         # Get pending tasks and format them properly
+        # Only show tasks related to the user's people or any church
         pending_tasks = (
             session.query(
                 Task.id,
@@ -52,32 +63,70 @@ def dashboard():
                 Task.description,
                 Task.due_date,
                 Task.status,
-                func.coalesce(func.concat(Person.first_name, ' ', Person.last_name), None).label('person_name'),
+                Person.first_name,
+                Person.last_name,
                 Church.church_name.label('church_name')
             )
             .outerjoin(Person, Task.person_id == Person.id)
             .outerjoin(Church, Task.church_id == Church.id)
-            .filter(Task.status != 'Completed')
+            .filter(
+                Task.status != 'Completed',
+                # Only include tasks for this user's people or for any church
+                ((Person.user_id == user_id) | (Task.church_id != None))
+            )
             .all()
         )
         
-        recent_communications = (
+        # Format the tasks with full names
+        formatted_tasks = []
+        for task in pending_tasks:
+            person_name = None
+            if task.first_name and task.last_name:
+                person_name = f"{task.first_name} {task.last_name}"
+            
+            formatted_tasks.append({
+                'id': task.id,
+                'title': task.title,
+                'description': task.description,
+                'due_date': task.due_date,
+                'status': task.status,
+                'person_name': person_name,
+                'church_name': task.church_name
+            })
+        
+        # Get recent communications
+        # Only show communications related to the user's people or to any church
+        recent_comms_query = (
             session.query(
                 Communication,
-                func.coalesce(func.concat(Person.first_name, ' ', Person.last_name), None).label('person_name'),
-                Church.church_name.label('church_name')
+                Person.first_name,
+                Person.last_name,
+                Church.church_name
             )
             .outerjoin(Person, Communication.person_id == Person.id)
             .outerjoin(Church, Communication.church_id == Church.id)
+            .filter(
+                # Only include communications for this user's people or for any church
+                ((Person.user_id == user_id) | (Communication.church_id != None))
+            )
             .order_by(Communication.date_sent.desc())
             .limit(5)
             .all()
         )
         
+        # Format the communications with full names
+        recent_communications = []
+        for comm, first_name, last_name, church_name in recent_comms_query:
+            person_name = None
+            if first_name and last_name:
+                person_name = f"{first_name} {last_name}"
+            
+            recent_communications.append((comm, person_name, church_name))
+        
         return render_template('dashboard.html', 
                              people=total_people, 
                              churches=total_churches, 
-                             tasks=pending_tasks, 
+                             tasks=formatted_tasks, 
                              communications=recent_communications)
 
 @dashboard_bp.route('/google-settings')

@@ -2,10 +2,12 @@ from flask import Blueprint, render_template, request, redirect, url_for, curren
 from datetime import datetime
 import smtplib
 from email.mime.text import MIMEText
-from models import Session, Communication, Person, Church, session_scope
+from models import Session, Communication, Person, Church
+from database import db, session_scope
+from routes.dashboard import auth_required
+from routes.google_auth import get_user_tokens, get_current_user_id
 import os
 import requests
-from routes.google_auth import get_user_tokens
 import traceback
 
 communications_bp = Blueprint('communications_bp', __name__)
