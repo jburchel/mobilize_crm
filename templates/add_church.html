@@ -2,55 +2,60 @@
 
 {% block content %}
 <div class="form-container">
+    {% if edit_mode %}
+    <h2>Edit Church</h2>
+    <form method="POST" action="{{ url_for('churches_bp.edit_church', church_id=church.id) }}">
+    {% else %}
     <h2>Add New Church</h2>
     <form method="POST" action="{{ url_for('churches_bp.add_church') }}">
+    {% endif %}
         <!-- Basic Information -->
         <fieldset>
             <legend>Basic Information</legend>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Name*: <input name="church_name" required></label>
+                    <label>Name*: <input name="church_name" required value="{{ church.church_name if edit_mode else '' }}"></label>
                 </div>
                 <div class="form-group">
-                    <label>Location: <input name="location"></label>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Street Address: <input name="street_address"></label>
-                </div>
-                <div class="form-group">
-                    <label>City: <input name="city"></label>
+                    <label>Location: <input name="location" value="{{ church.location if edit_mode else '' }}"></label>
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>State: <input name="state" maxlength="2"></label>
+                    <label>Street Address: <input name="street_address" value="{{ church.street_address if edit_mode else '' }}"></label>
                 </div>
                 <div class="form-group">
-                    <label>ZIP Code: <input name="zip_code"></label>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Phone: <input name="phone"></label>
-                </div>
-                <div class="form-group">
-                    <label>Email: <input type="email" name="email"></label>
-                </div>
-                <div class="form-group">
-                    <label>Website: <input type="url" name="website"></label>
+                    <label>City: <input name="city" value="{{ church.city if edit_mode else '' }}"></label>
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Denomination: <input name="denomination"></label>
+                    <label>State: <input name="state" maxlength="2" value="{{ church.state if edit_mode else '' }}"></label>
                 </div>
                 <div class="form-group">
-                    <label>Congregation Size: <input type="number" name="congregation_size"></label>
+                    <label>ZIP Code: <input name="zip_code" value="{{ church.zip_code if edit_mode else '' }}"></label>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Phone: <input name="phone" value="{{ church.phone if edit_mode else '' }}"></label>
                 </div>
                 <div class="form-group">
-                    <label>Year Founded: <input type="number" name="year_founded"></label>
+                    <label>Email: <input type="email" name="email" value="{{ church.email if edit_mode else '' }}"></label>
+                </div>
+                <div class="form-group">
+                    <label>Website: <input type="url" name="website" value="{{ church.website if edit_mode else '' }}"></label>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Denomination: <input name="denomination" value="{{ church.denomination if edit_mode else '' }}"></label>
+                </div>
+                <div class="form-group">
+                    <label>Congregation Size: <input type="number" name="congregation_size" value="{{ church.congregation_size if edit_mode else '' }}"></label>
+                </div>
+                <div class="form-group">
+                    <label>Year Founded: <input type="number" name="year_founded" value="{{ church.year_founded if edit_mode else '' }}"></label>
                 </div>
             </div>
         </fieldset>
@@ -60,18 +65,18 @@
             <legend>Senior Pastor Information</legend>
             <div class="form-row">
                 <div class="form-group">
-                    <label>First Name: <input name="senior_pastor_first_name"></label>
+                    <label>First Name: <input name="senior_pastor_first_name" value="{{ church.senior_pastor_first_name if edit_mode else '' }}"></label>
                 </div>
                 <div class="form-group">
-                    <label>Last Name: <input name="senior_pastor_last_name"></label>
+                    <label>Last Name: <input name="senior_pastor_last_name" value="{{ church.senior_pastor_last_name if edit_mode else '' }}"></label>
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Phone: <input name="senior_pastor_phone"></label>
+                    <label>Phone: <input name="senior_pastor_phone" value="{{ church.senior_pastor_phone if edit_mode else '' }}"></label>
                 </div>
                 <div class="form-group">
-                    <label>Email: <input type="email" name="senior_pastor_email"></label>
+                    <label>Email: <input type="email" name="senior_pastor_email" value="{{ church.senior_pastor_email if edit_mode else '' }}"></label>
                 </div>
             </div>
         </fieldset>
@@ -81,18 +86,18 @@
             <legend>Missions Pastor Information</legend>
             <div class="form-row">
                 <div class="form-group">
-                    <label>First Name: <input name="missions_pastor_first_name"></label>
+                    <label>First Name: <input name="missions_pastor_first_name" value="{{ church.missions_pastor_first_name if edit_mode else '' }}"></label>
                 </div>
                 <div class="form-group">
-                    <label>Last Name: <input name="missions_pastor_last_name"></label>
+                    <label>Last Name: <input name="missions_pastor_last_name" value="{{ church.missions_pastor_last_name if edit_mode else '' }}"></label>
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Phone: <input name="mission_pastor_phone"></label>
+                    <label>Phone: <input name="mission_pastor_phone" value="{{ church.mission_pastor_phone if edit_mode else '' }}"></label>
                 </div>
                 <div class="form-group">
-                    <label>Email: <input type="email" name="mission_pastor_email"></label>
+                    <label>Email: <input type="email" name="mission_pastor_email" value="{{ church.mission_pastor_email if edit_mode else '' }}"></label>
                 </div>
             </div>
         </fieldset>
@@ -102,18 +107,18 @@
             <legend>Primary Contact Information</legend>
             <div class="form-row">
                 <div class="form-group">
-                    <label>First Name: <input name="primary_contact_first_name"></label>
+                    <label>First Name: <input name="primary_contact_first_name" value="{{ church.primary_contact_first_name if edit_mode else '' }}"></label>
                 </div>
                 <div class="form-group">
-                    <label>Last Name: <input name="primary_contact_last_name"></label>
+                    <label>Last Name: <input name="primary_contact_last_name" value="{{ church.primary_contact_last_name if edit_mode else '' }}"></label>
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Phone: <input name="primary_contact_phone"></label>
+                    <label>Phone: <input name="primary_contact_phone" value="{{ church.primary_contact_phone if edit_mode else '' }}"></label>
                 </div>
                 <div class="form-group">
-                    <label>Email: <input type="email" name="primary_contact_email"></label>
+                    <label>Email: <input type="email" name="primary_contact_email" value="{{ church.primary_contact_email if edit_mode else '' }}"></label>
                 </div>
             </div>
             <div class="form-row">
@@ -122,7 +127,7 @@
                         <select name="main_contact_id">
                             <option value="">None</option>
                             {% for person in people %}
-                            <option value="{{ person.id }}">{{ person.get_name() }}</option>
+                            <option value="{{ person.id }}" {% if edit_mode and church.main_contact_id == person.id %}selected{% endif %}>{{ person.get_name() }}</option>
                             {% endfor %}
                         </select>
                     </label>
@@ -135,91 +140,87 @@
             <legend>Administrative Information</legend>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Church Pipeline:
+                    <label>Pipeline Stage: 
                         <select name="church_pipeline">
-                            <option value="PROMOTION">Promotion</option>
-                            <option value="INFORMATION">Information</option>
-                            <option value="INVITATION">Invitation</option>
-                            <option value="CONFIRMATION">Confirmation</option>
-                            <option value="EN42">EN42</option>
-                            <option value="AUTOMATION">Automation</option>
+                            <option value="New" {% if edit_mode and church.church_pipeline == 'New' %}selected{% endif %}>New</option>
+                            <option value="Initial Contact" {% if edit_mode and church.church_pipeline == 'Initial Contact' %}selected{% endif %}>Initial Contact</option>
+                            <option value="Meeting Scheduled" {% if edit_mode and church.church_pipeline == 'Meeting Scheduled' %}selected{% endif %}>Meeting Scheduled</option>
+                            <option value="Presentation Made" {% if edit_mode and church.church_pipeline == 'Presentation Made' %}selected{% endif %}>Presentation Made</option>
+                            <option value="Follow-up" {% if edit_mode and church.church_pipeline == 'Follow-up' %}selected{% endif %}>Follow-up</option>
+                            <option value="Partnership Committed" {% if edit_mode and church.church_pipeline == 'Partnership Committed' %}selected{% endif %}>Partnership Committed</option>
+                            <option value="Closed/Lost" {% if edit_mode and church.church_pipeline == 'Closed/Lost' %}selected{% endif %}>Closed/Lost</option>
                         </select>
                     </label>
                 </div>
                 <div class="form-group">
-                    <label>Priority:
+                    <label>Priority: 
                         <select name="priority">
-                            <option value="MEDIUM" selected>Medium</option>
-                            <option value="URGENT">Urgent</option>
-                            <option value="HIGH">High</option>
-                            <option value="LOW">Low</option>
-                        </select>
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label>Assigned To:
-                        <select name="assigned_to">
-                            <option value="UNASSIGNED" selected>Unassigned</option>
-                            <option value="BILL JONES">Bill Jones</option>
-                            <option value="JASON MODOMO">Jason Modomo</option>
-                            <option value="KEN KATAYAMA">Ken Katayama</option>
-                            <option value="MATTHEW RULE">Matthew Rule</option>
-                            <option value="CHIP ATKINSON">Chip Atkinson</option>
-                            <option value="RACHEL LIVELY">Rachel Lively</option>
-                            <option value="JIM BURCHEL">Jim Burchel</option>
-                            <option value="JILL WALKER">Jill Walker</option>
-                            <option value="KARINA RAMPIN">Karina Rampin</option>
+                            <option value="Low" {% if edit_mode and church.priority == 'Low' %}selected{% endif %}>Low</option>
+                            <option value="Medium" {% if edit_mode and church.priority == 'Medium' %}selected{% endif %}>Medium</option>
+                            <option value="High" {% if edit_mode and church.priority == 'High' %}selected{% endif %}>High</option>
                         </select>
                     </label>
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Source:
-                        <select name="source">
-                            <option value="UNKNOWN" selected>Unknown</option>
-                            <option value="WEBFORM">Webform</option>
-                            <option value="INCOMING CALL">Incoming Call</option>
-                            <option value="EMAIL">Email</option>
-                            <option value="SOCIAL MEDIA">Social Media</option>
-                            <option value="COLD CALL">Cold Call</option>
-                            <option value="PERSPECTIVES">Perspectives</option>
-                            <option value="REFERAL">Referral</option>
-                            <option value="OTHER">Other</option>
-                        </select>
-                    </label>
+                    <label>Assigned To: <input name="assigned_to" value="{{ church.assigned_to if edit_mode else '' }}"></label>
                 </div>
                 <div class="form-group">
-                    <label>Referred By: <input name="referred_by"></label>
+                    <label>Source: <input name="source" value="{{ church.source if edit_mode else '' }}"></label>
                 </div>
-            </div>
-        </fieldset>
-
-        <!-- Notes -->
-        <fieldset>
-            <legend>Notes</legend>
-            <div class="form-row">
-                <div class="form-group full-width">
-                    <label>Initial Notes: <textarea name="initial_notes"></textarea></label>
+                <div class="form-group">
+                    <label>Referred By: <input name="referred_by" value="{{ church.referred_by if edit_mode else '' }}"></label>
                 </div>
             </div>
             <div class="form-row">
-                <div class="form-group full-width">
-                    <label>Info Given: <textarea name="info_given"></textarea></label>
+                <div class="form-group">
+                    <label>Information Given: <textarea name="info_given">{{ church.info_given if edit_mode else '' }}</textarea></label>
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
                     <label class="checkbox-label">
-                        <input type="checkbox" name="virtuous"> Virtuous
+                        <input type="checkbox" name="virtuous" {% if edit_mode and church.virtuous %}checked{% endif %}>
+                        Virtuous
                     </label>
                 </div>
             </div>
+            {% if edit_mode %}
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Reason Closed: <input name="reason_closed" value="{{ church.reason_closed if church.reason_closed else '' }}"></label>
+                </div>
+                <div class="form-group">
+                    <label>Date Closed: <input type="date" name="date_closed" value="{{ church.date_closed.strftime('%Y-%m-%d') if church.date_closed else '' }}"></label>
+                </div>
+            </div>
+            {% else %}
+            <input type="hidden" name="reason_closed" value="">
+            <input type="hidden" name="date_closed" value="">
+            {% endif %}
         </fieldset>
 
+        <!-- Initial Notes (only for new churches) -->
+        {% if not edit_mode %}
+        <fieldset>
+            <legend>Initial Notes</legend>
+            <div class="form-row">
+                <div class="form-group full-width">
+                    <label>Notes: <textarea name="initial_notes"></textarea></label>
+                </div>
+            </div>
+        </fieldset>
+        {% endif %}
+
         <div class="form-actions">
+            {% if edit_mode %}
+            <button type="submit" class="button primary">Update Church</button>
+            <a href="{{ url_for('churches_bp.church_detail', church_id=church.id) }}" class="button">Cancel</a>
+            {% else %}
             <button type="submit" class="button primary">Add Church</button>
             <a href="{{ url_for('churches_bp.churches') }}" class="button">Cancel</a>
+            {% endif %}
         </div>
     </form>
 </div>

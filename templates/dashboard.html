@@ -207,7 +207,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('/api/gmail/sync-status')
             .then(response => response.json())
             .then(data => {
-                if (data.is_running) {
+                if (data.sync_in_progress) {
                     syncStatus.textContent = 'Sync in progress... ' + (data.progress || '');
                     setTimeout(checkSyncStatus, 3000);
                 } else {

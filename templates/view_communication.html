@@ -46,7 +46,7 @@
                         <h6>Message:</h6>
                         <div class="card">
                             <div class="card-body bg-light">
-                                <div style="white-space: pre-wrap;">{{ communication.message }}</div>
+                                <div style="white-space: pre-wrap;">{% if communication.message %}{{ communication.message }}{% else %}No message content{% endif %}</div>
                             </div>
                         </div>
                     </div>

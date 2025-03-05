@@ -159,11 +159,26 @@ def add_person():
         session.add(new_person)
         return redirect(url_for('people_bp.people'))
 
-@people_bp.route('/edit_person/<int:person_id>', methods=['POST'])
+@people_bp.route('/edit_person/<int:person_id>', methods=['GET', 'POST'])
+@auth_required
 def edit_person(person_id):
+    user_id = get_current_user_id()
     with session_scope() as session:
         person = session.query(Person).filter(Person.id == person_id).first()
-        if person:
+        if not person:
+            return "Person not found", 404
+            
+        # Ensure we're only editing a person that belongs to this user
+        if person.user_id != user_id:
+            current_app.logger.warning(f"User {user_id} attempted to edit person {person_id} belonging to user {person.user_id}")
+            return "Unauthorized", 403
+        
+        if request.method == 'GET':
+            # For GET requests, render the edit form with the person data
+            churches = session.query(Church).order_by(Church.church_name).all()
+            return render_template('add_person.html', person=person, churches=churches, edit_mode=True)
+        else:
+            # For POST requests, update the person data
             person.title = request.form['title']
             person.first_name = request.form['first_name']
             person.last_name = request.form['last_name']
@@ -188,10 +203,9 @@ def edit_person(person_id):
             person.info_given = request.form['info_given']
             person.desired_service = request.form['desired_service']
             person.virtuous = 'virtuous' in request.form
-            person.reason_closed = request.form['reason_closed']
             
             # Convert date_closed string to Python date object if present
-            date_closed_str = request.form['date_closed']
+            date_closed_str = request.form.get('date_closed', '')
             if date_closed_str:
                 try:
                     person.date_closed = datetime.strptime(date_closed_str, '%Y-%m-%d').date()
@@ -200,8 +214,9 @@ def edit_person(person_id):
             else:
                 person.date_closed = None
                 
+            person.reason_closed = request.form.get('reason_closed', '')
+
             return redirect(url_for('people_bp.person_detail', person_id=person_id))
-        return "Person not found", 404
 
 @people_bp.route('/batch_update', methods=['POST'])
 def batch_update():

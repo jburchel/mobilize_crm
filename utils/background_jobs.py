@@ -223,7 +223,7 @@ def is_job_running(job_id):
         # Check if the job is currently executing
         # This is a bit of a hack since APScheduler doesn't provide a direct way to check
         # We'll consider the job running if it's 5 minutes from the last execution
-        now = datetime.now()
+        now = datetime.now(job.next_run_time.tzinfo)  # Use the same timezone as next_run_time
         if job.next_run_time and job.next_run_time > now:
             # The job is scheduled to run in the future
             last_run = job.next_run_time - timedelta(minutes=job.trigger.interval.minutes)

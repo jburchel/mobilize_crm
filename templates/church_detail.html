@@ -288,7 +288,7 @@
                                         {{ comm.subject or 'N/A' }}
                                     </a>
                                 </td>
-                                <td>{{ comm.message|truncate(50) }}</td>
+                                <td>{% if comm.message %}{{ comm.message|truncate(50) }}{% else %}N/A{% endif %}</td>
                                 <td>
                                     {% if comm.gmail_message_id %}
                                     <span class="badge bg-success">Sent</span>
@@ -795,7 +795,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to fetch the default signature
     function fetchDefaultSignature() {
-        console.log('⚡ fetchDefaultSignature called in church_detail.html');
+        console.log('⚡ fetchDefaultSignature called');
         
         // Check if the textarea element exists
         const messageArea = document.getElementById('message');
@@ -837,36 +837,20 @@ document.addEventListener('DOMContentLoaded', function() {
                             console.error('signature_id input not found');
                         }
                         
-                        // Create a temporary div to decode HTML entities for the textarea
-                        const tempDiv = document.createElement('div');
-                        tempDiv.innerHTML = defaultSignature.content;
-                        const decodedContent = tempDiv.innerText;
+                        // No longer adding plain text signature to the message textarea
+                        // Instead, just show the HTML preview
                         
-                        // Insert signature into the message textarea as plain text
-                        console.log('Current message area value length:', messageArea.value.length);
-                        if (messageArea.value.trim() === '') {
-                            // Only add signature if textarea is empty
-                            messageArea.value = '\n\n' + decodedContent;
-                            console.log('✅ Signature inserted into message body, new length:', messageArea.value.length);
+                        // Show HTML preview of the signature
+                        const previewContainer = document.getElementById('signature-preview-container');
+                        const previewContent = document.getElementById('signature-preview-content');
+                        
+                        if (previewContainer && previewContent) {
+                            // Display the container
+                            previewContainer.style.display = 'block';
                             
-                            // Set cursor position before the signature
-                            messageArea.focus();
-                            messageArea.setSelectionRange(0, 0);
-                            
-                            // Show HTML preview of the signature
-                            const previewContainer = document.getElementById('signature-preview-container');
-                            const previewContent = document.getElementById('signature-preview-content');
-                            
-                            if (previewContainer && previewContent) {
-                                // Display the container
-                                previewContainer.style.display = 'block';
-                                
-                                // Set the HTML content
-                                previewContent.innerHTML = defaultSignature.content;
-                                console.log('✅ Signature preview displayed with HTML formatting');
-                            }
-                        } else {
-                            console.log('Textarea already has content, not adding signature');
+                            // Set the HTML content
+                            previewContent.innerHTML = defaultSignature.content;
+                            console.log('✅ Signature preview displayed with HTML formatting');
                         }
                     } else {
                         console.warn('No default signature content found');

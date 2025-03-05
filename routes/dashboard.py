@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify, session
 from sqlalchemy import func
 from models import Session, Person, Church, Task, Communication, EmailSignature
 from database import db, session_scope
@@ -20,7 +20,9 @@ def auth_required(f):
         if auth_header and auth_header.startswith('Bearer '):
             try:
                 token = auth_header.split('Bearer ')[1]
-                auth.verify_id_token(token)
+                decoded_token = auth.verify_id_token(token)
+                # Set the user_id in the session
+                session['user_id'] = decoded_token['uid']
                 return f(*args, **kwargs)
             except Exception as e:
                 current_app.logger.error(f"Bearer token verification failed: {str(e)}")
@@ -28,7 +30,9 @@ def auth_required(f):
         # If no valid bearer token, check for session token
         if 'firebase_token' in request.cookies:
             try:
-                auth.verify_id_token(request.cookies['firebase_token'])
+                decoded_token = auth.verify_id_token(request.cookies['firebase_token'])
+                # Set the user_id in the session
+                session['user_id'] = decoded_token['uid']
                 return f(*args, **kwargs)
             except Exception as e:
                 current_app.logger.error(f"Cookie token verification failed: {str(e)}")
@@ -42,12 +46,32 @@ def auth_required(f):
 @auth_required
 def dashboard():
     user_id = get_current_user_id()
+    
+    # If user_id is None, try to get it from the firebase_token cookie
+    if user_id is None:
+        try:
+            if 'firebase_token' in request.cookies:
+                token = request.cookies['firebase_token']
+                decoded_token = auth.verify_id_token(token)
+                user_id = decoded_token['uid']
+                current_app.logger.info(f"Retrieved user_id from firebase_token cookie: {user_id}")
+        except Exception as e:
+            current_app.logger.error(f"Error getting user_id from firebase_token cookie: {str(e)}")
+    
+    # If still None, redirect to login
+    if user_id is None:
+        current_app.logger.warning("No user_id found, redirecting to login")
+        return redirect(url_for('home'))
+    
     with session_scope() as session:
         # Count only the user's people
         total_people = session.query(func.count(Person.id)).filter(
             Person.type == 'person',
             Person.user_id == user_id
         ).scalar()
+        
+        # Log the query and result for debugging
+        current_app.logger.info(f"Dashboard people count query for user_id={user_id}: {total_people}")
         
         # Show all churches
         total_churches = session.query(func.count(Church.id)).filter(

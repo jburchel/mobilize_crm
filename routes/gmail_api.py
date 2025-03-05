@@ -613,192 +613,238 @@ def sync_emails():
                 'success': False,
                 'message': 'No Google access token found'
             }), 400
+            
+        # Log the start of the sync process
+        current_app.logger.info(f"Starting Gmail sync for user {user_id}")
         
-        # Get all contacts (people and churches) with email addresses
-        with session_scope() as session:
-            people_with_email = session.query(Person).filter(Person.email != None, Person.email != '').all()
-            church_with_email = session.query(Church).filter(Church.email != None, Church.email != '').all()
+        try:
+            # Get all contacts (people and churches) with email addresses
+            with session_scope() as session:
+                people_with_email = session.query(Person).filter(Person.email != None, Person.email != '').all()
+                church_with_email = session.query(Church).filter(Church.email != None, Church.email != '').all()
+                
+                all_contacts_emails = []
+                # Add person emails
+                for person in people_with_email:
+                    if person.email and person.email.strip():
+                        all_contacts_emails.append(person.email.lower())
+                
+                # Add church emails
+                for church in church_with_email:
+                    if church.email and church.email.strip():
+                        all_contacts_emails.append(church.email.lower())
+                
+                if not all_contacts_emails:
+                    return jsonify({
+                        'success': False,
+                        'message': 'No contacts with email found'
+                    }), 400
+                    
+                # Get existing message IDs to avoid duplicates
+                existing_message_ids = session.query(Communication.gmail_message_id).filter(
+                    Communication.gmail_message_id != None
+                ).all()
+                
+                # Convert to a set for faster lookups
+                existing_message_ids = {id[0] for id in existing_message_ids if id[0]}
+                
+                current_app.logger.info(f"Found {len(existing_message_ids)} already synced messages")
+                current_app.logger.info(f"Searching for emails for contacts: {', '.join(all_contacts_emails[:5])}{'...' if len(all_contacts_emails) > 5 else ''}")
+                
+                # Build query to find emails from or to contacts
+                query_parts = []
+
+                # Get user's email from Google API for more targeted searching
+                user_email_str = None
+                try:
+                    credentials = Credentials(token=access_token)
+                    user_info_service = build('oauth2', 'v2', credentials=credentials)
+                    user_info = user_info_service.userinfo().get().execute()
+                    if 'email' in user_info:
+                        user_email_str = user_info['email']
+                        current_app.logger.debug(f"Found user email: {user_email_str}")
+                except Exception as e:
+                    current_app.logger.warning(f"Unable to get user email from Google API: {e}")
+
+                # If we have the user's email, build more targeted queries
+                if user_email_str:
+                    # Emails FROM contacts TO the user
+                    for contact_email in all_contacts_emails:
+                        query_parts.append(f"(from:{contact_email} AND to:{user_email_str})")
+                    
+                    # Emails FROM the user TO contacts
+                    for contact_email in all_contacts_emails:
+                        query_parts.append(f"(from:{user_email_str} AND to:{contact_email})")
+                else:
+                    # Fallback to the simpler but less precise approach
+                    # Find emails FROM any contact 
+                    from_queries = [f"from:{email}" for email in all_contacts_emails]
+                    # Find emails TO any contact
+                    to_queries = [f"to:{email}" for email in all_contacts_emails]
+                    query_parts = from_queries + to_queries
+
+                # Combine all queries with OR
+                query = " OR ".join(query_parts)
+                current_app.logger.debug(f"Gmail search query: {query}")
             
-            all_contacts_emails = []
-            # Add person emails
-            for person in people_with_email:
-                if person.email and person.email.strip():
-                    all_contacts_emails.append(person.email.lower())
-            
-            # Add church emails
-            for church in church_with_email:
-                if church.email and church.email.strip():
-                    all_contacts_emails.append(church.email.lower())
-            
-            if not all_contacts_emails:
+            # Setup Gmail service
+            token_dict = {
+                'token': access_token
+            }
+            credentials = Credentials(token=access_token)
+            service = build('gmail', 'v1', credentials=credentials)
+
+            # Get messages matching the query
+            messages = list_messages(service, 'me', query)
+            current_app.logger.info(f"Found {len(messages) if messages else 0} messages matching query")
+
+            if not messages:
                 return jsonify({
-                    'success': False,
-                    'message': 'No contacts with email found'
-                }), 400
+                    'success': True,
+                    'message': 'No new emails found',
+                    'synced_count': 0,
+                    'total_messages_found': 0
+                })
                 
-            # Get existing message IDs to avoid duplicates
-            existing_message_ids = session.query(Communication.gmail_message_id).filter(
-                Communication.gmail_message_id != None
-            ).all()
-            
-            # Convert to a set for faster lookups
-            existing_message_ids = {id[0] for id in existing_message_ids if id[0]}
-            
-            current_app.logger.info(f"Found {len(existing_message_ids)} already synced messages")
-            current_app.logger.info(f"Searching for emails for contacts: {', '.join(all_contacts_emails[:5])}{'...' if len(all_contacts_emails) > 5 else ''}")
-            
-            # Build query to find emails from or to contacts
-            query_parts = []
-
-            # Get user's email from Google API for more targeted searching
-            user_email_str = None
-            try:
-                credentials = Credentials(token=access_token)
-                user_info_service = build('oauth2', 'v2', credentials=credentials)
-                user_info = user_info_service.userinfo().get().execute()
-                if 'email' in user_info:
-                    user_email_str = user_info['email']
-                    current_app.logger.debug(f"Found user email: {user_email_str}")
-            except Exception as e:
-                current_app.logger.warning(f"Unable to get user email from Google API: {e}")
-
-            # If we have the user's email, build more targeted queries
-            if user_email_str:
-                # Emails FROM contacts TO the user
-                for contact_email in all_contacts_emails:
-                    query_parts.append(f"(from:{contact_email} AND to:{user_email_str})")
+            # Process each message that isn't already synced
+            synced_count = 0
+            for msg in messages:
+                msg_id = msg.get('id')
                 
-                # Emails FROM the user TO contacts
-                for contact_email in all_contacts_emails:
-                    query_parts.append(f"(from:{user_email_str} AND to:{contact_email})")
-            else:
-                # Fallback to the simpler but less precise approach
-                # Find emails FROM any contact 
-                from_queries = [f"from:{email}" for email in all_contacts_emails]
-                # Find emails TO any contact
-                to_queries = [f"to:{email}" for email in all_contacts_emails]
-                query_parts = from_queries + to_queries
+                # Skip if already synced
+                if msg_id in existing_message_ids:
+                    continue
+                
+                # Get full message
+                message_data = get_message_content(service, 'me', msg_id)
+                
+                if not message_data:
+                    continue
+                
+                # Extract email addresses
+                sender_email = extract_email_address(message_data.get('from', ''))
+                recipient_email = extract_email_address(message_data.get('to', ''))
+                
+                # Log for debugging
+                current_app.logger.debug(f"Processing message: ID={msg_id}, From={sender_email}, To={recipient_email}")
 
-            # Combine all queries with OR
-            query = " OR ".join(query_parts)
-            current_app.logger.debug(f"Gmail search query: {query}")
-        
-        # Setup Gmail service
-        token_dict = {
-            'token': access_token
-        }
-        credentials = Credentials(token=access_token)
-        service = build('gmail', 'v1', credentials=credentials)
+                # Only sync emails that are between user and a contact
+                user_is_sender = user_email_str and sender_email and sender_email.lower() == user_email_str.lower()
+                user_is_recipient = user_email_str and recipient_email and recipient_email.lower() == user_email_str.lower()
+                contact_is_sender = sender_email and sender_email.lower() in [email.lower() for email in all_contacts_emails]
+                contact_is_recipient = recipient_email and recipient_email.lower() in [email.lower() for email in all_contacts_emails]
 
-        # Get messages matching the query
-        messages = list_messages(service, 'me', query)
-        current_app.logger.info(f"Found {len(messages) if messages else 0} messages matching query")
+                # User sending to contact OR contact sending to user
+                valid_email = (user_is_sender and contact_is_recipient) or (contact_is_sender and user_is_recipient)
 
-        if not messages:
+                if not valid_email:
+                    current_app.logger.debug(f"Skipping message - not between user and contact: {sender_email} -> {recipient_email}")
+                    continue
+                
+                # Create new communication record
+                communication = Communication(
+                    type='Email',
+                    message=message_data.get('body', ''),
+                    date_sent=datetime.now(),  # Will be overridden below if date available
+                    subject=message_data.get('subject', ''),
+                    gmail_message_id=msg_id,
+                    gmail_thread_id=message_data.get('threadId')
+                )
+                
+                # Parse date if available
+                if message_data.get('date'):
+                    try:
+                        # Try parsing ISO format first
+                        communication.date_sent = datetime.fromisoformat(message_data.get('date').replace('Z', '+00:00'))
+                    except ValueError:
+                        try:
+                            # Try parsing email format
+                            from email.utils import parsedate_to_datetime
+                            communication.date_sent = parsedate_to_datetime(message_data.get('date'))
+                        except Exception as e:
+                            # Default to current date if parsing fails
+                            current_app.logger.error(f"Error parsing date {message_data.get('date')}: {e}")
+                            communication.date_sent = datetime.now()
+                else:
+                    communication.date_sent = datetime.now()
+                    
+                # Link to person/church if sender/recipient matches
+                if contact_is_sender:
+                    # Find matching person or church
+                    person = session.query(Person).filter(func.lower(Person.email) == sender_email.lower()).first()
+                    church = session.query(Church).filter(func.lower(Church.email) == sender_email.lower()).first()
+                    
+                    if person:
+                        communication.person_id = person.id
+                    elif church:
+                        communication.church_id = church.id
+                
+                elif contact_is_recipient:
+                    # Find matching person or church
+                    person = session.query(Person).filter(func.lower(Person.email) == recipient_email.lower()).first()
+                    church = session.query(Church).filter(func.lower(Church.email) == recipient_email.lower()).first()
+                    
+                    if person:
+                        communication.person_id = person.id
+                    elif church:
+                        communication.church_id = church.id
+                
+                session.add(communication)
+                synced_count += 1
+            
+            # Commit all changes
+            session.commit()
+            
+            # Store the result in the application config for status checks
+            current_app.config['LAST_SYNC_RESULT'] = {
+                'success': True,
+                'message': f'Successfully synced {synced_count} emails',
+                'synced_count': synced_count,
+                'total_messages_found': len(messages) if messages else 0,
+                'timestamp': datetime.now().isoformat()
+            }
+            
             return jsonify({
                 'success': True,
-                'message': 'No new emails found',
-                'synced_count': 0,
-                'total_messages_found': 0
+                'message': f'Successfully synced {synced_count} emails',
+                'synced_count': synced_count,
+                'total_messages_found': len(messages) if messages else 0
             })
-                
-        # Process each message that isn't already synced
-        synced_count = 0
-        for msg in messages:
-            msg_id = msg.get('id')
             
-            # Skip if already synced
-            if msg_id in existing_message_ids:
-                continue
-                
-            # Get full message
-            message_data = get_message_content(service, 'me', msg_id)
+        except Exception as inner_e:
+            # Log the detailed error
+            current_app.logger.error(f"Error during Gmail sync process: {str(inner_e)}")
+            current_app.logger.error(traceback.format_exc())
             
-            if not message_data:
-                continue
+            # Store the error in the application config
+            current_app.config['LAST_SYNC_RESULT'] = {
+                'success': False,
+                'message': f'Error during sync: {str(inner_e)}',
+                'synced_count': 0,
+                'total_messages_found': 0,
+                'timestamp': datetime.now().isoformat(),
+                'error': str(inner_e)
+            }
             
-            # Extract email addresses
-            sender_email = extract_email_address(message_data.get('from', ''))
-            recipient_email = extract_email_address(message_data.get('to', ''))
-            
-            # Log for debugging
-            current_app.logger.debug(f"Processing message: ID={msg_id}, From={sender_email}, To={recipient_email}")
-
-            # Only sync emails that are between user and a contact
-            user_is_sender = user_email_str and sender_email and sender_email.lower() == user_email_str.lower()
-            user_is_recipient = user_email_str and recipient_email and recipient_email.lower() == user_email_str.lower()
-            contact_is_sender = sender_email and sender_email.lower() in [email.lower() for email in all_contacts_emails]
-            contact_is_recipient = recipient_email and recipient_email.lower() in [email.lower() for email in all_contacts_emails]
-
-            # User sending to contact OR contact sending to user
-            valid_email = (user_is_sender and contact_is_recipient) or (contact_is_sender and user_is_recipient)
-
-            if not valid_email:
-                current_app.logger.debug(f"Skipping message - not between user and contact: {sender_email} -> {recipient_email}")
-                continue
-            
-            # Create new communication record
-            communication = Communication(
-                type='Email',
-                message=message_data.get('body', ''),
-                date_sent=datetime.now(),  # Will be overridden below if date available
-                subject=message_data.get('subject', ''),
-                gmail_message_id=msg_id,
-                gmail_thread_id=message_data.get('threadId')
-            )
-            
-            # Parse date if available
-            if message_data.get('date'):
-                try:
-                    # Try parsing ISO format first
-                    communication.date_sent = datetime.fromisoformat(message_data.get('date').replace('Z', '+00:00'))
-                except ValueError:
-                    try:
-                        # Try parsing email format
-                        from email.utils import parsedate_to_datetime
-                        communication.date_sent = parsedate_to_datetime(message_data.get('date'))
-                    except Exception as e:
-                        # Default to current date if parsing fails
-                        current_app.logger.error(f"Error parsing date {message_data.get('date')}: {e}")
-                        communication.date_sent = datetime.now()
-            else:
-                communication.date_sent = datetime.now()
-                
-            # Link to person/church if sender/recipient matches
-            if contact_is_sender:
-                # Find matching person or church
-                person = session.query(Person).filter(func.lower(Person.email) == sender_email.lower()).first()
-                church = session.query(Church).filter(func.lower(Church.email) == sender_email.lower()).first()
-                
-                if person:
-                    communication.person_id = person.id
-                elif church:
-                    communication.church_id = church.id
-            
-            elif contact_is_recipient:
-                # Find matching person or church
-                person = session.query(Person).filter(func.lower(Person.email) == recipient_email.lower()).first()
-                church = session.query(Church).filter(func.lower(Church.email) == recipient_email.lower()).first()
-                
-                if person:
-                    communication.person_id = person.id
-                elif church:
-                    communication.church_id = church.id
-            
-            session.add(communication)
-            synced_count += 1
-        
-        # Commit all changes
-        session.commit()
-        return jsonify({
-            'success': True,
-            'message': f'Successfully synced {synced_count} emails',
-            'synced_count': synced_count,
-            'total_messages_found': len(messages)
-        })
+            return jsonify({
+                'success': False,
+                'message': f'Error syncing emails: {str(inner_e)}'
+            }), 500
     
     except Exception as e:
         logger.error(f"Error syncing emails: {e}")
+        logger.error(traceback.format_exc())
+        
+        # Store the error in the application config
+        current_app.config['LAST_SYNC_RESULT'] = {
+            'success': False,
+            'message': f'Error in sync setup: {str(e)}',
+            'synced_count': 0,
+            'total_messages_found': 0,
+            'timestamp': datetime.now().isoformat(),
+            'error': str(e)
+        }
+        
         return jsonify({
             'success': False,
             'message': f'Error syncing emails: {str(e)}'
@@ -847,10 +893,26 @@ def force_sync_emails():
                 }
             ):
                 # Call the sync_emails function directly
+                current_app.logger.info("Calling sync_emails function directly")
                 result = sync_emails()
+                current_app.logger.info(f"Sync result: {result}")
+                
+                # Store the last run result in the application config for status checks
+                if hasattr(result, 'json'):
+                    result_data = result.json
+                    if callable(result_data):
+                        result_data = result_data()
+                    current_app.config['LAST_SYNC_RESULT'] = {
+                        'success': result_data.get('success', False),
+                        'message': result_data.get('message', ''),
+                        'synced_count': result_data.get('synced_count', 0),
+                        'timestamp': datetime.now().isoformat()
+                    }
+                
                 return result
         except Exception as e:
             current_app.logger.error(f"Error calling sync_emails function: {e}")
+            current_app.logger.error(traceback.format_exc())
             return jsonify({
                 'success': False,
                 'message': f'Error syncing emails: {str(e)}'
@@ -858,6 +920,7 @@ def force_sync_emails():
     
     except Exception as e:
         current_app.logger.error(f"Error triggering manual Gmail sync: {e}")
+        current_app.logger.error(traceback.format_exc())
         return jsonify({
             'success': False,
             'message': f'Error triggering manual Gmail sync: {str(e)}'
@@ -880,15 +943,28 @@ def get_sync_status():
         # Check if there's a manual sync in progress from session
         manual_sync = False  # We don't track manual syncs right now
         
-        return jsonify({
+        # Get last run result if available
+        last_run_result = current_app.config.get('LAST_SYNC_RESULT', {})
+        
+        response_data = {
             'success': True,
             'sync_in_progress': background_sync,
             'manual_sync_in_progress': manual_sync,
-            'user_id': user_id
-        })
+            'user_id': user_id,
+            'last_run_success': last_run_result.get('success'),
+            'last_run_message': last_run_result.get('message'),
+            'last_run_timestamp': last_run_result.get('timestamp'),
+            'last_run_results': {
+                'processed': last_run_result.get('total_messages_found', 0),
+                'new_communications': last_run_result.get('synced_count', 0)
+            } if last_run_result else None
+        }
+        
+        return jsonify(response_data)
     
     except Exception as e:
         logger.error(f"Error checking sync status: {e}")
+        logger.error(traceback.format_exc())
         return jsonify({
             'success': False,
             'message': f'Error checking sync status: {str(e)}'

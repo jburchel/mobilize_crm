@@ -13,7 +13,7 @@ import traceback
 from datetime import datetime
 import json
 import logging
-from routes.google_auth import get_access_token_from_header
+from routes.google_auth import get_access_token_from_header, get_current_user_id
 
 contacts_api = Blueprint('contacts_api', __name__)
 
@@ -260,6 +260,10 @@ def import_contact():
                     first_name = name_parts[0] if name_parts else ''
                     last_name = ' '.join(name_parts[1:]) if len(name_parts) > 1 else ''
 
+                    # Get the current user ID
+                    user_id = get_current_user_id()
+                    current_app.logger.info(f"Creating new contact for user_id: {user_id}")
+
                     new_contact = Person(
                         type='person',
                         first_name=first_name,
@@ -270,7 +274,8 @@ def import_contact():
                         city=address_parts.get('city'),
                         state=address_parts.get('state'),
                         zip_code=address_parts.get('zip_code'),
-                        google_resource_name=resource_name
+                        google_resource_name=resource_name,
+                        user_id=user_id  # Set the user_id
                     )
 
                 current_app.logger.info(f"Adding new contact to database: {new_contact.get_name()}")

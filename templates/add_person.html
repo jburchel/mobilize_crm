@@ -1,228 +1,222 @@
 {% extends "base.html" %}
+
 {% block content %}
-    <div class="form-container">
-        <h2>Add New Person</h2>
-        <form method="POST" action="{{ url_for('people_bp.add_person') }}">
-            <!-- Personal Information Section -->
-            <fieldset>
-                <legend>Personal Information</legend>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Title: <input name="title"></label>
-                    </div>
-                    <div class="form-group">
-                        <label>First Name: <input name="first_name" required></label>
-                    </div>
-                    <div class="form-group">
-                        <label>Last Name: <input name="last_name"></label>
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Email: <input type="email" name="email"></label>
-                    </div>
-                    <div class="form-group">
-                        <label>Phone: <input name="phone"></label>
-                    </div>
-                    <div class="form-group">
-                        <label>Preferred Contact Method: 
-                            <select name="preferred_contact_method">
-                                <option value="">None</option>
-                                <option value="email">Email</option>
-                                <option value="phone">Phone</option>
-                                <option value="text">Text</option>
-                                <option value="facebook_messenger">Facebook Messenger</option>
-                                <option value="whatsapp">Whatsapp</option>
-                                <option value="groupme">Groupme</option>
-                                <option value="signal">Signal</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </label>
-                    </div>
-                </div>
-            </fieldset>
-
-            <!-- Address Section -->
-            <fieldset>
-                <legend>Address Information</legend>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Street Address: <input name="street_address"></label>
-                    </div>
-                    <div class="form-group">
-                        <label>City: <input name="city"></label>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>State: <input name="state"></label>
-                    </div>
-                    <div class="form-group">
-                        <label>Zip Code: <input name="zip_code"></label>
-                    </div>
-                    <div class="form-group">
-                        <label>Home Country: <input name="home_country"></label>
-                    </div>
-                </div>
-            </fieldset>
-
-            <!-- Role and Affiliation -->
-            <fieldset>
-                <legend>Role and Affiliation</legend>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Church Role: 
-                            <select name="church_role">
-                                <option value="Contact">Contact</option>
-                                <option value="Member">Member</option>
-                                <option value="Leader">Leader</option>
-                                <option value="Pastor">Pastor</option>
-                            </select>
-                        </label>
-                    </div>
-                    <div class="form-group">
-                        <label>Church: 
-                            <select name="church_id">
-                                <option value="">None</option>
-                                {% for church in churches %}
-                                <option value="{{ church.id }}">{{ church.church_name }}</option>
-                                {% endfor %}
-                            </select>
-                        </label>
-                    </div>
-                </div>
-            </fieldset>
-
-            <!-- Family Information -->
-            <fieldset>
-                <legend>Family Information</legend>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Marital Status:
-                            <select name="marital_status">
-                                <option value="">None</option>
-                                <option value="single">Single</option>
-                                <option value="married">Married</option>
-                                <option value="divorced">Divorced</option>
-                                <option value="widowed">Widowed</option>
-                                <option value="separated">Separated</option>
-                                <option value="engaged">Engaged</option>
-                                <option value="unknown">Unknown</option>
-                            </select>
-                        </label>
-                    </div>
-                    <div class="form-group">
-                        <label>Spouse First Name: <input name="spouse_first_name"></label>
-                    </div>
-                    <div class="form-group">
-                        <label>Spouse Last Name: <input name="spouse_last_name"></label>
-                    </div>
-                </div>
-            </fieldset>
-
-            <!-- Administrative Information -->
-            <fieldset>
-                <legend>Administrative Details</legend>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>People Pipeline:
-                            <select name="people_pipeline">
-                                <option value="">None</option>
-                                <option value="PROMOTION">Promotion</option>
-                                <option value="INFORMATION">Information</option>
-                                <option value="INVITATION">Invitation</option>
-                                <option value="CONFIRMATION">Confirmation</option>
-                                <option value="AUTOMATION">Automation</option>
-                            </select>
-                        </label>
-                    </div>
-                    <div class="form-group">
-                        <label>Priority:
-                            <select name="priority">
-                                <option value="">None</option>
-                                <option value="urgent">Urgent</option>
-                                <option value="high">High</option>
-                                <option value="medium">Medium</option>
-                                <option value="low">Low</option>
-                            </select>
-                        </label>
-                    </div>
-                    <div class="form-group">
-                        <label>Assigned To:
-                            <select name="assigned_to">
-                                <option value="UNASSIGNED" selected>Unassigned</option>
-                                <option value="BILL JONES">Bill Jones</option>
-                                <option value="JASON MODOMO">Jason Modomo</option>
-                                <option value="KEN KATAYAMA">Ken Katayama</option>
-                                <option value="MATTHEW RULE">Matthew Rule</option>
-                                <option value="CHIP ATKINSON">Chip Atkinson</option>
-                                <option value="RACHEL LIVELY">Rachel Lively</option>
-                                <option value="JIM BURCHEL">Jim Burchel</option>
-                                <option value="JILL WALKER">Jill Walker</option>
-                            </select>
-                        </label>
-                    </div>
-                </div>
-            </fieldset>
-
-            <!-- Source and Notes -->
-            <fieldset>
-                <legend>Source Information</legend>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Source:
-                            <select name="source">
-                                <option value="">None</option>
-                                <option value="WEBFORM">Webform</option>
-                                <option value="INCOMING CALL">Incoming Call</option>
-                                <option value="EMAIL">Email</option>
-                                <option value="SOCIAL MEDIA">Social Media</option>
-                                <option value="COLD CALL">Cold Call</option>
-                                <option value="PERSPECTIVES">Perspectives</option>
-                                <option value="REFERAL">Referral</option>
-                                <option value="OTHER">Other</option>
-                                <option value="UNKNOWN">Unknown</option>
-                            </select>
-                        </label>
-                    </div>
-                    <div class="form-group">
-                        <label>Referred By: <input name="referred_by"></label>
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group full-width">
-                        <label>Info Given: <textarea name="info_given"></textarea></label>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group full-width">
-                        <label>Desired Service: <textarea name="desired_service"></textarea></label>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group full-width">
-                        <label>Initial Notes: <textarea name="initial_notes"></textarea></label>
-                    </div>
-                </div>
-            </fieldset>
-
+<div class="form-container">
+    {% if edit_mode %}
+    <h2>Edit Person</h2>
+    <form method="POST" action="{{ url_for('people_bp.edit_person', person_id=person.id) }}">
+    {% else %}
+    <h2>Add New Person</h2>
+    <form method="POST" action="{{ url_for('people_bp.add_person') }}">
+    {% endif %}
+        <!-- Personal Information -->
+        <fieldset>
+            <legend>Personal Information</legend>
             <div class="form-row">
                 <div class="form-group">
+                    <label>Title: 
+                        <select name="title">
+                            <option value="" {% if edit_mode and not person.title %}selected{% endif %}></option>
+                            <option value="Mr." {% if edit_mode and person.title == 'Mr.' %}selected{% endif %}>Mr.</option>
+                            <option value="Mrs." {% if edit_mode and person.title == 'Mrs.' %}selected{% endif %}>Mrs.</option>
+                            <option value="Ms." {% if edit_mode and person.title == 'Ms.' %}selected{% endif %}>Ms.</option>
+                            <option value="Dr." {% if edit_mode and person.title == 'Dr.' %}selected{% endif %}>Dr.</option>
+                            <option value="Rev." {% if edit_mode and person.title == 'Rev.' %}selected{% endif %}>Rev.</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>First Name*: <input name="first_name" required value="{{ person.first_name if edit_mode else '' }}"></label>
+                </div>
+                <div class="form-group">
+                    <label>Last Name*: <input name="last_name" required value="{{ person.last_name if edit_mode else '' }}"></label>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Email: <input type="email" name="email" value="{{ person.email if edit_mode else '' }}"></label>
+                </div>
+                <div class="form-group">
+                    <label>Phone: <input name="phone" value="{{ person.phone if edit_mode else '' }}"></label>
+                </div>
+                <div class="form-group">
+                    <label>Preferred Contact Method: 
+                        <select name="preferred_contact_method">
+                            <option value="Email" {% if edit_mode and person.preferred_contact_method == 'Email' %}selected{% endif %}>Email</option>
+                            <option value="Phone" {% if edit_mode and person.preferred_contact_method == 'Phone' %}selected{% endif %}>Phone</option>
+                            <option value="Text" {% if edit_mode and person.preferred_contact_method == 'Text' %}selected{% endif %}>Text</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+        </fieldset>
+
+        <!-- Address Information -->
+        <fieldset>
+            <legend>Address Information</legend>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Street Address: <input name="street_address" value="{{ person.street_address if edit_mode else '' }}"></label>
+                </div>
+                <div class="form-group">
+                    <label>City: <input name="city" value="{{ person.city if edit_mode else '' }}"></label>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>State: <input name="state" maxlength="2" value="{{ person.state if edit_mode else '' }}"></label>
+                </div>
+                <div class="form-group">
+                    <label>ZIP Code: <input name="zip_code" value="{{ person.zip_code if edit_mode else '' }}"></label>
+                </div>
+                <div class="form-group">
+                    <label>Home Country: <input name="home_country" value="{{ person.home_country if edit_mode else '' }}"></label>
+                </div>
+            </div>
+        </fieldset>
+
+        <!-- Role and Affiliation -->
+        <fieldset>
+            <legend>Role and Affiliation</legend>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Church Role: 
+                        <select name="church_role">
+                            <option value="Contact" {% if edit_mode and person.church_role == 'Contact' %}selected{% endif %}>Contact</option>
+                            <option value="Member" {% if edit_mode and person.church_role == 'Member' %}selected{% endif %}>Member</option>
+                            <option value="Leader" {% if edit_mode and person.church_role == 'Leader' %}selected{% endif %}>Leader</option>
+                            <option value="Pastor" {% if edit_mode and person.church_role == 'Pastor' %}selected{% endif %}>Pastor</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>Church: 
+                        <select name="church_id">
+                            <option value="">None</option>
+                            {% for church in churches %}
+                            <option value="{{ church.id }}" {% if edit_mode and person.church_id == church.id %}selected{% endif %}>{{ church.church_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                </div>
+            </div>
+        </fieldset>
+
+        <!-- Family Information -->
+        <fieldset>
+            <legend>Family Information</legend>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Marital Status: 
+                        <select name="marital_status">
+                            <option value="Single" {% if edit_mode and person.marital_status == 'Single' %}selected{% endif %}>Single</option>
+                            <option value="Married" {% if edit_mode and person.marital_status == 'Married' %}selected{% endif %}>Married</option>
+                            <option value="Divorced" {% if edit_mode and person.marital_status == 'Divorced' %}selected{% endif %}>Divorced</option>
+                            <option value="Widowed" {% if edit_mode and person.marital_status == 'Widowed' %}selected{% endif %}>Widowed</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>Spouse First Name: <input name="spouse_first_name" value="{{ person.spouse_first_name if edit_mode else '' }}"></label>
+                </div>
+                <div class="form-group">
+                    <label>Spouse Last Name: <input name="spouse_last_name" value="{{ person.spouse_last_name if edit_mode else '' }}"></label>
+                </div>
+            </div>
+        </fieldset>
+
+        <!-- Administrative Information -->
+        <fieldset>
+            <legend>Administrative Information</legend>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Pipeline Stage: 
+                        <select name="people_pipeline">
+                            <option value="New" {% if edit_mode and person.people_pipeline == 'New' %}selected{% endif %}>New</option>
+                            <option value="Initial Contact" {% if edit_mode and person.people_pipeline == 'Initial Contact' %}selected{% endif %}>Initial Contact</option>
+                            <option value="Meeting Scheduled" {% if edit_mode and person.people_pipeline == 'Meeting Scheduled' %}selected{% endif %}>Meeting Scheduled</option>
+                            <option value="Presentation Made" {% if edit_mode and person.people_pipeline == 'Presentation Made' %}selected{% endif %}>Presentation Made</option>
+                            <option value="Follow-up" {% if edit_mode and person.people_pipeline == 'Follow-up' %}selected{% endif %}>Follow-up</option>
+                            <option value="Partnership Committed" {% if edit_mode and person.people_pipeline == 'Partnership Committed' %}selected{% endif %}>Partnership Committed</option>
+                            <option value="Closed/Lost" {% if edit_mode and person.people_pipeline == 'Closed/Lost' %}selected{% endif %}>Closed/Lost</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>Priority: 
+                        <select name="priority">
+                            <option value="Low" {% if edit_mode and person.priority == 'Low' %}selected{% endif %}>Low</option>
+                            <option value="Medium" {% if edit_mode and person.priority == 'Medium' %}selected{% endif %}>Medium</option>
+                            <option value="High" {% if edit_mode and person.priority == 'High' %}selected{% endif %}>High</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Assigned To: <input name="assigned_to" value="{{ person.assigned_to if edit_mode else '' }}"></label>
+                </div>
+                <div class="form-group">
+                    <label>Source: <input name="source" value="{{ person.source if edit_mode else '' }}"></label>
+                </div>
+                <div class="form-group">
+                    <label>Referred By: <input name="referred_by" value="{{ person.referred_by if edit_mode else '' }}"></label>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Information Given: <textarea name="info_given">{{ person.info_given if edit_mode else '' }}</textarea></label>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Desired Service: <input name="desired_service" value="{{ person.desired_service if edit_mode else '' }}"></label>
+                </div>
+                <div class="form-group">
                     <label class="checkbox-label">
-                        <input type="checkbox" name="virtuous" value="true">
+                        <input type="checkbox" name="virtuous" {% if edit_mode and person.virtuous %}checked{% endif %}>
                         Virtuous
                     </label>
                 </div>
             </div>
-
-            <div class="form-actions">
-                <button type="submit" class="button primary">Save Person</button>
-                <a href="{{ url_for('people_bp.people') }}" class="button">Cancel</a>
+            {% if edit_mode %}
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Reason Closed: <input name="reason_closed" value="{{ person.reason_closed if person.reason_closed else '' }}"></label>
+                </div>
+                <div class="form-group">
+                    <label>Date Closed: <input type="date" name="date_closed" value="{{ person.date_closed.strftime('%Y-%m-%d') if person.date_closed else '' }}"></label>
+                </div>
             </div>
-        </form>
-    </div>
+            {% else %}
+            <input type="hidden" name="reason_closed" value="">
+            <input type="hidden" name="date_closed" value="">
+            {% endif %}
+        </fieldset>
+
+        <!-- Initial Notes (only for new people) -->
+        {% if not edit_mode %}
+        <fieldset>
+            <legend>Initial Notes</legend>
+            <div class="form-row">
+                <div class="form-group full-width">
+                    <label>Notes: <textarea name="initial_notes"></textarea></label>
+                </div>
+            </div>
+        </fieldset>
+        {% endif %}
+
+        <div class="form-actions">
+            {% if edit_mode %}
+            <button type="submit" class="button primary">Update Person</button>
+            <a href="{{ url_for('people_bp.person_detail', person_id=person.id) }}" class="button">Cancel</a>
+            {% else %}
+            <button type="submit" class="button primary">Add Person</button>
+            <a href="{{ url_for('people_bp.people') }}" class="button">Cancel</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
 {% endblock %}
 
 {% block styles %}

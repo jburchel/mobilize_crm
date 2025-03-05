@@ -13,7 +13,9 @@ from routes.google_auth import get_current_user_id
 import_csv_bp = Blueprint('import_csv_bp', __name__)
 
 @import_csv_bp.route('/import-csv', methods=['GET', 'POST'])
+@auth_required
 def import_csv():
+    user_id = get_current_user_id()
     if request.method == 'POST':
         # Check if the post request has the file part
         if 'csv_file' not in request.files:
@@ -79,7 +81,9 @@ def import_csv():
                             spouse_first_name=row.get('spouse_first_name', ''),
                             spouse_last_name=row.get('spouse_last_name', ''),
                             home_country=row.get('home_country', ''),
-                            notes=row.get('notes', '')
+                            notes=row.get('notes', ''),
+                            user_id=user_id,
+                            type='person'
                         )
                     else:  # church
                         contact = Church(

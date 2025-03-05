@@ -2,9 +2,9 @@
 
 ## Gmail integration
 
-[] Utilize the prompt to continue iterating on gmail integration
-[] Determine what communications we want in app and what we don't
-[] Make sure both outgoing and incoming email from contacts in the app are tracked
+[X] Utilize the prompt to continue iterating on gmail integration
+[X] Determine what communications we want in app and what we don't
+[X] Make sure both outgoing and incoming email from contacts in the app are tracked
 
 ## Text integration
 
@@ -12,7 +12,7 @@
 
 ## Pipeline
 
-[] Visual representation on the Dashboard page
+[X] Visual representation on the Dashboard page
 [] A Pipeline page for people
 [] A Pipeline page for churches
 
@@ -36,3 +36,15 @@
 [] If so, implement some type of API structure allowing orgs to put in their logos, colors, etc...
 [] Other. . .
 
+## Debugging
+
+[] Make sure users only see their tasks and their communications
+[X] Fix people not showing up on Dashboard page
+[X] Fix Communications page 500 Internal Server Error
+[X] Change Email signatures to not show the raw text and only show the HTML below the message body
+[X] Clicking on a person returns the user to the dashboard instead of opening the person detail page.
+[X] Clicking Edit from within a church or person a 'Method not allowed' message
+
+## New or Upgraded Functions
+
+[] 

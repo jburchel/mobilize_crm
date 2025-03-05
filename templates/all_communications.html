@@ -67,7 +67,7 @@
                                             N/A
                                         {% endif %}
                                     </td>
-                                    <td>{{ comm.message[:50] }}{% if comm.message|length > 50 %}...{% endif %}</td>
+                                    <td>{% if comm.message %}{{ comm.message[:50] }}{% if comm.message|length > 50 %}...{% endif %}{% else %}N/A{% endif %}</td>
                                     <td>
                                         {% if comm.email_status == 'sent' %}
                                             <span class="badge bg-success">Sent</span>
@@ -139,6 +139,14 @@
                         <label for="message" class="form-label">Message</label>
                         <textarea class="form-control" id="message" name="message" rows="5" required></textarea>
                     </div>
+                    
+                    <!-- Signature Preview -->
+                    <div class="mb-3" id="signature-preview-container" style="display: none;">
+                        <label class="form-label">Signature Preview:</label>
+                        <div class="signature-preview p-3 border rounded bg-light">
+                            <div id="signature-preview-content"></div>
+                        </div>
+                    </div>
                 </form>
                 
                 <!-- Add a status message area -->
@@ -209,24 +217,20 @@
                             console.error('signature_id input not found');
                         }
                         
-                        // Insert signature directly into the message textarea
-                        // Clear any existing content first
-                        if (messageArea.value.trim() === '') {
-                            // Only add signature if textarea is empty
-                            messageArea.value = '\n\n' + defaultSignature.content;
-                            console.log('✅ Signature inserted into message body');
-                            
-                            // Set cursor position before the signature
-                            messageArea.focus();
-                            messageArea.setSelectionRange(0, 0);
-                        } else {
-                            console.log('Textarea already has content, not adding signature');
-                        }
+                        // No longer adding plain text signature to the message textarea
+                        // Instead, just show the HTML preview
                         
-                        // Remove any existing signature preview
-                        const existingPreview = document.getElementById('signature-preview');
-                        if (existingPreview) {
-                            existingPreview.remove();
+                        // Show HTML preview of the signature
+                        const previewContainer = document.getElementById('signature-preview-container');
+                        const previewContent = document.getElementById('signature-preview-content');
+                        
+                        if (previewContainer && previewContent) {
+                            // Display the container
+                            previewContainer.style.display = 'block';
+                            
+                            // Set the HTML content
+                            previewContent.innerHTML = defaultSignature.content;
+                            console.log('✅ Signature preview displayed with HTML formatting');
                         }
                     } else {
                         console.warn('No default signature content found');

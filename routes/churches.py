@@ -171,11 +171,20 @@ def add_church():
         
         return redirect(url_for('churches_bp.churches'))
 
-@churches_bp.route('/edit_church/<int:church_id>', methods=['POST'])
+@churches_bp.route('/edit_church/<int:church_id>', methods=['GET', 'POST'])
+@auth_required
 def edit_church(church_id):
     with session_scope() as session:
         church = session.query(Church).filter(Church.id == church_id).first()
-        if church:
+        if not church:
+            return "Church not found", 404
+            
+        if request.method == 'GET':
+            # For GET requests, render the edit form with the church data
+            people = session.query(Person).order_by(Person.first_name, Person.last_name).all()
+            return render_template('add_church.html', church=church, people=people, edit_mode=True)
+        else:
+            # For POST requests, update the church data
             # Basic Information
             church.church_name = request.form['church_name']
             church.location = request.form['location']
@@ -229,7 +238,6 @@ def edit_church(church_id):
                 church.date_closed = None
 
             return redirect(url_for('churches_bp.church_detail', church_id=church_id))
-        return "Church not found", 404
 
 @churches_bp.route('/batch_update', methods=['POST'])
 def batch_update():
