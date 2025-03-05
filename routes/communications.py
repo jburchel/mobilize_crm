@@ -2,20 +2,37 @@ from flask import Blueprint, render_template, request, redirect, url_for, curren
 from datetime import datetime
 import smtplib
 from email.mime.text import MIMEText
-from models import Session, Communication, Person, Church
+from models import Session, Communication, Person, Church, EmailSignature
 from database import db, session_scope
 from routes.dashboard import auth_required
 from routes.google_auth import get_user_tokens, get_current_user_id
 import os
 import requests
 import traceback
+from sqlalchemy import func, desc
+from utils.gmail_integration import build_gmail_service, create_message, send_message
 
 communications_bp = Blueprint('communications_bp', __name__)
 
 @communications_bp.route('/communications')
 def communications_route():
+    # Get the current user ID
+    user_id = get_current_user_id()
+    if not user_id:
+        current_app.logger.warning("No user ID found in session, redirecting to login")
+        return redirect(url_for('dashboard_bp.dashboard'))
+        
     with session_scope() as session:
-        communications_list = session.query(Communication).order_by(Communication.date_sent.desc()).all()
+        # Filter communications by user_id and ensure they're properly sorted by date_sent
+        # Use coalesce to handle NULL date_sent values by substituting a very old date
+        communications_list = session.query(Communication).filter(
+            Communication.user_id == user_id
+        ).order_by(
+            func.coalesce(Communication.date_sent, datetime(1900, 1, 1)).desc()
+        ).all()
+        
+        current_app.logger.debug(f"Found {len(communications_list)} communications for user {user_id}")
+        
         people_list = session.query(Person).all()
         churches_list = session.query(Church).all()
         return render_template('communications.html', 
@@ -25,53 +42,75 @@ def communications_route():
 
 @communications_bp.route('/communications/all-communications')
 def all_communications_route():
+    # Get the current user ID
+    user_id = get_current_user_id()
+    if not user_id:
+        current_app.logger.warning("No user ID found in session, redirecting to login")
+        return redirect(url_for('dashboard_bp.dashboard'))
+        
     with session_scope() as session:
         # Get filter parameters
         person_id = request.args.get('person_id')
         church_id = request.args.get('church_id')
         
-        # Start with a base query
-        query = session.query(Communication).order_by(Communication.date_sent.desc())
+        # Start with a base query that filters by user_id
+        query = session.query(Communication).filter(Communication.user_id == user_id)
         
-        # Apply filters if provided
+        # Apply additional filters if provided
         if person_id:
             query = query.filter(Communication.person_id == person_id)
+            
         if church_id:
             query = query.filter(Communication.church_id == church_id)
+            
+        # Order by date_sent, handling NULL values
+        query = query.order_by(func.coalesce(Communication.date_sent, datetime(1900, 1, 1)).desc())
         
+        # Execute the query
         communications_list = query.all()
         
-        # Get filter info for the title
+        # Get filter name if applicable
         filter_name = None
         if person_id:
-            person = session.query(Person).filter(Person.id == person_id).first()
+            person = session.query(Person).filter_by(id=person_id).first()
             if person:
-                filter_name = f"{person.first_name} {person.last_name}"
+                filter_name = person.get_name()
         elif church_id:
-            church = session.query(Church).filter(Church.id == church_id).first()
+            church = session.query(Church).filter_by(id=church_id).first()
             if church:
-                filter_name = church.church_name
+                filter_name = church.get_name()
+                
+        current_app.logger.debug(f"Found {len(communications_list)} communications for user {user_id} with filters: person_id={person_id}, church_id={church_id}")
         
+        people_list = session.query(Person).all()
+        churches_list = session.query(Church).all()
         return render_template('all_communications.html', 
-                             communications=communications_list,
+                             communications=communications_list, 
+                             people=people_list, 
+                             churches=churches_list,
                              filter_name=filter_name)
 
-@communications_bp.route('/send_communication', methods=['POST'])
+@communications_bp.route('/communications/send', methods=['POST'])
 def send_communication_route():
-    current_app.logger.info("Received communication submission")
-    
-    # Check if the request is JSON or form data
-    if request.is_json:
-        current_app.logger.debug("Processing JSON request")
-        form_data = request.json
-        current_app.logger.debug(f"JSON data: {form_data}")
-    else:
-        current_app.logger.debug("Processing form data request")
-        form_data = request.form
-        current_app.logger.debug(f"Form data: {form_data}")
-    
+    """Handle sending a new communication"""
+    # Get the current user ID
+    user_id = get_current_user_id()
+    if not user_id:
+        current_app.logger.warning("No user ID found in session, cannot send communication")
+        return jsonify({
+            'success': False,
+            'message': 'User not authenticated'
+        }), 401
+        
     with session_scope() as session:
         try:
+            # Get form data
+            if request.is_json:
+                form_data = request.json
+            else:
+                form_data = request.form
+                
+            # Extract form fields
             comm_type = form_data.get('type')
             message = form_data.get('message')
             person_id = form_data.get('person_id') or None
@@ -151,7 +190,8 @@ def send_communication_route():
                                 'message': message,
                                 'person_id': person_id,
                                 'church_id': church_id,
-                                'signature_id': form_data.get('signature_id')
+                                'signature_id': form_data.get('signature_id'),
+                                'user_id': user_id  # Add user_id to ensure it's saved with the communication
                             }
                             
                             # Call Gmail API endpoint
@@ -170,63 +210,157 @@ def send_communication_route():
                                 response = requests.post(api_url, json=email_data, headers=headers)
                                 current_app.logger.debug(f"Gmail API response status: {response.status_code}")
                                 
-                                # Log the full response for debugging
-                                try:
-                                    response_data = response.json()
-                                    current_app.logger.debug(f"Gmail API response: {response_data}")
-                                except:
-                                    current_app.logger.debug(f"Gmail API raw response: {response.text}")
+                                # Check if the response is a redirect (302)
+                                if response.status_code == 302:
+                                    redirect_url = response.headers.get('Location')
+                                    current_app.logger.info(f"Received redirect to: {redirect_url}")
+                                    return redirect(redirect_url)
                                 
-                                if response.status_code == 200 and response.json().get('success'):
-                                    # Email sent successfully via Gmail API
-                                    gmail_data = response.json()
-                                    current_app.logger.info(f"Email sent successfully via Gmail API. Message ID: {gmail_data.get('gmail_message_id')}")
-                                    
-                                    # Create communication record
-                                    new_communication = Communication(
-                                        type=comm_type,
-                                        message=message,
-                                        date_sent=date_sent,
-                                        person_id=person_id,
-                                        church_id=church_id,
-                                        subject=subject,
-                                        gmail_message_id=gmail_data.get('gmail_message_id'),
-                                        gmail_thread_id=gmail_data.get('gmail_thread_id'),
-                                        email_status='sent',
-                                        last_synced_at=datetime.now()
-                                    )
-                                    session.add(new_communication)
-                                    session.commit()
-                                    current_app.logger.info(f"Communication record created with ID: {new_communication.id}")
-                                    
-                                    return jsonify({
-                                        'success': True,
-                                        'message': f'Email sent successfully to {recipient_name}'
-                                    })
+                                # Check if the response is JSON before trying to parse it
+                                content_type = response.headers.get('Content-Type', '')
+                                if 'application/json' in content_type:
+                                    # Log the full response for debugging
+                                    try:
+                                        response_data = response.json()
+                                        current_app.logger.debug(f"Gmail API response data: {response_data}")
+                                        
+                                        if response.status_code == 200 and response_data.get('success'):
+                                            current_app.logger.info(f"Email sent successfully via Gmail API")
+                                            
+                                            # If we're handling a JSON request, return the API response
+                                            if request.is_json:
+                                                return jsonify(response_data)
+                                            # Otherwise, redirect to the communications page
+                                            return redirect(url_for('communications_bp.communications_route'))
+                                        else:
+                                            error_msg = response_data.get('message', 'Unknown error')
+                                            current_app.logger.error(f"Gmail API error: {error_msg}")
+                                            
+                                            # Log the communication as failed
+                                            new_communication = Communication(
+                                                type=comm_type,
+                                                message=message,
+                                                date_sent=date_sent,
+                                                person_id=person_id,
+                                                church_id=church_id,
+                                                subject=subject,
+                                                email_status='failed',
+                                                user_id=user_id
+                                            )
+                                            session.add(new_communication)
+                                            session.commit()
+                                            current_app.logger.info(f"Failed communication record created with ID: {new_communication.id}")
+                                            
+                                            return jsonify({
+                                                'success': False,
+                                                'message': f'Failed to send email: {error_msg}'
+                                            }), 500
+                                    except ValueError:
+                                        current_app.logger.error(f"Gmail API returned a non-JSON response: {response.text}")
+                                        return jsonify({
+                                            'success': False,
+                                            'message': 'Server returned a non-JSON response'
+                                        }), 500
                                 else:
-                                    # Gmail API call failed
-                                    error_msg = response.json().get('message', 'Unknown error')
-                                    current_app.logger.error(f"Gmail API error: {error_msg}")
+                                    # Handle non-JSON response (like HTML)
+                                    current_app.logger.error(f"Gmail API returned a non-JSON response with content type: {content_type}")
+                                    current_app.logger.debug(f"Response text: {response.text[:500]}...")  # Log first 500 chars
                                     
-                                    # Create communication record with failed status
-                                    new_communication = Communication(
-                                        type=comm_type,
-                                        message=message,
-                                        date_sent=date_sent,
-                                        person_id=person_id,
-                                        church_id=church_id,
-                                        subject=subject,
-                                        email_status='failed',
-                                        last_synced_at=datetime.now()
-                                    )
-                                    session.add(new_communication)
-                                    session.commit()
-                                    current_app.logger.info(f"Failed communication record created with ID: {new_communication.id}")
+                                    # Instead of assuming success, we need to directly call the Gmail API
+                                    current_app.logger.info("Attempting to send email directly via Gmail API")
                                     
-                                    return jsonify({
-                                        'success': False,
-                                        'message': f'Failed to send email: {error_msg}'
-                                    }), 500
+                                    try:
+                                        # Build Gmail service
+                                        gmail_service = build_gmail_service(access_token)
+                                        
+                                        if not gmail_service:
+                                            current_app.logger.error("Failed to build Gmail service")
+                                            return jsonify({
+                                                'success': False,
+                                                'message': 'Failed to build Gmail service. Please check your Google account permissions and try again.'
+                                            }), 500
+                                        
+                                        # Get sender email
+                                        profile = gmail_service.users().getProfile(userId='me').execute()
+                                        sender_email = profile['emailAddress']
+                                        current_app.logger.info(f"Sender email: {sender_email}")
+                                        
+                                        # Get signature if specified
+                                        signature_html = None
+                                        signature_id = form_data.get('signature_id')
+                                        if signature_id:
+                                            try:
+                                                with session_scope() as sig_session:
+                                                    signature = sig_session.query(EmailSignature).filter_by(id=signature_id).first()
+                                                    if signature:
+                                                        signature_html = signature.content
+                                                        current_app.logger.info(f"Using signature: {signature.name}")
+                                            except Exception as sig_error:
+                                                current_app.logger.warning(f"Error retrieving signature: {str(sig_error)}")
+                                        
+                                        # Create email message
+                                        email_message = create_message(
+                                            sender=sender_email,
+                                            to=to_email,
+                                            subject=subject,
+                                            message_text=message,
+                                            signature_html=signature_html
+                                        )
+                                        
+                                        # Send email
+                                        sent_message = send_message(gmail_service, 'me', email_message)
+                                        current_app.logger.info(f"Email sent successfully, message ID: {sent_message['id']}")
+                                        
+                                        # Log the communication as sent
+                                        new_communication = Communication(
+                                            type=comm_type,
+                                            message=message,
+                                            date_sent=date_sent,
+                                            person_id=person_id,
+                                            church_id=church_id,
+                                            subject=subject,
+                                            gmail_message_id=sent_message['id'],
+                                            gmail_thread_id=sent_message.get('threadId'),
+                                            email_status='sent',
+                                            user_id=user_id
+                                        )
+                                        session.add(new_communication)
+                                        session.commit()
+                                        current_app.logger.info(f"Communication record created with ID: {new_communication.id}")
+                                        
+                                        # If we're handling a JSON request, return a success response
+                                        if request.is_json:
+                                            return jsonify({
+                                                'success': True,
+                                                'message': 'Email sent successfully',
+                                                'gmail_message_id': sent_message['id'],
+                                                'gmail_thread_id': sent_message.get('threadId')
+                                            })
+                                        # Otherwise, redirect to the communications page
+                                        return redirect(url_for('communications_bp.communications_route'))
+                                    except Exception as direct_send_error:
+                                        current_app.logger.error(f"Error sending email directly: {str(direct_send_error)}")
+                                        current_app.logger.error(traceback.format_exc())
+                                        
+                                        # Log the communication as failed
+                                        new_communication = Communication(
+                                            type=comm_type,
+                                            message=message,
+                                            date_sent=date_sent,
+                                            person_id=person_id,
+                                            church_id=church_id,
+                                            subject=subject,
+                                            email_status='failed',
+                                            user_id=user_id
+                                        )
+                                        session.add(new_communication)
+                                        session.commit()
+                                        current_app.logger.info(f"Failed communication record created with ID: {new_communication.id}")
+                                        
+                                        return jsonify({
+                                            'success': False,
+                                            'message': f'Failed to send email directly: {str(direct_send_error)}'
+                                        }), 500
                             except requests.RequestException as e:
                                 current_app.logger.error(f"Request error calling Gmail API: {str(e)}")
                                 current_app.logger.error(traceback.format_exc())
@@ -237,39 +371,24 @@ def send_communication_route():
                         except Exception as e:
                             current_app.logger.error(f"Error using Gmail API: {str(e)}")
                             current_app.logger.error(f"Traceback: {traceback.format_exc()}")
-                            # Fall back to SMTP
+                            # Don't fall back to SMTP - we want to use the user's Gmail account
+                            return jsonify({
+                                'success': False,
+                                'message': f'Error using Gmail API: {str(e)}'
+                            }), 500
                     else:
                         current_app.logger.warning("Tokens found but missing access_token/token")
                         current_app.logger.debug(f"Available token keys: {tokens.keys()}")
+                        return jsonify({
+                            'success': False,
+                            'message': 'Your Google account is connected but the access token is missing. Please reconnect your Google account.'
+                        }), 400
                 else:
-                    current_app.logger.info("No Google tokens available, using SMTP")
-                
-                # Fall back to SMTP if Gmail API is not available or fails
-                sender_email = os.environ.get('SMTP_EMAIL')
-                sender_password = os.environ.get('SMTP_PASSWORD')
-                
-                if not sender_email or not sender_password:
-                    current_app.logger.warning("Email credentials not configured")
-                    current_app.logger.info("Logging communication without sending email")
-                    # Still log the communication even if email can't be sent
-                else:
-                    try:
-                        msg = MIMEText(message)
-                        msg['Subject'] = subject
-                        msg['From'] = sender_email
-                        msg['To'] = to_email
-                        
-                        current_app.logger.debug(f"Sending email via SMTP: {sender_email} -> {to_email}")
-                        
-                        with smtplib.SMTP('smtp.gmail.com', 587) as server:
-                            server.starttls()
-                            server.login(sender_email, sender_password)
-                            server.send_message(msg)
-                            current_app.logger.info(f"Email sent via SMTP to {recipient_name}")
-                    except Exception as e:
-                        current_app.logger.error(f"Email error: {str(e)}")
-                        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
-                        # Still log the communication even if email fails
+                    current_app.logger.info("No Google tokens available")
+                    return jsonify({
+                        'success': False,
+                        'message': 'You need to connect your Google account to send emails. Please click the "Connect Google Account" button.'
+                    }), 400
 
             # Log the communication
             current_app.logger.info(f"Logging communication in database")
@@ -279,7 +398,8 @@ def send_communication_route():
                 date_sent=date_sent,
                 person_id=person_id,
                 church_id=church_id,
-                subject=subject
+                subject=subject,
+                user_id=user_id
             )
             session.add(new_communication)
             session.commit()
@@ -348,7 +468,15 @@ def view_communication(comm_id):
 
 @communications_bp.route('/communications/reply/<int:comm_id>', methods=['POST'])
 def reply_to_communication(comm_id):
-    """Handle reply to a specific communication"""
+    # Get the current user ID
+    user_id = get_current_user_id()
+    if not user_id:
+        current_app.logger.warning("No user ID found in session, cannot reply to communication")
+        return jsonify({
+            'success': False,
+            'message': 'User not authenticated'
+        }), 401
+        
     if not request.is_json:
         return jsonify({
             'success': False,
@@ -364,14 +492,14 @@ def reply_to_communication(comm_id):
             'success': False,
             'message': 'Message content is required'
         }), 400
-    
+        
     with session_scope() as session:
         # Get the original communication
-        original = session.query(Communication).filter_by(id=comm_id).first()
+        original = session.query(Communication).get(comm_id)
         if not original:
             return jsonify({
                 'success': False,
-                'message': 'Original communication not found'
+                'message': 'Communication not found'
             }), 404
         
         # Determine recipient
@@ -380,10 +508,10 @@ def reply_to_communication(comm_id):
         to_email = None
         recipient_name = None
         
-        if reply_type == 'forward':
-            # For forwarding, use the explicitly provided recipient
-            recipient_person_id = data.get('person_id')
-            recipient_church_id = data.get('church_id')
+        if original.email_status == 'received':
+            # If we received it, reply to the original person/church
+            recipient_person_id = original.person_id
+            recipient_church_id = original.church_id
             
             if recipient_person_id:
                 person = session.query(Person).filter_by(id=recipient_person_id).first()
@@ -396,37 +524,20 @@ def reply_to_communication(comm_id):
                     to_email = church.email
                     recipient_name = church.get_name()
         else:
-            # For replies, use the original sender
-            if original.email_status == 'received':
-                # If we received it, reply to the original person/church
-                recipient_person_id = original.person_id
-                recipient_church_id = original.church_id
-                
-                if recipient_person_id:
-                    person = session.query(Person).filter_by(id=recipient_person_id).first()
-                    if person and person.email:
-                        to_email = person.email
-                        recipient_name = person.get_name()
-                elif recipient_church_id:
-                    church = session.query(Church).filter_by(id=recipient_church_id).first()
-                    if church and church.email:
-                        to_email = church.email
-                        recipient_name = church.get_name()
-            else:
-                # If we sent it, reply to the same recipient
-                recipient_person_id = original.person_id
-                recipient_church_id = original.church_id
-                
-                if recipient_person_id:
-                    person = session.query(Person).filter_by(id=recipient_person_id).first()
-                    if person and person.email:
-                        to_email = person.email
-                        recipient_name = person.get_name()
-                elif recipient_church_id:
-                    church = session.query(Church).filter_by(id=recipient_church_id).first()
-                    if church and church.email:
-                        to_email = church.email
-                        recipient_name = church.get_name()
+            # If we sent it, reply to the same recipient
+            recipient_person_id = original.person_id
+            recipient_church_id = original.church_id
+            
+            if recipient_person_id:
+                person = session.query(Person).filter_by(id=recipient_person_id).first()
+                if person and person.email:
+                    to_email = person.email
+                    recipient_name = person.get_name()
+            elif recipient_church_id:
+                church = session.query(Church).filter_by(id=recipient_church_id).first()
+                if church and church.email:
+                    to_email = church.email
+                    recipient_name = church.get_name()
         
         if not to_email:
             return jsonify({
@@ -435,10 +546,7 @@ def reply_to_communication(comm_id):
             }), 400
         
         # Prepare subject
-        if reply_type == 'forward':
-            subject = f"Fw: {original.subject}"
-        else:
-            subject = f"Re: {original.subject}"
+        subject = f"Re: {original.subject}"
         
         # Try to send via Gmail API
         tokens = get_user_tokens()
@@ -448,13 +556,11 @@ def reply_to_communication(comm_id):
                 try:
                     # Format the message - include original text for replies
                     formatted_message = message
-                    if reply_type != 'forward':
-                        # For replies, add the original message below
-                        formatted_message += f"\n\n--- Original Message ---\n"
-                        formatted_message += f"From: {original.from_name if hasattr(original, 'from_name') else 'Unknown'}\n"
-                        formatted_message += f"Date: {original.date_sent}\n"
-                        formatted_message += f"Subject: {original.subject}\n\n"
-                        formatted_message += original.message
+                    formatted_message += f"\n\n--- Original Message ---\n"
+                    formatted_message += f"From: {original.from_name if hasattr(original, 'from_name') else 'Unknown'}\n"
+                    formatted_message += f"Date: {original.date_sent}\n"
+                    formatted_message += f"Subject: {original.subject}\n\n"
+                    formatted_message += original.message
                     
                     # Prepare data for Gmail API
                     email_data = {
@@ -490,14 +596,15 @@ def reply_to_communication(comm_id):
                             subject=subject,
                             email_status='sent',
                             gmail_message_id=response_data.get('message_id'),
-                            gmail_thread_id=original.gmail_thread_id or response_data.get('thread_id')
+                            gmail_thread_id=original.gmail_thread_id or response_data.get('thread_id'),
+                            user_id=user_id
                         )
                         session.add(new_comm)
                         session.commit()
                         
                         return jsonify({
                             'success': True,
-                            'message': f'Successfully sent {reply_type} to {recipient_name}',
+                            'message': f'Successfully sent reply to {recipient_name}',
                             'communication_id': new_comm.id
                         })
                     else:
@@ -506,7 +613,7 @@ def reply_to_communication(comm_id):
                             'message': f'Failed to send email: {response.text}'
                         }), 500
                 except Exception as e:
-                    current_app.logger.error(f"Error sending reply/forward: {str(e)}")
+                    current_app.logger.error(f"Error sending reply: {str(e)}")
                     current_app.logger.error(traceback.format_exc())
                     return jsonify({
                         'success': False,

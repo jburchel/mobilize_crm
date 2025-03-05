@@ -16,6 +16,7 @@ from datetime import datetime
 import traceback
 from models import EmailSignature
 from database import session_scope
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +155,13 @@ def create_message(sender, to, subject, message_text, html_content=None, signatu
         try:
             from routes.google_auth import get_current_user_id
             user_id = get_current_user_id()
+            
+            # If we're in development or testing mode, use the test user ID
+            # This ensures consistency with the API endpoint
+            if not user_id or os.environ.get('FLASK_ENV') == 'development':
+                user_id = "test_user_123"
+                logger.info(f"Using test user ID for signature: {user_id}")
+            
             if user_id:
                 with session_scope() as db_session:
                     default_signature = db_session.query(EmailSignature).filter_by(
@@ -232,6 +240,13 @@ def create_message_with_attachment(sender, to, subject, message_text,
         try:
             from routes.google_auth import get_current_user_id
             user_id = get_current_user_id()
+            
+            # If we're in development or testing mode, use the test user ID
+            # This ensures consistency with the API endpoint
+            if not user_id or os.environ.get('FLASK_ENV') == 'development':
+                user_id = "test_user_123"
+                logger.info(f"Using test user ID for signature: {user_id}")
+            
             if user_id:
                 with session_scope() as db_session:
                     default_signature = db_session.query(EmailSignature).filter_by(
