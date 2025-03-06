@@ -22,9 +22,28 @@ steps:
   - 'managed'
   - '--allow-unauthenticated'
   - '--set-env-vars'
-  - 'FLASK_ENV=production'
+  - 'FLASK_ENV=production,BASE_URL=https://mobilize-crm.org'
   - '--memory'
   - '512Mi'
+
+# Update domain mapping to ensure it points to the latest revision
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: gcloud
+  args:
+  - 'beta'
+  - 'run'
+  - 'domain-mappings'
+  - 'update'
+  - '--service'
+  - 'mobilize-crm'
+  - '--domain'
+  - 'mobilize-crm.org'
+  - '--region'
+  - 'us-central1'
+  - '--platform'
+  - 'managed'
+  id: 'update-domain-mapping'
+  waitFor: ['deploy']
 
 # Images to be stored in Container Registry
 images:

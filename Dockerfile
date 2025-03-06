@@ -27,6 +27,14 @@ COPY . .
 # Create an empty firebase-credentials.json file if it doesn't exist
 RUN if [ ! -f firebase-credentials.json ]; then echo "{}" > firebase-credentials.json; fi
 
+# Verify that all necessary directories and files exist
+RUN echo "Verifying necessary directories and files..." && \
+    ls -la && \
+    echo "Checking templates directory:" && \
+    ls -la templates/ || echo "Templates directory not found!" && \
+    echo "Checking static directory:" && \
+    ls -la static/ || echo "Static directory not found!"
+
 # Expose port
 EXPOSE 8080
 
