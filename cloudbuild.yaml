@@ -34,7 +34,7 @@ steps:
   - 'beta'
   - 'run'
   - 'domain-mappings'
-  - 'update'
+  - 'create'
   - '--service'
   - 'mobilize-crm'
   - '--domain'
@@ -43,6 +43,7 @@ steps:
   - 'us-central1'
   - '--platform'
   - 'managed'
+  - '--force'
   id: 'update-domain-mapping'
   waitFor: ['deploy']
 
