@@ -23,22 +23,92 @@ def communications_route():
         return redirect(url_for('dashboard_bp.dashboard'))
         
     with session_scope() as session:
-        # Filter communications by user_id and ensure they're properly sorted by date_sent
-        # Use coalesce to handle NULL date_sent values by substituting a very old date
-        communications_list = session.query(Communication).filter(
-            Communication.user_id == user_id
-        ).order_by(
-            func.coalesce(Communication.date_sent, datetime(1900, 1, 1)).desc()
-        ).all()
+        # Get filter parameters
+        person_id = request.args.get('person_id')
+        church_id = request.args.get('church_id')
         
-        current_app.logger.debug(f"Found {len(communications_list)} communications for user {user_id}")
+        # Start with a base query
+        query = session.query(Communication)
+        
+        # Apply filters
+        if person_id:
+            try:
+                # Convert person_id to integer if it's a string
+                person_id_int = int(person_id)
+                query = query.filter(Communication.person_id == person_id_int)
+                current_app.logger.debug(f"Filtering communications by person_id={person_id_int}")
+            except ValueError:
+                current_app.logger.error(f"Invalid person_id: {person_id}")
+            
+        if church_id:
+            try:
+                # Convert church_id to integer if it's a string
+                church_id_int = int(church_id)
+                query = query.filter(Communication.church_id == church_id_int)
+                current_app.logger.debug(f"Filtering communications by church_id={church_id_int}")
+            except ValueError:
+                current_app.logger.error(f"Invalid church_id: {church_id}")
+        
+        # Filter by user_id if it's set in the communication
+        # But don't exclude communications without a user_id
+        if user_id:
+            query = query.filter((Communication.user_id == user_id) | (Communication.user_id == None))
+            current_app.logger.debug(f"Filtering communications by user_id={user_id} or user_id=None")
+            
+        # Order by date_sent, handling NULL values
+        query = query.order_by(func.coalesce(Communication.date_sent, datetime(1900, 1, 1)).desc())
+        
+        # Execute the query
+        all_communications = query.all()
+        
+        # Filter out duplicates based on gmail_message_id
+        # Use a dictionary to keep track of unique communications
+        unique_communications = {}
+        for comm in all_communications:
+            # If the communication has a gmail_message_id, use it as the key
+            if comm.gmail_message_id:
+                # Only keep the most recent communication for each gmail_message_id
+                if comm.gmail_message_id not in unique_communications:
+                    unique_communications[comm.gmail_message_id] = comm
+                elif comm.date_sent and unique_communications[comm.gmail_message_id].date_sent:
+                    # If we already have this message ID, keep the newer one
+                    if comm.date_sent > unique_communications[comm.gmail_message_id].date_sent:
+                        unique_communications[comm.gmail_message_id] = comm
+            else:
+                # For communications without a gmail_message_id, use the ID as the key
+                unique_communications[f"local_{comm.id}"] = comm
+        
+        # Convert the dictionary values back to a list and sort by date
+        communications_list = sorted(
+            unique_communications.values(),
+            key=lambda x: x.date_sent if x.date_sent else datetime(1900, 1, 1),
+            reverse=True
+        )
+        
+        current_app.logger.debug(f"Found {len(all_communications)} total communications, filtered to {len(communications_list)} unique communications")
+        
+        # Get the filter name if applicable
+        filter_name = None
+        if person_id:
+            person = session.query(Person).filter(Person.id == person_id_int).first()
+            if person:
+                filter_name = person.get_name()
+        elif church_id:
+            church = session.query(Church).filter(Church.id == church_id_int).first()
+            if church:
+                filter_name = church.get_name()
+        
+        # Debug the first few communications
+        for i, comm in enumerate(communications_list[:5]):
+            current_app.logger.debug(f"Communication {i+1}: ID={comm.id}, Type={comm.type}, Subject={comm.subject}, Date={comm.date_sent}, User ID={comm.user_id}")
         
         people_list = session.query(Person).all()
         churches_list = session.query(Church).all()
         return render_template('communications.html', 
                              communications=communications_list, 
                              people=people_list, 
-                             churches=churches_list)
+                             churches=churches_list,
+                             filter_name=filter_name)
 
 @communications_bp.route('/communications/all-communications')
 def all_communications_route():
@@ -52,8 +122,9 @@ def all_communications_route():
         # Get filter parameters
         person_id = request.args.get('person_id')
         church_id = request.args.get('church_id')
+        search_term = request.args.get('search', '')
         
-        current_app.logger.debug(f"all_communications_route called with person_id={person_id}, church_id={church_id}, user_id={user_id}")
+        current_app.logger.debug(f"all_communications_route called with person_id={person_id}, church_id={church_id}, user_id={user_id}, search_term={search_term}")
         
         # Start with a base query
         query = session.query(Communication)
@@ -504,6 +575,99 @@ def api_get_churches():
             'success': True,
             'churches': [{'id': church.id, 'name': church.get_name()} for church in churches]
         })
+
+@communications_bp.route('/api/communications/search')
+def search_communications():
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({'error': 'Not authenticated'}), 401
+        
+    search_term = request.args.get('q', '').lower()
+    person_id = request.args.get('person_id')
+    church_id = request.args.get('church_id')
+    
+    current_app.logger.debug(f"Searching communications with term: {search_term}, person_id: {person_id}, church_id: {church_id}")
+    
+    with session_scope() as session:
+        # Start with a base query
+        query = session.query(Communication)
+        
+        # Apply filters
+        if person_id:
+            try:
+                person_id_int = int(person_id)
+                query = query.filter(Communication.person_id == person_id_int)
+            except ValueError:
+                current_app.logger.error(f"Invalid person_id: {person_id}")
+            
+        if church_id:
+            try:
+                church_id_int = int(church_id)
+                query = query.filter(Communication.church_id == church_id_int)
+            except ValueError:
+                current_app.logger.error(f"Invalid church_id: {church_id}")
+        
+        # Filter by user_id
+        query = query.filter((Communication.user_id == user_id) | (Communication.user_id == None))
+        
+        # Apply search term if provided
+        if search_term:
+            # Join with Person and Church to search in their fields too
+            query = query.outerjoin(Person, Communication.person_id == Person.id)
+            query = query.outerjoin(Church, Communication.church_id == Church.id)
+            
+            # Search in multiple fields
+            search_filter = (
+                func.lower(Communication.message).contains(search_term) |
+                func.lower(Communication.subject).contains(search_term) |
+                func.lower(Person.first_name).contains(search_term) |
+                func.lower(Person.last_name).contains(search_term) |
+                func.lower(Person.email).contains(search_term) |
+                func.lower(Church.church_name).contains(search_term) |
+                func.lower(Church.email).contains(search_term)
+            )
+            query = query.filter(search_filter)
+        
+        # Order by date_sent
+        query = query.order_by(func.coalesce(Communication.date_sent, datetime(1900, 1, 1)).desc())
+        
+        # Execute the query
+        results = query.all()
+        
+        # Filter out duplicates based on gmail_message_id
+        unique_communications = {}
+        for comm in results:
+            if comm.gmail_message_id:
+                if comm.gmail_message_id not in unique_communications:
+                    unique_communications[comm.gmail_message_id] = comm
+            else:
+                # For communications without gmail_message_id, use the id as key
+                unique_communications[f"id_{comm.id}"] = comm
+        
+        # Convert to a list
+        filtered_communications = list(unique_communications.values())
+        
+        # Prepare the response data
+        communications_data = []
+        for comm in filtered_communications:
+            recipient_name = "N/A"
+            if comm.person:
+                recipient_name = comm.person.get_name()
+            elif comm.church:
+                recipient_name = comm.church.get_name()
+                
+            communications_data.append({
+                'id': comm.id,
+                'date_sent': comm.date_sent.strftime('%Y-%m-%d %H:%M') if comm.date_sent else 'N/A',
+                'type': comm.type,
+                'subject': comm.subject or 'N/A',
+                'recipient': recipient_name,
+                'message': (comm.message[:50] + '...') if comm.message and len(comm.message) > 50 else (comm.message or 'N/A'),
+                'email_status': comm.email_status or 'N/A',
+                'view_url': url_for('communications_bp.view_communication', comm_id=comm.id) if comm.type == 'Email' else None
+            })
+        
+        return jsonify(communications_data)
 
 @communications_bp.route('/communications/<int:comm_id>')
 def view_communication(comm_id):

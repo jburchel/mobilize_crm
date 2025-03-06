@@ -25,7 +25,7 @@
                     </a>
                 {% else %}
                     <a href="{{ url_for('communications_bp.communications_route') }}" class="btn btn-outline-secondary me-2">
-                        <i class="bi bi-arrow-left"></i> Back to Recent
+                        <i class="bi bi-arrow-left"></i> Back to Communications
                     </a>
                 {% endif %}
                 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newCommunicationModal">
@@ -38,8 +38,22 @@
     <div class="row">
         <div class="col-md-12">
             <div class="card">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Communication History</h5>
+                    <div class="search-container">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" id="communicationSearch" class="form-control" placeholder="Search communications..." aria-label="Search communications">
+                            <button id="clearSearch" class="btn btn-outline-secondary d-none" type="button">
+                                <i class="bi bi-x"></i>
+                            </button>
+                            <span id="searchSpinner" class="input-group-text d-none">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </span>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -54,9 +68,9 @@
                                     <th>Status</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="communicationsTableBody">
                                 {% for comm in communications %}
-                                <tr>
+                                <tr class="communication-row">
                                     <td>{% if comm.date_sent %}{{ comm.date_sent.strftime('%Y-%m-%d %H:%M') }}{% else %}N/A{% endif %}</td>
                                     <td>{{ comm.type }}</td>
                                     <td>
@@ -414,6 +428,164 @@
             // Reset button state
             sendButton.innerHTML = 'Send Communication';
             sendButton.disabled = false;
+        }
+    });
+
+    // Dynamic search functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('communicationSearch');
+        const communicationRows = document.querySelectorAll('.communication-row');
+        const tableBody = document.getElementById('communicationsTableBody');
+        const clearButton = document.getElementById('clearSearch');
+        let searchTimeout;
+        
+        // Show/hide clear button based on search input
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase().trim();
+            
+            // Show/hide clear button
+            if (searchTerm.length > 0) {
+                clearButton.classList.remove('d-none');
+            } else {
+                clearButton.classList.add('d-none');
+            }
+            
+            // Clear any pending API requests
+            clearTimeout(searchTimeout);
+            
+            // Immediate client-side filtering for better UX
+            communicationRows.forEach(row => {
+                const rowText = row.textContent.toLowerCase();
+                
+                // If search term is empty, show all rows
+                if (searchTerm === '') {
+                    row.style.display = '';
+                    return;
+                }
+                
+                // Check if the row contains the search term
+                if (rowText.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            
+            // If search term is at least 2 characters, fetch from API after a short delay
+            if (searchTerm.length >= 2) {
+                searchTimeout = setTimeout(() => {
+                    fetchSearchResults(searchTerm);
+                }, 300); // 300ms delay to avoid too many requests
+            }
+        });
+        
+        // Add click handler for clear button
+        clearButton.addEventListener('click', function() {
+            // Clear the search input
+            searchInput.value = '';
+            
+            // Hide the clear button
+            clearButton.classList.add('d-none');
+            
+            // Show all rows
+            communicationRows.forEach(row => {
+                row.style.display = '';
+            });
+            
+            // Focus the search input
+            searchInput.focus();
+        });
+        
+        // Function to fetch search results from the API
+        function fetchSearchResults(searchTerm) {
+            // Get current URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const personId = urlParams.get('person_id');
+            const churchId = urlParams.get('church_id');
+            
+            // Show loading spinner
+            document.getElementById('searchSpinner').classList.remove('d-none');
+            
+            // Build the API URL
+            let apiUrl = `/api/communications/search?q=${encodeURIComponent(searchTerm)}`;
+            if (personId) apiUrl += `&person_id=${personId}`;
+            if (churchId) apiUrl += `&church_id=${churchId}`;
+            
+            // Fetch results from the API
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Replace table content with search results
+                    updateTableWithResults(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching search results:', error);
+                })
+                .finally(() => {
+                    // Hide loading spinner
+                    document.getElementById('searchSpinner').classList.add('d-none');
+                });
+        }
+        
+        // Function to update the table with search results
+        function updateTableWithResults(communications) {
+            // Clear the table
+            tableBody.innerHTML = '';
+            
+            if (communications.length === 0) {
+                // No results found
+                const noResultsRow = document.createElement('tr');
+                noResultsRow.innerHTML = `
+                    <td colspan="6" class="text-center">
+                        <p class="my-3">No communications found matching your search.</p>
+                    </td>
+                `;
+                tableBody.appendChild(noResultsRow);
+                return;
+            }
+            
+            // Add each communication to the table
+            communications.forEach(comm => {
+                const row = document.createElement('tr');
+                row.className = 'communication-row';
+                
+                // Create the view link for email communications
+                let subjectCell;
+                if (comm.type === 'Email' && comm.view_url) {
+                    subjectCell = `<a href="${comm.view_url}">${comm.subject}</a>`;
+                } else {
+                    subjectCell = comm.subject;
+                }
+                
+                // Create status badge
+                let statusBadge;
+                if (comm.email_status === 'sent') {
+                    statusBadge = '<span class="badge bg-success">Sent</span>';
+                } else if (comm.email_status === 'draft') {
+                    statusBadge = '<span class="badge bg-warning">Draft</span>';
+                } else if (comm.email_status === 'received') {
+                    statusBadge = '<span class="badge bg-info">Received</span>';
+                } else {
+                    statusBadge = '<span class="badge bg-secondary">N/A</span>';
+                }
+                
+                // Set the row HTML
+                row.innerHTML = `
+                    <td>${comm.date_sent}</td>
+                    <td>${comm.type}</td>
+                    <td>${subjectCell}</td>
+                    <td>${comm.recipient}</td>
+                    <td>${comm.message}</td>
+                    <td>${statusBadge}</td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
         }
     });
 </script>
