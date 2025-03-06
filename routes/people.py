@@ -22,20 +22,14 @@ def people():
     current_app.logger.info(f"Request headers: {request.headers}")
     
     with session_scope() as session:
-        # TEMPORARY: Get all people without filtering by user_id for debugging
-        current_app.logger.info("TEMPORARY: Getting all people without user_id filter")
+        # Filter people by user_id
         query = session.query(Person).filter(
-            Person.type == 'person'
-            # Temporarily commented out user_id filter
-            # Person.user_id == user_id
-        )
-        
-        # Also get count of people with this user_id for comparison
-        user_filtered_query = session.query(Person).filter(
             Person.type == 'person',
             Person.user_id == user_id
         )
-        user_filtered_count = user_filtered_query.count()
+        
+        # Also get count of people with this user_id for comparison
+        user_filtered_count = query.count()
         current_app.logger.info(f"Count of people with user_id={user_id}: {user_filtered_count}")
         
         # Print the SQL query for debugging

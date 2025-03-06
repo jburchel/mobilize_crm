@@ -142,6 +142,7 @@ class TaskSchema(Schema):
     status = fields.Str(required=True, validate=validate.OneOf(['Not Started', 'In Progress', 'Completed']))
     person_id = fields.Int(allow_none=True)
     church_id = fields.Int(allow_none=True)
+    user_id = fields.Str(allow_none=True)
     google_calendar_event_id = fields.Str(allow_none=True)
     google_calendar_sync_enabled = fields.Bool(missing=False)
     last_synced_at = fields.DateTime(allow_none=True)
@@ -200,6 +201,7 @@ class CommunicationSchema(Schema):
     date_sent = fields.DateTime(required=True)
     person_id = fields.Int(allow_none=True)
     church_id = fields.Int(allow_none=True)
+    user_id = fields.Str(allow_none=True)
 
 # Initialize schemas
 person_schema = PersonSchema()
@@ -337,6 +339,7 @@ class Task(Base):
     status = Column(String)
     person_id = Column(Integer, ForeignKey('people.id'))
     church_id = Column(Integer, ForeignKey('churches.id'))
+    user_id = Column(String(128), nullable=True)  # Add user_id column
     # Google Calendar integration fields
     google_calendar_event_id = Column(String, unique=True, nullable=True)
     google_calendar_sync_enabled = Column(Boolean, default=False, nullable=True)
@@ -357,6 +360,7 @@ class Communication(Base):
     date_sent = Column(DateTime, default=datetime.now)
     person_id = Column(Integer, ForeignKey('people.id'))
     church_id = Column(Integer, ForeignKey('churches.id'))
+    user_id = Column(String(128), nullable=True)
     # Gmail integration fields
     gmail_message_id = Column(String, nullable=True)
     gmail_thread_id = Column(String, nullable=True)

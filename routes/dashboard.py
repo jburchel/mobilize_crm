@@ -79,7 +79,7 @@ def dashboard():
         ).scalar()
         
         # Get pending tasks and format them properly
-        # Only show tasks related to the user's people or any church
+        # Only show tasks for this user
         pending_tasks = (
             session.query(
                 Task.id,
@@ -95,8 +95,7 @@ def dashboard():
             .outerjoin(Church, Task.church_id == Church.id)
             .filter(
                 Task.status != 'Completed',
-                # Only include tasks for this user's people or for any church
-                ((Person.user_id == user_id) | (Task.church_id != None))
+                Task.user_id == user_id
             )
             .all()
         )

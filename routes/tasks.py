@@ -30,8 +30,14 @@ class TaskList(Resource):
     def get(self):
         """List all tasks"""
         try:
+            # Get the current user ID
+            user_id = get_current_user_id()
+            if not user_id:
+                current_app.logger.warning("No user ID found in session, cannot list tasks")
+                return {'error': 'Authentication required'}, 401
+                
             with session_scope() as session:
-                tasks = session.query(Task).all()
+                tasks = session.query(Task).filter(Task.user_id == user_id).all()
                 return task_schema.dump(tasks, many=True)
         except Exception as e:
             current_app.logger.error(f'Error fetching tasks: {str(e)}')
@@ -42,7 +48,16 @@ class TaskList(Resource):
     def post(self):
         """Create a new task"""
         try:
+            # Get the current user ID
+            user_id = get_current_user_id()
+            if not user_id:
+                current_app.logger.warning("No user ID found in session, cannot create task")
+                return {'error': 'Authentication required'}, 401
+                
             data = task_schema.load(request.json)
+            # Add user_id to the task data
+            data['user_id'] = user_id
+            
             with session_scope() as session:
                 new_task = Task(**data)
                 session.add(new_task)
@@ -64,10 +79,22 @@ class TaskDetail(Resource):
     def get(self, id):
         """Get a task by ID"""
         try:
+            # Get the current user ID
+            user_id = get_current_user_id()
+            if not user_id:
+                current_app.logger.warning("No user ID found in session, cannot get task")
+                return {'error': 'Authentication required'}, 401
+                
             with session_scope() as session:
                 task = session.query(Task).get(id)
                 if not task:
                     return {'error': 'Task not found'}, 404
+                    
+                # Verify that the user owns this task
+                if task.user_id != user_id:
+                    current_app.logger.warning(f"User {user_id} attempted to view task {id} owned by {task.user_id}")
+                    return {'error': 'You do not have permission to view this task'}, 403
+                    
                 return task_schema.dump(task)
         except Exception as e:
             current_app.logger.error(f'Error fetching task {id}: {str(e)}')
@@ -77,11 +104,23 @@ class TaskDetail(Resource):
     def put(self, id):
         """Update a task"""
         try:
+            # Get the current user ID
+            user_id = get_current_user_id()
+            if not user_id:
+                current_app.logger.warning("No user ID found in session, cannot update task")
+                return {'error': 'Authentication required'}, 401
+                
             data = task_schema.load(request.json, partial=True)
             with session_scope() as session:
                 task = session.query(Task).get(id)
                 if not task:
                     return {'error': 'Task not found'}, 404
+                    
+                # Verify that the user owns this task
+                if task.user_id != user_id:
+                    current_app.logger.warning(f"User {user_id} attempted to update task {id} owned by {task.user_id}")
+                    return {'error': 'You do not have permission to update this task'}, 403
+                    
                 for key, value in data.items():
                     setattr(task, key, value)
                 current_app.logger.info(f'Task {id} updated')
@@ -97,10 +136,22 @@ class TaskDetail(Resource):
     def delete(self, id):
         """Delete a task"""
         try:
+            # Get the current user ID
+            user_id = get_current_user_id()
+            if not user_id:
+                current_app.logger.warning("No user ID found in session, cannot delete task")
+                return {'error': 'Authentication required'}, 401
+                
             with session_scope() as session:
                 task = session.query(Task).get(id)
                 if not task:
                     return {'error': 'Task not found'}, 404
+                    
+                # Verify that the user owns this task
+                if task.user_id != user_id:
+                    current_app.logger.warning(f"User {user_id} attempted to delete task {id} owned by {task.user_id}")
+                    return {'error': 'You do not have permission to delete this task'}, 403
+                    
                 session.delete(task)
                 current_app.logger.info(f'Task {id} deleted')
                 return {'message': 'Task deleted successfully'}
@@ -113,10 +164,17 @@ class TaskDetail(Resource):
 def tasks():
     current_app.logger.info("Loading tasks page...")
     try:
+        # Get the current user ID
+        user_id = get_current_user_id()
+        if not user_id:
+            current_app.logger.warning("No user ID found in session, redirecting to login")
+            return redirect(url_for('dashboard_bp.dashboard'))
+            
         with session_scope() as session:
             current_app.logger.debug("Querying database for tasks...")
-            tasks = session.query(Task).order_by(Task.due_date.desc()).all()
-            current_app.logger.debug(f"Found {len(tasks)} tasks")
+            # Filter tasks by user_id
+            tasks = session.query(Task).filter(Task.user_id == user_id).order_by(Task.due_date.desc()).all()
+            current_app.logger.debug(f"Found {len(tasks)} tasks for user {user_id}")
             
             current_app.logger.debug("Querying database for people...")
             people = session.query(Person).all()
@@ -164,6 +222,13 @@ def tasks():
 @tasks_bp.route('/add', methods=['POST'])
 def add_task():
     try:
+        # Get the current user ID
+        user_id = get_current_user_id()
+        if not user_id:
+            current_app.logger.warning("No user ID found in session, cannot create task")
+            flash('You must be logged in to create tasks', 'error')
+            return redirect(url_for('dashboard_bp.dashboard'))
+            
         # Log incoming form data for debugging
         current_app.logger.info("Received task form data: %s", request.form)
         
@@ -190,7 +255,8 @@ def add_task():
             'status': request.form['status'],
             'person_id': request.form.get('person_id') or None,
             'church_id': request.form.get('church_id') or None,
-            'google_calendar_sync_enabled': bool(request.form.get('google_calendar_sync_enabled'))
+            'google_calendar_sync_enabled': bool(request.form.get('google_calendar_sync_enabled')),
+            'user_id': user_id  # Add the user_id to the task data
         }
         
         # Log the processed data
@@ -231,6 +297,13 @@ def add_task():
 @tasks_bp.route('/edit/<int:task_id>', methods=['POST'])
 def edit_task(task_id):
     try:
+        # Get the current user ID
+        user_id = get_current_user_id()
+        if not user_id:
+            current_app.logger.warning("No user ID found in session, cannot edit task")
+            flash('You must be logged in to edit tasks', 'error')
+            return redirect(url_for('dashboard_bp.dashboard'))
+            
         # Log incoming form data for debugging
         current_app.logger.info("Received task edit form data: %s", request.form)
         
@@ -258,6 +331,7 @@ def edit_task(task_id):
             'person_id': request.form.get('person_id') or None,
             'church_id': request.form.get('church_id') or None,
             'google_calendar_sync_enabled': bool(request.form.get('google_calendar_sync_enabled'))
+            # Note: We don't include user_id here as we'll verify ownership below
         }
         
         # Log the processed data
@@ -275,6 +349,12 @@ def edit_task(task_id):
             task = session.query(Task).get(task_id)
             if not task:
                 flash('Task not found', 'error')
+                return redirect(url_for('tasks_bp.tasks'))
+                
+            # Verify that the user owns this task
+            if task.user_id != user_id:
+                current_app.logger.warning(f"User {user_id} attempted to edit task {task_id} owned by {task.user_id}")
+                flash('You do not have permission to edit this task', 'error')
                 return redirect(url_for('tasks_bp.tasks'))
                 
             # Update task fields
@@ -307,10 +387,21 @@ def edit_task(task_id):
 def get_task(task_id):
     """Get task data for the edit form"""
     try:
+        # Get the current user ID
+        user_id = get_current_user_id()
+        if not user_id:
+            current_app.logger.warning("No user ID found in session, cannot get task")
+            return jsonify({'success': False, 'message': 'Authentication required'})
+            
         with session_scope() as session:
             task = session.query(Task).get(task_id)
             if not task:
                 return jsonify({'success': False, 'message': 'Task not found'})
+                
+            # Verify that the user owns this task
+            if task.user_id != user_id:
+                current_app.logger.warning(f"User {user_id} attempted to view task {task_id} owned by {task.user_id}")
+                return jsonify({'success': False, 'message': 'You do not have permission to view this task'})
             
             # Convert task to dictionary
             task_data = {
@@ -337,10 +428,21 @@ def get_task(task_id):
 def get_task_description(task_id):
     """Get task description for the edit form"""
     try:
+        # Get the current user ID
+        user_id = get_current_user_id()
+        if not user_id:
+            current_app.logger.warning("No user ID found in session, cannot get task description")
+            return jsonify({'success': False, 'message': 'Authentication required'})
+            
         with session_scope() as session:
             task = session.query(Task).get(task_id)
             if not task:
                 return jsonify({'success': False, 'message': 'Task not found'})
+                
+            # Verify that the user owns this task
+            if task.user_id != user_id:
+                current_app.logger.warning(f"User {user_id} attempted to view description of task {task_id} owned by {task.user_id}")
+                return jsonify({'success': False, 'message': 'You do not have permission to view this task'})
             
             return jsonify({'success': True, 'description': task.description})
     except Exception as e:
@@ -351,10 +453,23 @@ def get_task_description(task_id):
 def delete_task(task_id):
     """Delete a task"""
     try:
+        # Get the current user ID
+        user_id = get_current_user_id()
+        if not user_id:
+            current_app.logger.warning("No user ID found in session, cannot delete task")
+            flash('You must be logged in to delete tasks', 'error')
+            return redirect(url_for('dashboard_bp.dashboard'))
+            
         with session_scope() as session:
             task = session.query(Task).get(task_id)
             if not task:
                 flash('Task not found', 'error')
+                return redirect(url_for('tasks_bp.tasks'))
+                
+            # Verify that the user owns this task
+            if task.user_id != user_id:
+                current_app.logger.warning(f"User {user_id} attempted to delete task {task_id} owned by {task.user_id}")
+                flash('You do not have permission to delete this task', 'error')
                 return redirect(url_for('tasks_bp.tasks'))
             
             # Check if task has a Google Calendar event
