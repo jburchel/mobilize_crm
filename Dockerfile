@@ -21,11 +21,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy Firebase credentials file specifically
-COPY firebase-credentials.json .
-
 # Copy application code
 COPY . .
+
+# Create an empty firebase-credentials.json file if it doesn't exist
+RUN if [ ! -f firebase-credentials.json ]; then echo "{}" > firebase-credentials.json; fi
 
 # Expose port
 EXPOSE 8080
