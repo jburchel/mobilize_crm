@@ -27,26 +27,6 @@ steps:
   - '512Mi'
   id: 'deploy'
 
-# Update domain mapping to ensure it points to the latest revision
-- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-  entrypoint: gcloud
-  args:
-  - 'beta'
-  - 'run'
-  - 'domain-mappings'
-  - 'create'
-  - '--service'
-  - 'mobilize-crm'
-  - '--domain'
-  - 'mobilize-crm.org'
-  - '--region'
-  - 'us-central1'
-  - '--platform'
-  - 'managed'
-  - '--force'
-  id: 'update-domain-mapping'
-  waitFor: ['deploy']
-
 # Images to be stored in Container Registry
 images:
 - 'gcr.io/$PROJECT_ID/mobilize-crm'
