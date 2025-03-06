@@ -25,6 +25,7 @@ steps:
   - 'FLASK_ENV=production,BASE_URL=https://mobilize-crm.org'
   - '--memory'
   - '512Mi'
+  id: 'deploy'
 
 # Update domain mapping to ensure it points to the latest revision
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
