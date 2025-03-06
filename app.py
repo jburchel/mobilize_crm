@@ -115,8 +115,8 @@ try:
     app.register_blueprint(api_bp, url_prefix='/api')
     
     # Initialize background jobs
-    from utils.background_jobs import init_background_jobs
-    init_background_jobs(app)
+    from utils.background_jobs import start_background_jobs
+    start_background_jobs(app)
     
     @app.after_request
     def add_security_headers(response):
