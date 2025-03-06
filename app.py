@@ -152,7 +152,7 @@ try:
         # Then check for token in cookie/session
         return request.cookies.get('authToken')
 
-    @app.route('/')
+    @app.route('/', endpoint='home')
     def home():
         # Check if user is authenticated
         auth_header = request.headers.get('Authorization')
