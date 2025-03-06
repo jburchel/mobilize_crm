@@ -30,4 +30,8 @@ steps:
 images:
 - 'gcr.io/$PROJECT_ID/mobilize-crm'
 
-timeout: '1600s' 
+timeout: '1600s'
+
+# Add logging options
+options:
+  logging: CLOUD_LOGGING_ONLY 
