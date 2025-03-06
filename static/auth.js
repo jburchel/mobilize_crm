@@ -240,11 +240,9 @@ class AuthManager {
             // Store token in cookie for server-side auth
             document.cookie = `firebase_token=${idToken}; path=/; SameSite=Strict`;
             
-            // Redirect to dashboard after successful login
-            if (window.location.pathname === '/' || window.location.pathname === '/landing') {
-                console.log("Redirecting to dashboard...");
-                window.location.href = '/dashboard';
-            }
+            // Always redirect to dashboard after successful login
+            console.log("Redirecting to dashboard...");
+            window.location.href = '/dashboard';
 
         } catch (error) {
             console.error("Authentication error:", error);
