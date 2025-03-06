@@ -242,7 +242,7 @@ class AuthManager {
             
             // Always redirect to dashboard after successful login
             console.log("Redirecting to dashboard...");
-            window.location.href = '/dashboard';
+            window.location.href = '/';
 
         } catch (error) {
             console.error("Authentication error:", error);

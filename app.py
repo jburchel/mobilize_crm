@@ -105,7 +105,7 @@ try:
     from routes.api import api_bp
     
     # Register blueprints
-    app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
+    app.register_blueprint(dashboard_bp, url_prefix='/')
     app.register_blueprint(google_auth_bp, url_prefix='/google')
     app.register_blueprint(gmail_api, url_prefix='/api/gmail')
     app.register_blueprint(people_bp, url_prefix='/people')
