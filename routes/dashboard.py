@@ -47,9 +47,39 @@ def auth_required(f):
             except Exception as e:
                 current_app.logger.error(f"Cookie token verification failed: {str(e)}")
                 
-        # No valid authentication found, redirect to home
-        # Use direct URL instead of url_for to avoid BuildError
-        return redirect('/')
+        # No valid authentication found, render landing page directly
+        try:
+            return render_template('landing.html')
+        except Exception as e:
+            current_app.logger.error(f"Error rendering landing page: {e}")
+            # Fallback to a simple HTML response if landing.html doesn't exist
+            html = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Mobilize CRM</title>
+                <style>
+                    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+                    h1 { color: #183963; }
+                    .btn { 
+                        display: inline-block; 
+                        background-color: #183963; 
+                        color: white; 
+                        padding: 10px 20px; 
+                        text-decoration: none; 
+                        border-radius: 5px; 
+                        margin-top: 20px; 
+                    }
+                </style>
+            </head>
+            <body>
+                <h1>Welcome to Mobilize CRM</h1>
+                <p>Crossover Global's Complete CRM Solution for Mobilizers</p>
+                <p>Please sign in to continue.</p>
+            </body>
+            </html>
+            """
+            return html
             
     return decorated_function
 
@@ -59,7 +89,39 @@ def dashboard():
     # Get the current user ID from the session
     user_id = get_current_user_id()
     if not user_id:
-        return redirect('/')
+        # Render landing page directly instead of redirecting
+        try:
+            return render_template('landing.html')
+        except Exception as e:
+            current_app.logger.error(f"Error rendering landing page: {e}")
+            # Fallback to a simple HTML response if landing.html doesn't exist
+            html = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Mobilize CRM</title>
+                <style>
+                    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+                    h1 { color: #183963; }
+                    .btn { 
+                        display: inline-block; 
+                        background-color: #183963; 
+                        color: white; 
+                        padding: 10px 20px; 
+                        text-decoration: none; 
+                        border-radius: 5px; 
+                        margin-top: 20px; 
+                    }
+                </style>
+            </head>
+            <body>
+                <h1>Welcome to Mobilize CRM</h1>
+                <p>Crossover Global's Complete CRM Solution for Mobilizers</p>
+                <p>Please sign in to continue.</p>
+            </body>
+            </html>
+            """
+            return html
     
     with session_scope() as session:
         # Count only the user's people
