@@ -154,60 +154,65 @@ try:
 
     @app.route('/', endpoint='home')
     def home():
+        # TEMPORARY FIX: Bypass authentication and redirect to dashboard
+        app.logger.warning("TEMPORARY FIX: Bypassing authentication in root route")
+        return redirect(url_for('dashboard_bp.dashboard'))
+        
+        # Original code below (commented out)
         # Check if user is authenticated
-        auth_header = request.headers.get('Authorization')
-        token = None
+        # auth_header = request.headers.get('Authorization')
+        # token = None
         
-        # Check Authorization header
-        if auth_header and auth_header.startswith('Bearer '):
-            token = auth_header.split('Bearer ')[1]
+        # # Check Authorization header
+        # if auth_header and auth_header.startswith('Bearer '):
+        #     token = auth_header.split('Bearer ')[1]
             
-        # If no auth header, check cookie
-        if not token:
-            token = request.cookies.get('firebase_token')
+        # # If no auth header, check cookie
+        # if not token:
+        #     token = request.cookies.get('firebase_token')
             
-        if token and firebase_initialized:
-            try:
-                decoded_token = auth.verify_id_token(token)
-                app.logger.info("Valid token found, redirecting to dashboard")
-                return redirect(url_for('dashboard_bp.dashboard'))
-            except Exception as e:
-                app.logger.warning(f"Token verification failed: {str(e)}")
+        # if token and firebase_initialized:
+        #     try:
+        #         decoded_token = auth.verify_id_token(token)
+        #         app.logger.info("Valid token found, redirecting to dashboard")
+        #         return redirect(url_for('dashboard_bp.dashboard'))
+        #     except Exception as e:
+        #         app.logger.warning(f"Token verification failed: {str(e)}")
         
-        # If Firebase is not initialized or not authenticated or token invalid, show landing page
-        try:
-            # Check if landing.html exists by trying to render it
-            return render_template('landing.html')
-        except Exception as e:
-            app.logger.error(f"Error rendering landing page: {e}")
-            # Fallback to a simple HTML response if landing.html doesn't exist
-            html = """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Mobilize CRM</title>
-                <style>
-                    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-                    h1 { color: #183963; }
-                    .btn { 
-                        display: inline-block; 
-                        background-color: #183963; 
-                        color: white; 
-                        padding: 10px 20px; 
-                        text-decoration: none; 
-                        border-radius: 5px; 
-                        margin-top: 20px; 
-                    }
-                </style>
-            </head>
-            <body>
-                <h1>Welcome to Mobilize CRM</h1>
-                <p>Crossover Global's Complete CRM Solution for Mobilizers</p>
-                <a href="/dashboard" class="btn">Go to Dashboard</a>
-            </body>
-            </html>
-            """
-            return html
+        # # If Firebase is not initialized or not authenticated or token invalid, show landing page
+        # try:
+        #     # Check if landing.html exists by trying to render it
+        #     return render_template('landing.html')
+        # except Exception as e:
+        #     app.logger.error(f"Error rendering landing page: {e}")
+        #     # Fallback to a simple HTML response if landing.html doesn't exist
+        #     html = """
+        #     <!DOCTYPE html>
+        #     <html>
+        #     <head>
+        #         <title>Mobilize CRM</title>
+        #         <style>
+        #             body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+        #             h1 { color: #183963; }
+        #             .btn { 
+        #                 display: inline-block; 
+        #                 background-color: #183963; 
+        #                 color: white; 
+        #                 padding: 10px 20px; 
+        #                 text-decoration: none; 
+        #                 border-radius: 5px; 
+        #                 margin-top: 20px; 
+        #             }
+        #         </style>
+        #     </head>
+        #     <body>
+        #         <h1>Welcome to Mobilize CRM</h1>
+        #         <p>Crossover Global's Complete CRM Solution for Mobilizers</p>
+        #         <a href="/dashboard" class="btn">Go to Dashboard</a>
+        #     </body>
+        #     </html>
+        #     """
+        #     return html
 
     if __name__ == '__main__':
         print('Entering main block...')
