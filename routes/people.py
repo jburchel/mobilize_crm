@@ -9,7 +9,7 @@ from routes.google_auth import get_current_user_id
 
 people_bp = Blueprint('people_bp', __name__)
 
-@people_bp.route('/people')
+@people_bp.route('/')
 @auth_required
 def people():
     user_id = get_current_user_id()

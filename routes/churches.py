@@ -9,7 +9,7 @@ import logging
 
 churches_bp = Blueprint('churches_bp', __name__)
 
-@churches_bp.route('/churches')
+@churches_bp.route('/')
 @auth_required
 def churches():
     user_id = get_current_user_id()

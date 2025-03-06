@@ -14,7 +14,7 @@ from utils.gmail_integration import build_gmail_service, create_message, send_me
 
 communications_bp = Blueprint('communications_bp', __name__)
 
-@communications_bp.route('/communications')
+@communications_bp.route('/')
 def communications_route():
     # Get the current user ID
     user_id = get_current_user_id()
