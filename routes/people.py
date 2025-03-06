@@ -9,7 +9,7 @@ from routes.google_auth import get_current_user_id
 
 people_bp = Blueprint('people_bp', __name__)
 
-@people_bp.route('/people')
+@people_bp.route('/')
 @auth_required
 def people():
     user_id = get_current_user_id()
@@ -63,10 +63,10 @@ def people():
 @auth_required
 def add_person_form():
     with session_scope() as session:
-        churches = session.query(Church).order_by(Church.church_name).all()
+        churches = session.query(Church).all()
         return render_template('add_person.html', churches=churches)
 
-@people_bp.route('/people/<int:person_id>')
+@people_bp.route('/<int:person_id>')
 @auth_required
 def person_detail(person_id):
     user_id = get_current_user_id()

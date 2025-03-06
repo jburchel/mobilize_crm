@@ -103,8 +103,8 @@ try:
 
     # Register blueprints
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
-    app.register_blueprint(people_bp)
-    app.register_blueprint(churches_bp)
+    app.register_blueprint(people_bp, url_prefix='/people')
+    app.register_blueprint(churches_bp, url_prefix='/churches')
     app.register_blueprint(tasks_bp, url_prefix='/tasks')
     app.register_blueprint(communications_bp)
     app.register_blueprint(health_bp)

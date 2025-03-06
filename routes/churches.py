@@ -9,7 +9,7 @@ import logging
 
 churches_bp = Blueprint('churches_bp', __name__)
 
-@churches_bp.route('/churches')
+@churches_bp.route('/')
 @auth_required
 def churches():
     user_id = get_current_user_id()
@@ -62,11 +62,9 @@ def churches():
 @churches_bp.route('/add_church_form')
 @auth_required
 def add_church_form():
-    with session_scope() as session:
-        people = session.query(Person).order_by(Person.first_name, Person.last_name).all()
-        return render_template('add_church.html', people=people)
+    return render_template('add_church.html')
 
-@churches_bp.route('/churches/<int:church_id>')
+@churches_bp.route('/<int:church_id>')
 @auth_required
 def church_detail(church_id):
     with session_scope() as session:
