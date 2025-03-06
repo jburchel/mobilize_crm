@@ -162,7 +162,7 @@ def auth_required(f):
             }), 401
         else:
             # Redirect to home for web requests
-            return redirect(url_for('home'))
+            return redirect('/')
             
     return decorated_function
 

@@ -48,30 +48,17 @@ def auth_required(f):
                 current_app.logger.error(f"Cookie token verification failed: {str(e)}")
                 
         # No valid authentication found, redirect to home
-        return redirect(url_for('home'))
+        return redirect('/')
             
     return decorated_function
 
 @dashboard_bp.route('/')
 @auth_required
 def dashboard():
+    # Get the current user ID from the session
     user_id = get_current_user_id()
-    
-    # If user_id is None, try to get it from the firebase_token cookie
-    if user_id is None:
-        try:
-            if 'firebase_token' in request.cookies:
-                token = request.cookies['firebase_token']
-                decoded_token = auth.verify_id_token(token)
-                user_id = decoded_token['uid']
-                current_app.logger.info(f"Retrieved user_id from firebase_token cookie: {user_id}")
-        except Exception as e:
-            current_app.logger.error(f"Error getting user_id from firebase_token cookie: {str(e)}")
-    
-    # If still None, redirect to login
-    if user_id is None:
-        current_app.logger.warning("No user_id found, redirecting to login")
-        return redirect(url_for('home'))
+    if not user_id:
+        return redirect('/')
     
     with session_scope() as session:
         # Count only the user's people
