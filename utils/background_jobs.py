@@ -226,7 +226,10 @@ def is_job_running(job_id):
         now = datetime.now(job.next_run_time.tzinfo)  # Use the same timezone as next_run_time
         if job.next_run_time and job.next_run_time > now:
             # The job is scheduled to run in the future
-            last_run = job.next_run_time - timedelta(minutes=job.trigger.interval.minutes)
+            # Get the interval in seconds and convert to minutes
+            interval_seconds = job.trigger.interval.total_seconds()
+            interval_minutes = interval_seconds / 60
+            last_run = job.next_run_time - timedelta(minutes=interval_minutes)
             # If it was supposed to run within the last 5 minutes, consider it running
             return (now - last_run).total_seconds() < 300  # 5 minutes in seconds
             

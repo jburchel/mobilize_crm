@@ -707,8 +707,8 @@ def _sync_emails_impl():
             if include_history:
                 current_app.logger.info("Including historical emails in sync")
 
-            # Get messages matching the query, including historical emails if requested
-            messages = list_messages(service, 'me', query, include_history=include_history)
+            # Get messages matching the query
+            messages = list_messages(service, 'me', query)
             current_app.logger.info(f"Found {len(messages) if messages else 0} messages matching query")
 
             if not messages:
