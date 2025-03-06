@@ -20,24 +20,28 @@ print("Python version:", sys.version)
 print("Current working directory:", os.getcwd())
 print("__name__ is:", __name__)
 
+# Global variable to track if Firebase is initialized
+firebase_initialized = False
+
 try:
-    # Get the appropriate configuration based on environment
-    config_class = get_config()
-    
-    # Create Flask app
+    # Create and configure the app
     app = Flask(__name__)
-    app.config.from_object(config_class)
     
-    # Print environment info
-    env = os.environ.get('FLASK_ENV', 'development')
-    print(f"Running in {env} environment")
-    print(f"Using database: {app.config['SQLALCHEMY_DATABASE_URI']}")
+    # Load configuration
+    config = get_config()
+    app.config.from_object(config)
+    
+    print(f"Running in {app.config['ENV']} environment")
+    
+    # Enable CORS
+    CORS(app, supports_credentials=True, resources={
+        r"/*": {"origins": ["http://localhost:3000"], "supports_credentials": True}
+    })
     
     # Initialize database
     init_db(app)
     
     # Initialize Firebase Admin SDK
-    firebase_initialized = False
     try:
         firebase_credentials_base64 = os.environ.get('FIREBASE_CREDENTIALS_BASE64')
         if firebase_credentials_base64:
@@ -86,65 +90,45 @@ try:
         
     if not firebase_initialized:
         print("WARNING: Firebase was not initialized. Authentication features will not work.")
-
+    
     # Initialize CORS with credentials support
     CORS(app, supports_credentials=True)
     
-    # Security headers
+    # Import routes after app is created to avoid circular imports
+    from routes.dashboard import dashboard_bp
+    from routes.google_auth import google_auth_bp
+    from routes.gmail_api import gmail_api_bp
+    from routes.people import people_bp
+    from routes.churches import churches_bp
+    from routes.tasks import tasks_bp
+    from routes.communications import communications_bp
+    from routes.api import api_bp
+    
+    # Register blueprints
+    app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
+    app.register_blueprint(google_auth_bp, url_prefix='/google')
+    app.register_blueprint(gmail_api_bp, url_prefix='/api/gmail')
+    app.register_blueprint(people_bp, url_prefix='/people')
+    app.register_blueprint(churches_bp, url_prefix='/churches')
+    app.register_blueprint(tasks_bp, url_prefix='/tasks')
+    app.register_blueprint(communications_bp, url_prefix='/communications')
+    app.register_blueprint(api_bp, url_prefix='/api')
+    
+    # Initialize background jobs
+    from utils.background_jobs import init_background_jobs
+    init_background_jobs(app)
+    
     @app.after_request
     def add_security_headers(response):
         response.headers['X-Frame-Options'] = 'DENY'
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-XSS-Protection'] = '1; mode=block'
         return response
-
-    # Import blueprints after app is created to avoid circular imports
-    from routes.dashboard import dashboard_bp
-    from routes.people import people_bp
-    from routes.churches import churches_bp
-    from routes.tasks import tasks_bp
-    from routes.communications import communications_bp
-    from routes.health import health_bp
-    from routes.contacts_api import contacts_api
-    from routes.contacts import contacts_bp
-    from routes.auth_api import auth_api
-    from routes.google_auth import google_auth_bp
-    from routes.calendar_api import calendar_api
-    from routes.gmail_api import gmail_api
-    from routes.import_csv import import_csv_bp
-    from utils.background_jobs import start_background_jobs
-
-    # Register blueprints
-    app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
-    app.register_blueprint(people_bp)
-    app.register_blueprint(churches_bp)
-    app.register_blueprint(tasks_bp, url_prefix='/tasks')
-    app.register_blueprint(communications_bp)
-    app.register_blueprint(health_bp)
-    app.register_blueprint(contacts_api)
-    app.register_blueprint(contacts_bp)
-    app.register_blueprint(auth_api)
-    app.register_blueprint(google_auth_bp)
-    app.register_blueprint(calendar_api)
-    app.register_blueprint(gmail_api)
-    app.register_blueprint(import_csv_bp)
-
-    # Initialize Flask-Migrate
-    migrate = Migrate(app, Base)
-
-    # Set up logging
-    logging.basicConfig(level=logging.INFO)
-
-    # Start background jobs
-    with app.app_context():
-        start_background_jobs(app=app)
-
-    # Add template filter for the {% now %} tag
+    
     @app.template_filter('now')
     def now_filter(format_string='%Y-%m-%d'):
         return datetime.now().strftime(format_string)
-
-    # Add template global for current date
+    
     @app.context_processor
     def utility_processor():
         def get_today():
@@ -170,11 +154,6 @@ try:
 
     @app.route('/')
     def home():
-        # If Firebase is not initialized, redirect to dashboard without authentication
-        if not firebase_initialized:
-            print("Firebase not initialized, skipping authentication")
-            return redirect(url_for('dashboard_bp.dashboard'))
-            
         # Check if user is authenticated
         auth_header = request.headers.get('Authorization')
         token = None
@@ -187,7 +166,7 @@ try:
         if not token:
             token = request.cookies.get('firebase_token')
             
-        if token:
+        if token and firebase_initialized:
             try:
                 decoded_token = auth.verify_id_token(token)
                 app.logger.info("Valid token found, redirecting to dashboard")
@@ -195,7 +174,7 @@ try:
             except Exception as e:
                 app.logger.warning(f"Token verification failed: {str(e)}")
                 
-        # If not authenticated or token invalid, show landing page
+        # If Firebase is not initialized or not authenticated or token invalid, show landing page
         return render_template('landing.html')
 
     if __name__ == '__main__':

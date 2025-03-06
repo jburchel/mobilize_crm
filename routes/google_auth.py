@@ -9,7 +9,6 @@ from functools import wraps
 import sqlite3
 from datetime import datetime
 import traceback
-from app import firebase_initialized
 
 google_auth_bp = Blueprint('google_auth', __name__)
 
@@ -117,8 +116,13 @@ def login_required(f):
 def auth_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # If Firebase is not initialized, bypass authentication
-        if not firebase_initialized:
+        # Check if Firebase is initialized by checking if auth.verify_id_token exists and is callable
+        try:
+            # If this doesn't raise an exception, Firebase is initialized
+            if not callable(getattr(auth, 'verify_id_token', None)):
+                current_app.logger.warning("Firebase not initialized, bypassing authentication")
+                return f(*args, **kwargs)
+        except Exception:
             current_app.logger.warning("Firebase not initialized, bypassing authentication")
             return f(*args, **kwargs)
             
