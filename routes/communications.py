@@ -53,34 +53,101 @@ def all_communications_route():
         person_id = request.args.get('person_id')
         church_id = request.args.get('church_id')
         
-        # Start with a base query that filters by user_id
-        query = session.query(Communication).filter(Communication.user_id == user_id)
+        current_app.logger.debug(f"all_communications_route called with person_id={person_id}, church_id={church_id}, user_id={user_id}")
         
-        # Apply additional filters if provided
+        # Start with a base query
+        query = session.query(Communication)
+        
+        # Apply filters
         if person_id:
-            query = query.filter(Communication.person_id == person_id)
+            try:
+                # Convert person_id to integer if it's a string
+                person_id_int = int(person_id)
+                query = query.filter(Communication.person_id == person_id_int)
+                current_app.logger.debug(f"Filtering communications by person_id={person_id_int}")
+            except ValueError:
+                current_app.logger.error(f"Invalid person_id: {person_id}")
             
         if church_id:
-            query = query.filter(Communication.church_id == church_id)
+            try:
+                # Convert church_id to integer if it's a string
+                church_id_int = int(church_id)
+                query = query.filter(Communication.church_id == church_id_int)
+                current_app.logger.debug(f"Filtering communications by church_id={church_id_int}")
+            except ValueError:
+                current_app.logger.error(f"Invalid church_id: {church_id}")
+        
+        # Filter by user_id if it's set in the communication
+        # But don't exclude communications without a user_id
+        if user_id:
+            query = query.filter((Communication.user_id == user_id) | (Communication.user_id == None))
+            current_app.logger.debug(f"Filtering communications by user_id={user_id} or user_id=None")
             
         # Order by date_sent, handling NULL values
         query = query.order_by(func.coalesce(Communication.date_sent, datetime(1900, 1, 1)).desc())
         
+        # Debug the SQL query
+        current_app.logger.debug(f"SQL Query: {query}")
+        
         # Execute the query
-        communications_list = query.all()
+        all_communications = query.all()
+        
+        # Filter out duplicates based on gmail_message_id
+        # Use a dictionary to keep track of unique communications
+        unique_communications = {}
+        for comm in all_communications:
+            # If the communication has a gmail_message_id, use it as the key
+            if comm.gmail_message_id:
+                # Only keep the most recent communication for each gmail_message_id
+                if comm.gmail_message_id not in unique_communications:
+                    unique_communications[comm.gmail_message_id] = comm
+                elif comm.date_sent and unique_communications[comm.gmail_message_id].date_sent:
+                    # If we already have this message ID, keep the newer one
+                    if comm.date_sent > unique_communications[comm.gmail_message_id].date_sent:
+                        unique_communications[comm.gmail_message_id] = comm
+            else:
+                # For communications without a gmail_message_id, use the ID as the key
+                unique_communications[f"local_{comm.id}"] = comm
+        
+        # Convert the dictionary values back to a list and sort by date
+        communications_list = sorted(
+            unique_communications.values(),
+            key=lambda x: x.date_sent if x.date_sent else datetime(1900, 1, 1),
+            reverse=True
+        )
+        
+        current_app.logger.debug(f"Found {len(all_communications)} total communications, filtered to {len(communications_list)} unique communications")
         
         # Get filter name if applicable
         filter_name = None
         if person_id:
-            person = session.query(Person).filter_by(id=person_id).first()
-            if person:
-                filter_name = person.get_name()
+            try:
+                person_id_int = int(person_id)
+                person = session.query(Person).filter_by(id=person_id_int).first()
+                if person:
+                    filter_name = person.get_name()
+                    current_app.logger.debug(f"Found person: {filter_name}")
+                else:
+                    current_app.logger.warning(f"Person with ID {person_id_int} not found")
+            except ValueError:
+                current_app.logger.error(f"Invalid person_id: {person_id}")
         elif church_id:
-            church = session.query(Church).filter_by(id=church_id).first()
-            if church:
-                filter_name = church.get_name()
+            try:
+                church_id_int = int(church_id)
+                church = session.query(Church).filter_by(id=church_id_int).first()
+                if church:
+                    filter_name = church.get_name()
+                    current_app.logger.debug(f"Found church: {filter_name}")
+                else:
+                    current_app.logger.warning(f"Church with ID {church_id_int} not found")
+            except ValueError:
+                current_app.logger.error(f"Invalid church_id: {church_id}")
                 
-        current_app.logger.debug(f"Found {len(communications_list)} communications for user {user_id} with filters: person_id={person_id}, church_id={church_id}")
+        current_app.logger.debug(f"Found {len(communications_list)} unique communications with filters: person_id={person_id}, church_id={church_id}")
+        
+        # Debug the first few communications
+        for i, comm in enumerate(communications_list[:5]):
+            current_app.logger.debug(f"Communication {i+1}: ID={comm.id}, Type={comm.type}, Subject={comm.subject}, Person ID={comm.person_id}, User ID={comm.user_id}, Gmail Message ID={comm.gmail_message_id}")
         
         people_list = session.query(Person).all()
         churches_list = session.query(Church).all()

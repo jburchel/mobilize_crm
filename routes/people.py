@@ -70,22 +70,60 @@ def add_person_form():
 @auth_required
 def person_detail(person_id):
     user_id = get_current_user_id()
+    current_app.logger.debug(f"person_detail called for person_id={person_id}, user_id={user_id}")
+    
     with session_scope() as session:
         person = session.query(Person).filter(
             Person.id == person_id,
             Person.user_id == user_id
         ).first()
         if person is None:
+            current_app.logger.warning(f"Person with ID {person_id} not found for user {user_id}")
             abort(404)
+        
+        current_app.logger.debug(f"Found person: {person.first_name} {person.last_name}, Email: {person.email}")
         
         churches = session.query(Church).order_by(Church.church_name).all()
         
         # Get the 5 most recent communications for this person
-        recent_communications = session.query(Communication)\
-            .filter(Communication.person_id == person_id)\
-            .order_by(Communication.date_sent.desc())\
-            .limit(5)\
-            .all()
+        # Use distinct to avoid duplicates
+        query = session.query(Communication)\
+            .filter(
+                Communication.person_id == person_id,
+                # Filter by user_id if it's set in the communication
+                # But don't exclude communications without a user_id
+                ((Communication.user_id == user_id) | (Communication.user_id == None))
+            )\
+            .order_by(Communication.date_sent.desc())
+            
+        current_app.logger.debug(f"SQL Query for communications: {query}")
+        
+        # Execute the query and get distinct communications by gmail_message_id
+        all_communications = query.all()
+        
+        # Use a set to track seen message IDs
+        seen_message_ids = set()
+        recent_communications = []
+        
+        # Filter out duplicates based on gmail_message_id
+        for comm in all_communications:
+            if comm.gmail_message_id and comm.gmail_message_id in seen_message_ids:
+                continue
+                
+            if comm.gmail_message_id:
+                seen_message_ids.add(comm.gmail_message_id)
+                
+            recent_communications.append(comm)
+            
+            # Only keep the first 5 unique communications
+            if len(recent_communications) >= 5:
+                break
+        
+        current_app.logger.debug(f"Found {len(all_communications)} total communications, {len(recent_communications)} unique recent communications")
+        
+        # Debug the communications we're showing
+        for i, comm in enumerate(recent_communications):
+            current_app.logger.debug(f"Communication {i+1}: ID={comm.id}, Type={comm.type}, Subject={comm.subject}, Date={comm.date_sent}, User ID={comm.user_id}")
         
         return render_template('person_detail.html', person=person, churches=churches, recent_communications=recent_communications)
 

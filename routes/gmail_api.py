@@ -278,7 +278,8 @@ def send_email():
                     gmail_thread_id=sent_message['threadId'],
                     email_status='sent',
                     subject=subject,
-                    last_synced_at=datetime.now()
+                    last_synced_at=datetime.now(),
+                    user_id=user_id
                 )
                 session.add(new_communication)
                 session.commit()
@@ -406,7 +407,8 @@ def create_email_draft():
                 gmail_thread_id=draft['message']['threadId'],
                 email_status='draft',
                 subject=subject,
-                last_synced_at=datetime.now()
+                last_synced_at=datetime.now(),
+                user_id=user_id
             )
             session.add(new_communication)
             
@@ -579,6 +581,10 @@ def get_recent_emails():
 @auth_required
 def sync_emails():
     """Sync emails from Gmail that match user's contacts"""
+    return _sync_emails_impl()
+
+def _sync_emails_impl():
+    """Implementation of sync_emails without the auth_required decorator"""
     try:
         # Get the current user ID
         from routes.google_auth import get_current_user_id, get_access_token_from_header
@@ -595,6 +601,8 @@ def sync_emails():
                     'success': False,
                     'message': 'User not authenticated'
                 }), 401
+        
+        current_app.logger.info(f"Syncing emails for user_id: {user_id}")
         
         # Get access token
         current_app.logger.debug("Attempting to extract Google access token")
@@ -694,8 +702,13 @@ def sync_emails():
             credentials = Credentials(token=access_token)
             service = build('gmail', 'v1', credentials=credentials)
 
-            # Get messages matching the query
-            messages = list_messages(service, 'me', query)
+            # Check if we should include historical emails
+            include_history = request.headers.get('X-Include-History', '').lower() == 'true'
+            if include_history:
+                current_app.logger.info("Including historical emails in sync")
+
+            # Get messages matching the query, including historical emails if requested
+            messages = list_messages(service, 'me', query, include_history=include_history)
             current_app.logger.info(f"Found {len(messages) if messages else 0} messages matching query")
 
             if not messages:
@@ -748,7 +761,8 @@ def sync_emails():
                     date_sent=datetime.now(),  # Will be overridden below if date available
                     subject=message_data.get('subject', ''),
                     gmail_message_id=msg_id,
-                    gmail_thread_id=message_data.get('threadId')
+                    gmail_thread_id=message_data.get('threadId'),
+                    user_id=user_id
                 )
                 
                 # Parse date if available
@@ -892,26 +906,56 @@ def force_sync_emails():
                     'X-Google-Token': access_token
                 }
             ):
-                # Call the sync_emails function directly
-                current_app.logger.info("Calling sync_emails function directly")
-                result = sync_emails()
+                # Call the _sync_emails_impl function directly to bypass auth_required
+                current_app.logger.info("Calling _sync_emails_impl function directly")
+                result = _sync_emails_impl()
                 current_app.logger.info(f"Sync result: {result}")
+                
+                # Check if the result is a redirect (302)
+                if hasattr(result, 'status_code') and result.status_code == 302:
+                    current_app.logger.warning("Received redirect response from sync_emails, likely due to authentication")
+                    # Return a JSON response instead of the redirect
+                    return jsonify({
+                        'success': False,
+                        'message': 'Authentication required',
+                        'redirect_url': result.location
+                    }), 401
                 
                 # Store the last run result in the application config for status checks
                 if hasattr(result, 'json'):
-                    result_data = result.json
-                    if callable(result_data):
-                        result_data = result_data()
-                    current_app.config['LAST_SYNC_RESULT'] = {
-                        'success': result_data.get('success', False),
-                        'message': result_data.get('message', ''),
-                        'synced_count': result_data.get('synced_count', 0),
-                        'timestamp': datetime.now().isoformat()
-                    }
+                    try:
+                        result_data = result.json
+                        if callable(result_data):
+                            result_data = result_data()
+                        
+                        # Check if result_data is None before trying to access it
+                        if result_data is not None:
+                            current_app.config['LAST_SYNC_RESULT'] = {
+                                'success': result_data.get('success', False),
+                                'message': result_data.get('message', ''),
+                                'synced_count': result_data.get('synced_count', 0),
+                                'timestamp': datetime.now().isoformat()
+                            }
+                        else:
+                            current_app.logger.warning("Result data is None, cannot update LAST_SYNC_RESULT")
+                            current_app.config['LAST_SYNC_RESULT'] = {
+                                'success': False,
+                                'message': 'Sync completed but returned no data',
+                                'synced_count': 0,
+                                'timestamp': datetime.now().isoformat()
+                            }
+                    except Exception as json_error:
+                        current_app.logger.error(f"Error processing JSON result: {json_error}")
+                        current_app.config['LAST_SYNC_RESULT'] = {
+                            'success': False,
+                            'message': f'Error processing sync result: {str(json_error)}',
+                            'synced_count': 0,
+                            'timestamp': datetime.now().isoformat()
+                        }
                 
                 return result
         except Exception as e:
-            current_app.logger.error(f"Error calling sync_emails function: {e}")
+            current_app.logger.error(f"Error calling _sync_emails_impl function: {e}")
             current_app.logger.error(traceback.format_exc())
             return jsonify({
                 'success': False,
@@ -968,4 +1012,112 @@ def get_sync_status():
         return jsonify({
             'success': False,
             'message': f'Error checking sync status: {str(e)}'
+        }), 500
+
+@gmail_api.route('/api/gmail/force-sync-emails-with-history', methods=['GET'])
+@auth_required
+def force_sync_emails_with_history():
+    """Force sync emails including historical emails (useful for initial setup)"""
+    from utils.background_jobs import sync_gmail_emails
+    from routes.google_auth import get_current_user_id
+    
+    try:
+        # Get the user ID from auth or header
+        user_id = get_current_user_id() or request.headers.get('X-User-ID')
+        
+        if not user_id:
+            current_app.logger.warning("No user ID found for force email sync with history")
+            return jsonify({
+                'success': False,
+                'message': 'User not authenticated'
+            }), 401
+            
+        # Get access token if not in header
+        access_token = request.headers.get('X-Google-Token') or get_access_token_from_header()
+        
+        if not access_token:
+            current_app.logger.warning(f"No Google access token found for user {user_id}")
+            return jsonify({
+                'success': False,
+                'message': 'No Google access token found'
+            }), 400
+        
+        # Run the sync job directly
+        current_app.logger.info(f"Manually triggering Gmail email sync WITH HISTORY for user {user_id}")
+        
+        # Call the sync_emails endpoint directly with the user ID and token
+        try:
+            # Create a new request context
+            with current_app.test_request_context(
+                path='/api/gmail/sync-emails',
+                method='POST',
+                headers={
+                    'X-User-ID': user_id,
+                    'X-Google-Token': access_token,
+                    'X-Include-History': 'true'  # Special header to indicate we want historical emails
+                }
+            ):
+                # Call the _sync_emails_impl function directly to bypass auth_required
+                current_app.logger.info("Calling _sync_emails_impl function directly with history flag")
+                result = _sync_emails_impl()
+                current_app.logger.info(f"Sync result: {result}")
+                
+                # Check if the result is a redirect (302)
+                if hasattr(result, 'status_code') and result.status_code == 302:
+                    current_app.logger.warning("Received redirect response from sync_emails, likely due to authentication")
+                    # Return a JSON response instead of the redirect
+                    return jsonify({
+                        'success': False,
+                        'message': 'Authentication required',
+                        'redirect_url': result.location
+                    }), 401
+                
+                # Store the last run result in the application config for status checks
+                if hasattr(result, 'json'):
+                    try:
+                        result_data = result.json
+                        if callable(result_data):
+                            result_data = result_data()
+                        
+                        # Check if result_data is None before trying to access it
+                        if result_data is not None:
+                            current_app.config['LAST_SYNC_RESULT'] = {
+                                'success': result_data.get('success', False),
+                                'message': result_data.get('message', ''),
+                                'synced_count': result_data.get('synced_count', 0),
+                                'timestamp': datetime.now().isoformat()
+                            }
+                        else:
+                            current_app.logger.warning("Result data is None, cannot update LAST_SYNC_RESULT")
+                            current_app.config['LAST_SYNC_RESULT'] = {
+                                'success': False,
+                                'message': 'Sync completed but returned no data',
+                                'synced_count': 0,
+                                'timestamp': datetime.now().isoformat()
+                            }
+                    except Exception as json_error:
+                        current_app.logger.error(f"Error processing JSON result: {json_error}")
+                        current_app.config['LAST_SYNC_RESULT'] = {
+                            'success': False,
+                            'message': f'Error processing sync result: {str(json_error)}',
+                            'synced_count': 0,
+                            'timestamp': datetime.now().isoformat()
+                        }
+                
+                return result
+        except Exception as e:
+            current_app.logger.error(f"Error calling _sync_emails_impl function with history: {e}")
+            current_app.logger.error(traceback.format_exc())
+            return jsonify({
+                'success': False,
+                'message': f'Error syncing emails with history: {str(e)}'
+            }), 500
+    
+    except Exception as e:
+        current_app.logger.error(f"Error triggering manual Gmail sync with history: {e}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'Error triggering manual Gmail sync with history: {str(e)}'
         }), 500 
+
