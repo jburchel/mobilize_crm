@@ -97,7 +97,7 @@ try:
     # Import routes after app is created to avoid circular imports
     from routes.dashboard import dashboard_bp
     from routes.google_auth import google_auth_bp
-    from routes.gmail_api import gmail_api_bp
+    from routes.gmail_api import gmail_api
     from routes.people import people_bp
     from routes.churches import churches_bp
     from routes.tasks import tasks_bp
@@ -107,7 +107,7 @@ try:
     # Register blueprints
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
     app.register_blueprint(google_auth_bp, url_prefix='/google')
-    app.register_blueprint(gmail_api_bp, url_prefix='/api/gmail')
+    app.register_blueprint(gmail_api, url_prefix='/api/gmail')
     app.register_blueprint(people_bp, url_prefix='/people')
     app.register_blueprint(churches_bp, url_prefix='/churches')
     app.register_blueprint(tasks_bp, url_prefix='/tasks')

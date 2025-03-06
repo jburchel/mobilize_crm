@@ -339,30 +339,78 @@ def get_message(service, user_id, msg_id):
         logger.error(f"An error occurred: {error}")
         return None
 
-def list_messages(service, user_id, query=''):
+def list_messages(service, user_id, query='', max_results=None, include_history=False):
     """List messages in the user's mailbox matching the query.
 
     Args:
         service: Authorized Gmail API service instance.
         user_id: User's email address. The special value "me" can be used to indicate the authenticated user.
         query: String used to filter messages returned (optional).
+        max_results: Maximum number of messages to return (optional).
+        include_history: Whether to include historical emails (default: False).
 
     Returns:
         List of messages that match the criteria.
     """
     try:
-        response = service.users().messages().list(userId=user_id, q=query).execute()
+        # If include_history is True, modify the query to include older emails
+        if include_history and 'before:' not in query and 'after:' not in query:
+            # Add a date range to the query to include emails from the past 5 years
+            # This helps ensure we get historical emails
+            from datetime import datetime, timedelta
+            
+            # Get date 5 years ago in YYYY/MM/DD format
+            five_years_ago = (datetime.now() - timedelta(days=5*365)).strftime('%Y/%m/%d')
+            
+            # Append the date range to the query
+            if query:
+                query = f"{query} after:{five_years_ago}"
+            else:
+                query = f"after:{five_years_ago}"
+                
+            logger.info(f"Modified query to include historical emails: {query}")
+        
+        # Initial request
+        request = service.users().messages().list(userId=user_id, q=query)
+        
+        if max_results:
+            request = service.users().messages().list(userId=user_id, q=query, maxResults=max_results)
+        
+        response = request.execute()
         messages = []
+        
         if 'messages' in response:
             messages.extend(response['messages'])
+            logger.info(f"Retrieved {len(messages)} messages in first batch")
 
+        # Continue retrieving messages in batches until we have all of them
+        # or until we reach max_results
+        page_count = 1
         while 'nextPageToken' in response:
             page_token = response['nextPageToken']
-            response = service.users().messages().list(
-                userId=user_id, q=query, pageToken=page_token).execute()
+            logger.info(f"Retrieving next page (page {page_count + 1}) of messages")
+            
+            request = service.users().messages().list(
+                userId=user_id, q=query, pageToken=page_token)
+                
+            if max_results and len(messages) >= max_results:
+                logger.info(f"Reached maximum results limit of {max_results}")
+                break
+                
+            response = request.execute()
             if 'messages' in response:
-                messages.extend(response['messages'])
+                new_messages = response['messages']
+                messages.extend(new_messages)
+                logger.info(f"Retrieved {len(new_messages)} additional messages")
+            
+            page_count += 1
+            
+            # Limit to 10 pages to avoid excessive API calls
+            if page_count >= 10:
+                logger.warning("Reached maximum page limit (10 pages)")
+                break
 
+        logger.info(f"Total messages retrieved: {len(messages)}")
         return messages
     except HttpError as error:
         logger.error(f"An error occurred: {error}")

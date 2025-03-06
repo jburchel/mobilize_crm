@@ -257,7 +257,12 @@
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h3><i class="bi bi-chat-dots"></i> Recent Communications</h3>
-                <a href="{{ url_for('communications_bp.all_communications_route', person_id=person.id) }}" class="button small">View All</a>
+                <div>
+                    <button id="syncContactEmails" class="btn btn-outline-secondary btn-sm" title="Sync historical emails for this contact">
+                        <i class="bi bi-arrow-repeat"></i> Sync Emails
+                    </button>
+                    <a href="{{ url_for('communications_bp.all_communications_route', person_id=person.id) }}" class="btn btn-primary btn-sm ms-2">View All</a>
+                </div>
             </div>
             <div class="card-body">
                 {% if recent_communications %}
@@ -892,6 +897,30 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => {
                 console.error('Error fetching signatures:', error);
             });
+    }
+
+    // Add event listener for the contact email sync button
+    const syncContactButton = document.getElementById('syncContactEmails');
+    if (syncContactButton) {
+        syncContactButton.addEventListener('click', function() {
+            // Show confirmation dialog
+            if (confirm('This will attempt to sync all historical emails with this contact. Continue?')) {
+                // Get the auth manager instance
+                const authManager = window.authManager;
+                if (authManager) {
+                    // Call the triggerEmailSync method with includeHistory=true
+                    authManager.triggerEmailSync(true);
+                    // Show a message that we're syncing
+                    alert('Syncing emails for this contact. This may take a moment. The page will refresh when complete.');
+                    // Refresh the page after a delay to show new emails
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 5000);
+                } else {
+                    alert('Auth manager not available. Please try again later.');
+                }
+            }
+        });
     }
 });
 </script>

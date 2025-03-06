@@ -172,8 +172,10 @@ def sync_gmail_emails():
                 base_url = current_app.config.get('BASE_URL')
                 
                 if not base_url:
-                    # Default to localhost if BASE_URL is not configured
-                    base_url = "http://localhost:8000"
+                    # Get the port from the app configuration or use default 8000
+                    port = current_app.config.get('PORT', 8000)
+                    # Default to localhost with the configured port
+                    base_url = f"http://localhost:{port}"
                     logger.warning(f"BASE_URL not configured, using default: {base_url}")
                 
                 # Call the sync_emails endpoint
@@ -222,14 +224,18 @@ def is_job_running(job_id):
             
         # Check if the job is currently executing
         # This is a bit of a hack since APScheduler doesn't provide a direct way to check
-        # We'll consider the job running if it's 5 minutes from the last execution
+        # We'll consider the job running if it's within 5 minutes of the expected execution time
         now = datetime.now(job.next_run_time.tzinfo)  # Use the same timezone as next_run_time
+        
         if job.next_run_time and job.next_run_time > now:
-            # The job is scheduled to run in the future
-            last_run = job.next_run_time - timedelta(minutes=job.trigger.interval.minutes)
-            # If it was supposed to run within the last 5 minutes, consider it running
-            return (now - last_run).total_seconds() < 300  # 5 minutes in seconds
-            
+            # Get the interval in seconds instead of trying to access minutes directly
+            if hasattr(job.trigger, 'interval'):
+                interval_seconds = job.trigger.interval.total_seconds()
+                # The job is scheduled to run in the future
+                last_run = job.next_run_time - timedelta(seconds=interval_seconds)
+                # If it was supposed to run within the last 5 minutes, consider it running
+                return (now - last_run).total_seconds() < 300  # 5 minutes in seconds
+        
         return False
     except Exception as e:
         logger.error(f"Error checking if job {job_id} is running: {str(e)}")

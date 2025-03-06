@@ -90,6 +90,7 @@ class AuthManager {
 
         // Store instance globally
         window.AuthManagerInstance = this;
+        window.authManager = this; // Also store with lowercase 'a' for compatibility
     }
 
     _initializeElements() {
@@ -449,9 +450,9 @@ class AuthManager {
     }
 
     // Add new method to trigger email sync
-    async triggerEmailSync() {
+    async triggerEmailSync(includeHistory = false) {
         try {
-            console.log("Triggering email sync after login...");
+            console.log(`Triggering email sync${includeHistory ? ' with history' : ''} after login...`);
             const accessToken = sessionStorage.getItem('googleAccessToken');
             const userId = sessionStorage.getItem('userId');
             const firebaseToken = sessionStorage.getItem('authToken');
@@ -468,12 +469,17 @@ class AuthManager {
             
             // Show sync status
             if (this.syncStatus) {
-                this.syncStatus.textContent = "Syncing emails...";
+                this.syncStatus.textContent = `Syncing emails${includeHistory ? ' (including history)' : ''}...`;
                 this.syncStatus.style.display = 'block';
             }
             
+            // Call the appropriate sync endpoint
+            const endpoint = includeHistory ? 
+                '/api/gmail/force-sync-emails-with-history' : 
+                '/api/gmail/force-sync-emails';
+                
             // Call the force sync endpoint
-            const response = await fetch('/api/gmail/force-sync-emails', {
+            const response = await fetch(endpoint, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${firebaseToken}`,
@@ -488,8 +494,8 @@ class AuthManager {
             // Update sync status
             if (this.syncStatus) {
                 this.syncStatus.textContent = result.success ? 
-                    "Email sync complete" : 
-                    "Email sync failed: " + (result.message || "Unknown error");
+                    `Email sync complete${includeHistory ? ' (with history)' : ''}` : 
+                    `Email sync failed${includeHistory ? ' (with history)' : ''}: ` + (result.message || "Unknown error");
                     
                 // Hide the status after a few seconds
                 setTimeout(() => {
@@ -497,14 +503,81 @@ class AuthManager {
                 }, 3000);
             }
         } catch (error) {
-            console.error("Error syncing emails:", error);
+            console.error("Error triggering email sync:", error);
             if (this.syncStatus) {
-                this.syncStatus.textContent = "Email sync failed: " + (error.message || "Unknown error");
+                this.syncStatus.textContent = `Email sync error${includeHistory ? ' (with history)' : ''}: ` + error.message;
                 setTimeout(() => {
                     this.syncStatus.style.display = 'none';
                 }, 3000);
             }
         }
+    }
+}
+
+// Add this function to handle Google token refresh
+async function refreshGoogleToken() {
+    try {
+        const user = firebase.auth().currentUser;
+        if (!user) return null;
+        
+        // Force token refresh
+        const provider = new firebase.auth.GoogleAuthProvider();
+        const result = await user.reauthenticateWithPopup(provider);
+        const accessToken = result.credential.accessToken;
+        
+        // Store the token
+        sessionStorage.setItem('googleAccessToken', accessToken);
+        
+        return accessToken;
+    } catch (error) {
+        console.error('Error refreshing Google token:', error);
+        return null;
+    }
+}
+
+// Update the auth state change handler
+async function handleAuthStateChange(user) {
+    if (user) {
+        // Store user ID
+        sessionStorage.setItem('userId', user.uid);
+        
+        // Get Google access token
+        let accessToken = null;
+        if (user.providerData && user.providerData[0].providerId === 'google.com') {
+            try {
+                const result = await user.getIdTokenResult(true);
+                if (!result.claims.google_access_token) {
+                    accessToken = await refreshGoogleToken();
+                } else {
+                    accessToken = result.claims.google_access_token;
+                }
+                
+                if (accessToken) {
+                    sessionStorage.setItem('googleAccessToken', accessToken);
+                    
+                    // Send token to server
+                    await fetch('/google/store-token', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${accessToken}`
+                        },
+                        body: JSON.stringify({ access_token: accessToken })
+                    });
+                }
+            } catch (error) {
+                console.error('Error getting Google token:', error);
+            }
+        }
+        
+        // Trigger email sync only if we have the token
+        if (accessToken) {
+            triggerEmailSync();
+        }
+    } else {
+        // Clear tokens on logout
+        sessionStorage.removeItem('userId');
+        sessionStorage.removeItem('googleAccessToken');
     }
 }
 
@@ -514,6 +587,8 @@ function initAuth() {
     try {
         new AuthManager();
         console.log("AuthManager initialized successfully");
+        console.log("AuthManagerInstance available:", !!window.AuthManagerInstance);
+        console.log("authManager available:", !!window.authManager);
     } catch (error) {
         console.error("Failed to create AuthManager:", error);
     }
