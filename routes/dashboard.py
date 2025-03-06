@@ -192,7 +192,7 @@ def dashboard():
             session.query(
                 Communication.id,
                 Communication.subject,
-                Communication.date,
+                Communication.date_sent,
                 Communication.type,
                 Person.first_name,
                 Person.last_name,
@@ -203,7 +203,7 @@ def dashboard():
             .filter(
                 Communication.user_id == user_id
             )
-            .order_by(Communication.date.desc())
+            .order_by(Communication.date_sent.desc())
             .limit(5)
             .all()
         )
@@ -214,7 +214,7 @@ def dashboard():
             comm_dict = {
                 'id': comm.id,
                 'subject': comm.subject,
-                'date': comm.date.strftime('%Y-%m-%d') if comm.date else None,
+                'date': comm.date_sent.strftime('%Y-%m-%d') if comm.date_sent else None,
                 'type': comm.type,
                 'contact_name': None,
                 'contact_type': None
