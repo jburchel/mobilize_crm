@@ -15,6 +15,9 @@
                 <a href="{{ url_for('google_auth.authorize') }}" class="btn btn-outline-primary ms-2">
                     <i class="bi bi-google"></i> Connect Google Account
                 </a>
+                <button type="button" id="syncHistoricalEmails" class="btn btn-outline-secondary ms-2" title="Sync all historical emails with your contacts">
+                    <i class="bi bi-clock-history"></i> Sync Historical Emails
+                </button>
             </div>
         </div>
     </div>
@@ -23,7 +26,17 @@
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">Recent Communication History</h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Recent Communication History</h5>
+                        <div class="search-container">
+                            <div class="input-group">
+                                <input type="text" id="communicationSearch" class="form-control" placeholder="Search communications...">
+                                <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -182,6 +195,155 @@
             emailFields.style.display = 'none';
         }
     }
+    
+    // Search functionality for communications
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('communicationSearch');
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+        const tableBody = document.querySelector('table tbody');
+        const tableRows = document.querySelectorAll('table tbody tr');
+        let debounceTimer;
+        
+        // Function to filter table rows based on search input (client-side)
+        function filterCommunicationsClient() {
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            
+            if (searchTerm === '') {
+                // If search is empty, show all rows
+                tableRows.forEach(row => {
+                    row.style.display = '';
+                });
+                return;
+            }
+            
+            // Filter rows based on search term
+            tableRows.forEach(row => {
+                const rowText = row.textContent.toLowerCase();
+                if (rowText.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        
+        // Function to search communications using the API (server-side)
+        function searchCommunicationsServer() {
+            const searchTerm = searchInput.value.trim();
+            
+            if (searchTerm === '') {
+                // If search is empty, reload the page to show all communications
+                window.location.reload();
+                return;
+            }
+            
+            // Show loading indicator
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
+            
+            // Call the search API
+            fetch(`/communications/api/search?q=${encodeURIComponent(searchTerm)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.count === 0) {
+                            // No results found
+                            tableBody.innerHTML = '<tr><td colspan="6" class="text-center">No communications found matching your search.</td></tr>';
+                        } else {
+                            // Render the results
+                            tableBody.innerHTML = '';
+                            data.results.forEach(comm => {
+                                const row = document.createElement('tr');
+                                
+                                // Date column
+                                const dateCell = document.createElement('td');
+                                dateCell.textContent = comm.date_sent || 'N/A';
+                                row.appendChild(dateCell);
+                                
+                                // Type column
+                                const typeCell = document.createElement('td');
+                                typeCell.textContent = comm.type;
+                                row.appendChild(typeCell);
+                                
+                                // Subject column
+                                const subjectCell = document.createElement('td');
+                                if (comm.type === 'Email' && comm.view_url) {
+                                    const link = document.createElement('a');
+                                    link.href = comm.view_url;
+                                    link.textContent = comm.subject || 'N/A';
+                                    subjectCell.appendChild(link);
+                                } else {
+                                    subjectCell.textContent = comm.subject || 'N/A';
+                                }
+                                row.appendChild(subjectCell);
+                                
+                                // Recipient column
+                                const recipientCell = document.createElement('td');
+                                recipientCell.textContent = comm.recipient_name || 'N/A';
+                                row.appendChild(recipientCell);
+                                
+                                // Message column
+                                const messageCell = document.createElement('td');
+                                messageCell.textContent = comm.message_preview || 'N/A';
+                                row.appendChild(messageCell);
+                                
+                                // Status column
+                                const statusCell = document.createElement('td');
+                                if (comm.email_status === 'sent') {
+                                    statusCell.innerHTML = '<span class="badge bg-success">Sent</span>';
+                                } else if (comm.email_status === 'draft') {
+                                    statusCell.innerHTML = '<span class="badge bg-warning">Draft</span>';
+                                } else if (comm.email_status === 'received') {
+                                    statusCell.innerHTML = '<span class="badge bg-info">Received</span>';
+                                } else {
+                                    statusCell.innerHTML = '<span class="badge bg-secondary">N/A</span>';
+                                }
+                                row.appendChild(statusCell);
+                                
+                                tableBody.appendChild(row);
+                            });
+                            
+                            // Hide the "See All Communications" button when showing search results
+                            const seeAllBtn = document.querySelector('.d-flex.justify-content-center.mt-3');
+                            if (seeAllBtn) {
+                                seeAllBtn.style.display = 'none';
+                            }
+                        }
+                    } else {
+                        // Error occurred
+                        tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error: ${data.message || 'Failed to search communications'}</td></tr>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error searching communications:', error);
+                    tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error: Failed to search communications. Please try again.</td></tr>';
+                });
+        }
+        
+        // Add event listeners with debounce
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(searchCommunicationsServer, 500);
+            });
+            
+            // Also handle Enter key
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    clearTimeout(debounceTimer);
+                    searchCommunicationsServer();
+                }
+            });
+        }
+        
+        // Clear search button
+        if (clearSearchBtn) {
+            clearSearchBtn.addEventListener('click', function() {
+                searchInput.value = '';
+                window.location.reload(); // Reload the page to show all communications
+            });
+        }
+    });
     
     // Function to fetch the default signature
     function fetchDefaultSignature() {
@@ -409,6 +571,24 @@
             // Reset button state
             sendButton.innerHTML = 'Send Communication';
             sendButton.disabled = false;
+        }
+
+        // Add event listener for the historical email sync button
+        const syncHistoricalButton = document.getElementById('syncHistoricalEmails');
+        if (syncHistoricalButton) {
+            syncHistoricalButton.addEventListener('click', function() {
+                // Show confirmation dialog
+                if (confirm('This will attempt to sync all historical emails with your contacts. This may take some time. Continue?')) {
+                    // Get the auth manager instance
+                    const authManager = window.authManager;
+                    if (authManager) {
+                        // Call the triggerEmailSync method with includeHistory=true
+                        authManager.triggerEmailSync(true);
+                    } else {
+                        alert('Auth manager not available. Please try again later.');
+                    }
+                }
+            });
         }
     });
 </script>

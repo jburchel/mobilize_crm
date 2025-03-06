@@ -691,3 +691,107 @@ def reply_to_communication(comm_id):
             'success': False,
             'message': 'Google connection required to send emails'
         }), 400
+
+@communications_bp.route('/communications/api/search')
+def search_communications():
+    """API endpoint to search communications"""
+    # Get the current user ID
+    user_id = get_current_user_id()
+    if not user_id:
+        current_app.logger.warning("No user ID found in session, cannot search communications")
+        return jsonify({
+            'success': False,
+            'message': 'User not authenticated'
+        }), 401
+    
+    search_term = request.args.get('q', '').strip().lower()
+    current_app.logger.debug(f"Searching communications with term: '{search_term}'")
+    
+    if not search_term:
+        return jsonify({
+            'success': False,
+            'message': 'No search term provided'
+        }), 400
+    
+    with session_scope() as session:
+        # Start with a base query
+        query = session.query(Communication)
+        
+        # Filter by user_id
+        query = query.filter((Communication.user_id == user_id) | (Communication.user_id == None))
+        
+        # Join with Person and Church to search in their fields too
+        from sqlalchemy.orm import aliased
+        person_alias = aliased(Person)
+        church_alias = aliased(Church)
+        
+        query = query.outerjoin(person_alias, Communication.person_id == person_alias.id)
+        query = query.outerjoin(church_alias, Communication.church_id == church_alias.id)
+        
+        # Build the search conditions
+        from sqlalchemy import or_, func
+        search_conditions = [
+            func.lower(Communication.subject).contains(search_term),
+            func.lower(Communication.message).contains(search_term),
+            func.lower(person_alias.first_name).contains(search_term),
+            func.lower(person_alias.last_name).contains(search_term),
+            func.lower(person_alias.email).contains(search_term),
+            func.lower(church_alias.church_name).contains(search_term),
+            func.lower(church_alias.email).contains(search_term)
+        ]
+        
+        # Apply the search conditions
+        query = query.filter(or_(*search_conditions))
+        
+        # Order by date_sent, handling NULL values
+        query = query.order_by(func.coalesce(Communication.date_sent, datetime(1900, 1, 1)).desc())
+        
+        # Execute the query
+        search_results = query.all()
+        
+        # Filter out duplicates based on gmail_message_id
+        unique_communications = {}
+        for comm in search_results:
+            if comm.gmail_message_id:
+                if comm.gmail_message_id not in unique_communications:
+                    unique_communications[comm.gmail_message_id] = comm
+                elif comm.date_sent and unique_communications[comm.gmail_message_id].date_sent:
+                    if comm.date_sent > unique_communications[comm.gmail_message_id].date_sent:
+                        unique_communications[comm.gmail_message_id] = comm
+            else:
+                unique_communications[f"local_{comm.id}"] = comm
+        
+        # Convert the dictionary values back to a list and sort by date
+        communications_list = sorted(
+            unique_communications.values(),
+            key=lambda x: x.date_sent if x.date_sent else datetime(1900, 1, 1),
+            reverse=True
+        )
+        
+        current_app.logger.debug(f"Found {len(communications_list)} communications matching search term '{search_term}'")
+        
+        # Convert communications to a list of dictionaries for JSON response
+        results = []
+        for comm in communications_list:
+            recipient_name = None
+            if comm.person:
+                recipient_name = comm.person.get_name()
+            elif comm.church:
+                recipient_name = comm.church.get_name()
+                
+            results.append({
+                'id': comm.id,
+                'date_sent': comm.date_sent.strftime('%Y-%m-%d %H:%M') if comm.date_sent else None,
+                'type': comm.type,
+                'subject': comm.subject,
+                'recipient_name': recipient_name,
+                'message_preview': comm.message[:100] + '...' if comm.message and len(comm.message) > 100 else comm.message,
+                'email_status': comm.email_status,
+                'view_url': url_for('communications_bp.view_communication', comm_id=comm.id) if comm.type == 'Email' else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'count': len(results)
+        })
