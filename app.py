@@ -31,7 +31,7 @@ try:
     config = get_config()
     app.config.from_object(config)
     
-    print(f"Running in {app.config['ENV']} environment")
+    print(f"Running in {os.environ.get('FLASK_ENV', 'production')} environment")
     
     # Enable CORS
     CORS(app, supports_credentials=True, resources={
