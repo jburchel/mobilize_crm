@@ -100,54 +100,150 @@ def dashboard():
         # Format the tasks with full names
         formatted_tasks = []
         for task in pending_tasks:
-            person_name = None
-            if task.first_name and task.last_name:
-                person_name = f"{task.first_name} {task.last_name}"
-            
-            formatted_tasks.append({
+            task_dict = {
                 'id': task.id,
                 'title': task.title,
                 'description': task.description,
-                'due_date': task.due_date,
+                'due_date': task.due_date.strftime('%Y-%m-%d') if task.due_date else None,
                 'status': task.status,
-                'person_name': person_name,
-                'church_name': task.church_name
-            })
+                'contact_name': None,
+                'contact_type': None
+            }
+            
+            if task.first_name and task.last_name:
+                task_dict['contact_name'] = f"{task.first_name} {task.last_name}"
+                task_dict['contact_type'] = 'person'
+            elif task.church_name:
+                task_dict['contact_name'] = task.church_name
+                task_dict['contact_type'] = 'church'
+                
+            formatted_tasks.append(task_dict)
         
         # Get recent communications
-        # Only show communications related to the user's people or to any church
-        recent_comms_query = (
+        recent_communications = (
             session.query(
-                Communication,
+                Communication.id,
+                Communication.subject,
+                Communication.date,
+                Communication.type,
                 Person.first_name,
                 Person.last_name,
-                Church.church_name
+                Church.church_name.label('church_name')
             )
             .outerjoin(Person, Communication.person_id == Person.id)
             .outerjoin(Church, Communication.church_id == Church.id)
             .filter(
-                # Only include communications for this user's people or for any church
-                ((Person.user_id == user_id) | (Communication.church_id != None))
+                Communication.user_id == user_id
             )
-            .order_by(Communication.date_sent.desc())
+            .order_by(Communication.date.desc())
             .limit(5)
             .all()
         )
         
-        # Format the communications with full names
-        recent_communications = []
-        for comm, first_name, last_name, church_name in recent_comms_query:
-            person_name = None
-            if first_name and last_name:
-                person_name = f"{first_name} {last_name}"
+        # Format the communications
+        formatted_communications = []
+        for comm in recent_communications:
+            comm_dict = {
+                'id': comm.id,
+                'subject': comm.subject,
+                'date': comm.date.strftime('%Y-%m-%d') if comm.date else None,
+                'type': comm.type,
+                'contact_name': None,
+                'contact_type': None
+            }
             
-            recent_communications.append((comm, person_name, church_name))
-        
-        return render_template('dashboard.html', 
-                             people=total_people, 
-                             churches=total_churches, 
-                             tasks=formatted_tasks, 
-                             communications=recent_communications)
+            if comm.first_name and comm.last_name:
+                comm_dict['contact_name'] = f"{comm.first_name} {comm.last_name}"
+                comm_dict['contact_type'] = 'person'
+            elif comm.church_name:
+                comm_dict['contact_name'] = comm.church_name
+                comm_dict['contact_type'] = 'church'
+                
+            formatted_communications.append(comm_dict)
+    
+    try:
+        return render_template(
+            'dashboard.html',
+            total_people=total_people,
+            total_churches=total_churches,
+            pending_tasks=formatted_tasks,
+            recent_communications=formatted_communications
+        )
+    except Exception as e:
+        current_app.logger.error(f"Error rendering dashboard template: {e}")
+        # Fallback to a simple HTML response if dashboard.html doesn't exist
+        html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Mobilize CRM Dashboard</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                h1 { color: #183963; }
+                .card { 
+                    border: 1px solid #ddd; 
+                    border-radius: 5px; 
+                    padding: 15px; 
+                    margin-bottom: 20px; 
+                }
+                .stats { 
+                    display: flex; 
+                    gap: 20px; 
+                    margin-bottom: 20px; 
+                }
+                .stat-card { 
+                    background-color: #f8f9fa; 
+                    padding: 15px; 
+                    border-radius: 5px; 
+                    flex: 1; 
+                }
+                .nav { 
+                    background-color: #183963; 
+                    padding: 10px; 
+                    margin-bottom: 20px; 
+                }
+                .nav a { 
+                    color: white; 
+                    text-decoration: none; 
+                    margin-right: 15px; 
+                }
+            </style>
+        </head>
+        <body>
+            <div class="nav">
+                <a href="/dashboard">Dashboard</a>
+                <a href="/people">People</a>
+                <a href="/churches">Churches</a>
+                <a href="/tasks">Tasks</a>
+                <a href="/communications">Communications</a>
+            </div>
+            
+            <h1>Dashboard</h1>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <h3>People</h3>
+                    <p>Total: """ + str(total_people) + """</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Churches</h3>
+                    <p>Total: """ + str(total_churches) + """</p>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>Pending Tasks</h2>
+                """ + (f"<p>You have {len(formatted_tasks)} pending tasks.</p>" if formatted_tasks else "<p>No pending tasks.</p>") + """
+            </div>
+            
+            <div class="card">
+                <h2>Recent Communications</h2>
+                """ + (f"<p>You have {len(formatted_communications)} recent communications.</p>" if formatted_communications else "<p>No recent communications.</p>") + """
+            </div>
+        </body>
+        </html>
+        """
+        return html
 
 @dashboard_bp.route('/google-settings')
 @auth_required
