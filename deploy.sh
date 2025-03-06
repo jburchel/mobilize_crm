@@ -49,8 +49,10 @@ gcloud run deploy ${SERVICE_NAME} \
   --platform managed \
   --region ${REGION} \
   --allow-unauthenticated \
-  --set-env-vars="FLASK_ENV=production" \
-  --memory 512Mi
+  --memory 512Mi \
+  --set-env-vars="FLASK_ENV=production,\
+BASE_URL=https://mobilize-crm.org,\
+SECRET_KEY=$(openssl rand -hex 24)"
 
 # Uncomment and update these environment variables for subsequent deployments
 # --set-env-vars="FLASK_ENV=production,\
