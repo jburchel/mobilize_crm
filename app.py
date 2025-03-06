@@ -13,6 +13,7 @@ import os
 import base64
 import json
 import tempfile
+import argparse
 
 print("Script starting...")
 print("Python version:", sys.version)
@@ -36,6 +37,7 @@ try:
     init_db(app)
     
     # Initialize Firebase Admin SDK
+    firebase_initialized = False
     try:
         firebase_credentials_base64 = os.environ.get('FIREBASE_CREDENTIALS_BASE64')
         if firebase_credentials_base64:
@@ -54,6 +56,7 @@ try:
                 # Initialize Firebase with the temporary file
                 cred = credentials.Certificate(temp_file_path)
                 firebase_admin.initialize_app(cred)
+                firebase_initialized = True
                 print("Successfully initialized Firebase Admin SDK")
                 
                 # Clean up the temporary file
@@ -63,16 +66,26 @@ try:
                 print(f"Error processing Firebase credentials from environment: {e}")
                 print("Falling back to file-based credentials")
                 # Fall back to the file-based credentials
-                cred = credentials.Certificate('firebase-credentials.json')
-                firebase_admin.initialize_app(cred)
+                try:
+                    cred = credentials.Certificate('firebase-credentials.json')
+                    firebase_admin.initialize_app(cred)
+                    firebase_initialized = True
+                except Exception as e:
+                    print(f"Error initializing Firebase with file-based credentials: {e}")
         else:
             print("No FIREBASE_CREDENTIALS_BASE64 environment variable found")
             # Fall back to the file-based credentials
-            cred = credentials.Certificate('firebase-credentials.json')
-            firebase_admin.initialize_app(cred)
+            try:
+                cred = credentials.Certificate('firebase-credentials.json')
+                firebase_admin.initialize_app(cred)
+                firebase_initialized = True
+            except Exception as e:
+                print(f"Error initializing Firebase with file-based credentials: {e}")
     except Exception as e:
         print(f"Error during Firebase initialization: {e}")
-        raise
+        
+    if not firebase_initialized:
+        print("WARNING: Firebase was not initialized. Authentication features will not work.")
 
     # Initialize CORS with credentials support
     CORS(app, supports_credentials=True)
@@ -157,6 +170,11 @@ try:
 
     @app.route('/')
     def home():
+        # If Firebase is not initialized, redirect to dashboard without authentication
+        if not firebase_initialized:
+            print("Firebase not initialized, skipping authentication")
+            return redirect(url_for('dashboard_bp.dashboard'))
+            
         # Check if user is authenticated
         auth_header = request.headers.get('Authorization')
         token = None
@@ -182,7 +200,16 @@ try:
 
     if __name__ == '__main__':
         print('Entering main block...')
-        print("Server starting at http://127.0.0.1:8000")
-        app.run(debug=True, port=8000)
+        
+        # Parse command line arguments
+        parser = argparse.ArgumentParser(description='Run the Mobilize CRM application')
+        parser.add_argument('--port', type=int, default=8000, help='Port to run the server on')
+        args = parser.parse_args()
+        
+        # Store the port in the app configuration for background jobs
+        app.config['PORT'] = args.port
+        
+        print(f"Server starting at http://127.0.0.1:{args.port}")
+        app.run(debug=True, port=args.port)
 except Exception as e:
     print(f"Error during app initialization: {e}")

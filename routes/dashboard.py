@@ -9,12 +9,18 @@ import os
 import uuid
 from werkzeug.utils import secure_filename
 from datetime import datetime
+from app import firebase_initialized
 
 dashboard_bp = Blueprint('dashboard_bp', __name__)
 
 def auth_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # If Firebase is not initialized, bypass authentication
+        if not firebase_initialized:
+            current_app.logger.warning("Firebase not initialized, bypassing authentication")
+            return f(*args, **kwargs)
+            
         # First check Authorization header
         auth_header = request.headers.get('Authorization')
         if auth_header and auth_header.startswith('Bearer '):
