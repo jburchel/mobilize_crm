@@ -48,6 +48,7 @@ def auth_required(f):
                 current_app.logger.error(f"Cookie token verification failed: {str(e)}")
                 
         # No valid authentication found, redirect to home
+        # Use direct URL instead of url_for to avoid BuildError
         return redirect('/')
             
     return decorated_function
