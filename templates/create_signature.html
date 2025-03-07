@@ -220,6 +220,47 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Add a warning message about pasting images
+    const editorContainer = document.querySelector('.ql-container');
+    const warningDiv = document.createElement('div');
+    warningDiv.className = 'alert alert-warning mt-2';
+    warningDiv.innerHTML = '<strong>Important:</strong> For email signatures, always upload images using the file input above. Pasted or linked images may not display in sent emails.';
+    editorContainer.parentNode.insertBefore(warningDiv, editorContainer.nextSibling);
+    
+    // Override the image handler in Quill to always use data URLs
+    const toolbar = quill.getModule('toolbar');
+    toolbar.addHandler('image', function() {
+        const input = document.createElement('input');
+        input.setAttribute('type', 'file');
+        input.setAttribute('accept', 'image/*');
+        input.click();
+        
+        input.onchange = function() {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    const range = quill.getSelection();
+                    if (range) {
+                        quill.insertEmbed(range.index, 'image', e.target.result);
+                    }
+                };
+                
+                reader.readAsDataURL(input.files[0]);
+            }
+        };
+    });
+    
+    // Intercept paste events to convert image URLs to data URLs
+    quill.clipboard.addMatcher('img', function(node, delta) {
+        const src = node.getAttribute('src');
+        if (src && !src.startsWith('data:')) {
+            // Show a warning about pasted images
+            alert('Warning: Pasted images with URLs may not display in sent emails. Please use the file upload instead.');
+        }
+        return delta;
+    });
+    
     // Template buttons
     const templateButtons = document.querySelectorAll('.template-btn');
     templateButtons.forEach(button => {

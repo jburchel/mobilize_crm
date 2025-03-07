@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify, session
+from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify, session, flash
 from sqlalchemy import func
 from models import Session, Person, Church, Task, Communication, EmailSignature
 from database import db, session_scope
@@ -9,6 +9,13 @@ import os
 import uuid
 from werkzeug.utils import secure_filename
 from datetime import datetime
+from bs4 import BeautifulSoup
+import base64
+import requests
+import traceback
+
+from utils.auth import auth_required, get_current_user_id
+from utils.gmail_integration import convert_image_urls_to_data_urls
 
 dashboard_bp = Blueprint('dashboard_bp', __name__)
 
@@ -197,6 +204,10 @@ def create_signature():
             
             current_app.logger.info(f"Received signature data: name={name}, is_default={is_default}, content length={len(content) if content else 0}")
             
+            # Ensure all images in the content are data URLs
+            if content:
+                content = convert_image_urls_to_data_urls(content)
+            
             # Handle logo upload
             logo_url = None
             if 'logo' in request.files and request.files['logo'].filename:
@@ -240,6 +251,7 @@ def create_signature():
                 return redirect(url_for('dashboard_bp.email_signatures'))
         except Exception as e:
             current_app.logger.error(f"Error creating signature: {str(e)}")
+            current_app.logger.error(traceback.format_exc())
             return render_template('create_signature.html', error=str(e))
     
     return render_template('create_signature.html')
@@ -255,18 +267,29 @@ def edit_signature(signature_id):
     
     try:
         with session_scope() as session:
-            signature = session.query(EmailSignature).filter_by(id=signature_id, user_id=user_id).first()
+            signature = session.query(EmailSignature).filter_by(id=signature_id).first()
+            
             if not signature:
-                current_app.logger.warning(f"Signature {signature_id} not found for user {user_id}")
+                current_app.logger.warning(f"Signature {signature_id} not found")
+                return redirect(url_for('dashboard_bp.email_signatures'))
+            
+            if signature.user_id != user_id and signature.user_id != 'default':
+                current_app.logger.warning(f"User {user_id} attempted to edit signature {signature_id} belonging to user {signature.user_id}")
                 return redirect(url_for('dashboard_bp.email_signatures'))
             
             if request.method == 'POST':
+                current_app.logger.info(f"Received POST request to update signature {signature_id}")
+                
                 try:
                     name = request.form.get('name')
                     content = request.form.get('content')
                     is_default = request.form.get('is_default') == 'on'
                     
-                    current_app.logger.info(f"Updating signature: name={name}, is_default={is_default}, content length={len(content) if content else 0}")
+                    current_app.logger.info(f"Received signature data: name={name}, is_default={is_default}, content length={len(content) if content else 0}")
+                    
+                    # Ensure all images in the content are data URLs
+                    if content:
+                        content = convert_image_urls_to_data_urls(content)
                     
                     # Handle logo upload
                     if 'logo' in request.files and request.files['logo'].filename:
@@ -303,12 +326,14 @@ def edit_signature(signature_id):
                     return redirect(url_for('dashboard_bp.email_signatures'))
                 except Exception as e:
                     current_app.logger.error(f"Error updating signature: {str(e)}")
+                    current_app.logger.error(traceback.format_exc())
                     return render_template('edit_signature.html', signature=signature, error=str(e))
             
             return render_template('edit_signature.html', signature=signature)
     except Exception as e:
-        current_app.logger.error(f"Error editing signature: {str(e)}")
-        return render_template('edit_signature.html', signature=None, error=str(e))
+        current_app.logger.error(f"Error accessing signature: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+        return redirect(url_for('dashboard_bp.email_signatures'))
 
 @dashboard_bp.route('/email-signatures/delete/<int:signature_id>', methods=['POST'])
 @auth_required

@@ -10,13 +10,18 @@ import base64
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
+from email.mime.image import MIMEImage
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import traceback
 from models import EmailSignature
 from database import session_scope
 import os
+import requests
+from urllib.parse import urlparse
+from bs4 import BeautifulSoup
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +133,65 @@ def build_gmail_service(token):
         logger.error(f"Traceback: {traceback.format_exc()}")
         return None
 
+def convert_image_urls_to_data_urls(html_content):
+    """
+    Convert all image URLs in HTML content to data URLs.
+    This ensures that images are embedded directly in the email and will display properly.
+    
+    Args:
+        html_content: HTML content containing image tags
+        
+    Returns:
+        HTML content with image URLs converted to data URLs
+    """
+    if not html_content:
+        return html_content
+        
+    soup = BeautifulSoup(html_content, 'html.parser')
+    img_tags = soup.find_all('img')
+    
+    for img in img_tags:
+        src = img.get('src')
+        if not src:
+            continue
+            
+        # Skip if it's already a data URL
+        if src.startswith('data:'):
+            continue
+            
+        try:
+            # Handle relative URLs
+            if src.startswith('/'):
+                # For development environment
+                if os.environ.get('FLASK_ENV') == 'development':
+                    src = f"http://127.0.0.1:8000{src}"
+                else:
+                    # For production environment - adjust as needed
+                    src = f"https://your-production-domain.com{src}"
+                    
+            # Download the image
+            response = requests.get(src, stream=True)
+            if response.status_code == 200:
+                # Determine content type
+                content_type = response.headers.get('Content-Type', 'image/jpeg')
+                
+                # Convert to base64
+                img_data = base64.b64encode(response.content).decode('utf-8')
+                
+                # Create data URL
+                data_url = f"data:{content_type};base64,{img_data}"
+                
+                # Replace the src attribute
+                img['src'] = data_url
+                logger.info(f"Converted image URL to data URL: {src[:30]}...")
+            else:
+                logger.warning(f"Failed to download image from {src}: {response.status_code}")
+        except Exception as e:
+            logger.error(f"Error converting image URL to data URL: {str(e)}")
+            logger.error(traceback.format_exc())
+    
+    return str(soup)
+
 def create_message(sender, to, subject, message_text, html_content=None, signature_html=None):
     """Create a message for an email.
 
@@ -177,6 +241,10 @@ def create_message(sender, to, subject, message_text, html_content=None, signatu
                             logger.warning(f"No signatures found for user {user_id}")
         except Exception as e:
             logger.warning(f"Error retrieving default signature: {str(e)}")
+    
+    # Convert any image URLs in the signature to data URLs
+    if signature_html:
+        signature_html = convert_image_urls_to_data_urls(signature_html)
     
     # Add HTML version if provided or if we have a signature
     if html_content or signature_html:
@@ -251,6 +319,10 @@ def create_message_with_attachment(sender, to, subject, message_text,
         except Exception as e:
             logger.warning(f"Error retrieving default signature: {str(e)}")
     
+    # Convert any image URLs in the signature to data URLs
+    if signature_html:
+        signature_html = convert_image_urls_to_data_urls(signature_html)
+    
     # Add HTML version if provided or if we have a signature
     if html_content or signature_html:
         # If we have HTML content, use it, otherwise convert plain text to HTML
@@ -265,6 +337,11 @@ def create_message_with_attachment(sender, to, subject, message_text,
         if signature_html:
             html_body += '<br><br><div class="signature">' + signature_html + '</div>'
         
+        msg_alternative.attach(MIMEText(html_body, 'html'))
+    else:
+        # Always create an HTML version even without signature
+        html_body = message_text.replace('\n', '<br>')
+        html_body = f'<div style="font-family: Arial, sans-serif; font-size: 14px;">{html_body}</div>'
         msg_alternative.attach(MIMEText(html_body, 'html'))
 
     # Add attachments
