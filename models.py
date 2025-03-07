@@ -60,6 +60,14 @@ PREFERRED_CONTACT_METHODS = [
     ('whatsapp', 'Whatsapp'), ('groupme', 'Groupme'), ('signal', 'Signal'), ('other', 'Other')
 ]
 
+# New constants for role choices
+ROLE_CHOICES = [
+    ('super_admin', 'Super Admin'),
+    ('office_admin', 'Office Admin'),
+    ('standard_user', 'Standard User'),
+    ('limited_user', 'Limited User')
+]
+
 # Base Schema for shared fields
 class ContactsSchema(Schema):
     id = fields.Int(dump_only=True)
@@ -130,6 +138,8 @@ class ChurchSchema(ContactsSchema):
     reason_closed = fields.Str(allow_none=True)
     year_founded = fields.Int(allow_none=True)
     date_closed = fields.Date(allow_none=True)
+    office_id = fields.Int(allow_none=True)
+    office = fields.Nested('OfficeSchema', dump_only=True)
 
 class TaskSchema(Schema):
     id = fields.Int(dump_only=True)
@@ -203,11 +213,43 @@ class CommunicationSchema(Schema):
     church_id = fields.Int(allow_none=True)
     user_id = fields.Str(allow_none=True)
 
+# New schemas for admin features
+class PermissionSchema(Schema):
+    id = fields.Int(dump_only=True)
+    name = fields.Str(required=True)
+    description = fields.Str(allow_none=True)
+    created_at = fields.DateTime(dump_only=True)
+    updated_at = fields.DateTime(dump_only=True)
+
+class OfficeSchema(Schema):
+    id = fields.Int(dump_only=True)
+    name = fields.Str(required=True)
+    address = fields.Str(allow_none=True)
+    city = fields.Str(allow_none=True)
+    state = fields.Str(validate=validate.OneOf([x[0] for x in STATE_CHOICES]), allow_none=True)
+    zip_code = fields.Str(allow_none=True)
+    phone = fields.Str(allow_none=True)
+    email = fields.Email(allow_none=True)
+    created_at = fields.DateTime(dump_only=True)
+    updated_at = fields.DateTime(dump_only=True)
+
+class UserOfficeSchema(Schema):
+    id = fields.Int(dump_only=True)
+    user_id = fields.Str(required=True)
+    office_id = fields.Int(required=True)
+    role = fields.Str(validate=validate.OneOf([x[0] for x in ROLE_CHOICES]), required=True)
+    created_at = fields.DateTime(dump_only=True)
+    updated_at = fields.DateTime(dump_only=True)
+    office = fields.Nested(OfficeSchema, dump_only=True)
+
 # Initialize schemas
 person_schema = PersonSchema()
 church_schema = ChurchSchema()
 task_schema = TaskSchema()
 communication_schema = CommunicationSchema()
+permission_schema = PermissionSchema()
+office_schema = OfficeSchema()
+user_office_schema = UserOfficeSchema()
 
 class Contacts(Base):
     __tablename__ = 'contacts'
@@ -313,18 +355,20 @@ class Church(Contacts):
     reason_closed = Column(Text)
     year_founded = Column(Integer)
     date_closed = Column(Date)
+    office_id = Column(Integer, ForeignKey('offices.id'), nullable=True)
     
     people = relationship("Person", back_populates="church", foreign_keys=[Person.church_id])
     tasks = relationship("Task", back_populates="church")
     communications = relationship("Communication", back_populates="church")
     main_contact = relationship("Person", foreign_keys=[main_contact_id], backref="churches_main_contact")
+    office = relationship("Office", back_populates="churches")
     
     __mapper_args__ = {
         'polymorphic_identity': 'church',
     }
     
     def __repr__(self):
-        return f"<Church(name='{self.church_name}', location='{self.location}')>"
+        return f"<Church(id={self.id}, name='{self.church_name}')>"
 
 class Task(Base):
     __tablename__ = 'tasks'
@@ -389,6 +433,55 @@ class EmailSignature(Base):
 
     def __repr__(self):
         return f"<EmailSignature(name='{self.name}', user_id='{self.user_id}')>"
+
+# New models for admin features
+class Permission(Base):
+    __tablename__ = 'permissions'
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False, unique=True)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    def __repr__(self):
+        return f"<Permission(id={self.id}, name='{self.name}')>"
+
+class Office(Base):
+    __tablename__ = 'offices'
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False)
+    address = Column(String(255), nullable=True)
+    city = Column(String(100), nullable=True)
+    state = Column(String(2), nullable=True)
+    zip_code = Column(String(10), nullable=True)
+    phone = Column(String(20), nullable=True)
+    email = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    # Relationships
+    churches = relationship("Church", back_populates="office")
+    
+    def __repr__(self):
+        return f"<Office(id={self.id}, name='{self.name}')>"
+
+class UserOffice(Base):
+    __tablename__ = 'user_offices'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String(128), nullable=False)
+    office_id = Column(Integer, ForeignKey('offices.id'), nullable=False)
+    role = Column(String(50), nullable=False)  # 'super_admin', 'office_admin', 'standard_user', 'limited_user'
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    # Relationship
+    office = relationship("Office")
+    
+    def __repr__(self):
+        return f"<UserOffice(user_id='{self.user_id}', office_id={self.office_id}, role='{self.role}')>"
 
 engine = create_engine('sqlite:///mobilize_crm.db')
 Base.metadata.create_all(engine)
