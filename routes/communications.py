@@ -27,8 +27,15 @@ def communications_route():
         person_id = request.args.get('person_id')
         church_id = request.args.get('church_id')
         
-        # Start with a base query
-        query = session.query(Communication)
+        # Add pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = 50  # Limit the number of communications per page
+        
+        # Start with a base query with eager loading of relationships
+        query = session.query(Communication).options(
+            db.joinedload(Communication.person),
+            db.joinedload(Communication.church)
+        )
         
         # Apply filters
         if person_id:
@@ -57,6 +64,12 @@ def communications_route():
             
         # Order by date_sent, handling NULL values
         query = query.order_by(func.coalesce(Communication.date_sent, datetime(1900, 1, 1)).desc())
+        
+        # Get total count for pagination info
+        total_count = query.count()
+        
+        # Apply pagination
+        query = query.limit(per_page).offset((page - 1) * per_page)
         
         # Execute the query
         all_communications = query.all()
@@ -90,25 +103,52 @@ def communications_route():
         # Get the filter name if applicable
         filter_name = None
         if person_id:
-            person = session.query(Person).filter(Person.id == person_id_int).first()
-            if person:
-                filter_name = person.get_name()
+            try:
+                person_id_int = int(person_id)
+                person = session.query(Person).filter(Person.id == person_id_int).first()
+                if person:
+                    # Use first_name and last_name directly instead of get_name()
+                    filter_name = f"{person.first_name} {person.last_name}"
+            except ValueError:
+                current_app.logger.error(f"Invalid person_id: {person_id}")
         elif church_id:
-            church = session.query(Church).filter(Church.id == church_id_int).first()
-            if church:
-                filter_name = church.get_name()
+            try:
+                church_id_int = int(church_id)
+                church = session.query(Church).filter(Church.id == church_id_int).first()
+                if church:
+                    # Use church_name directly instead of get_name()
+                    filter_name = church.church_name
+            except ValueError:
+                current_app.logger.error(f"Invalid church_id: {church_id}")
         
         # Debug the first few communications
         for i, comm in enumerate(communications_list[:5]):
-            current_app.logger.debug(f"Communication {i+1}: ID={comm.id}, Type={comm.type}, Subject={comm.subject}, Date={comm.date_sent}, User ID={comm.user_id}")
+            current_app.logger.debug(f"Communication {i+1}: ID={comm.id}, Type={comm.type}, Subject={comm.subject}, Person ID={comm.person_id}, User ID={comm.user_id}, Gmail Message ID={comm.gmail_message_id}")
         
-        people_list = session.query(Person).all()
-        churches_list = session.query(Church).all()
+        # Fetch people and churches in separate queries to avoid loading all communications
+        people_list = session.query(Person.id, Person.first_name, Person.last_name).all()
+        churches_list = session.query(Church.id, Church.church_name).all()
+        
+        # Calculate pagination info
+        total_pages = (total_count + per_page - 1) // per_page
+        has_next = page < total_pages
+        has_prev = page > 1
+        
+        # Import Python's built-in max and min functions for use in the template
+        import builtins
+        
         return render_template('communications.html', 
                              communications=communications_list, 
                              people=people_list, 
                              churches=churches_list,
-                             filter_name=filter_name)
+                             filter_name=filter_name,
+                             page=page,
+                             total_pages=total_pages,
+                             has_next=has_next,
+                             has_prev=has_prev,
+                             total_count=total_count,
+                             max=builtins.max,
+                             min=builtins.min)
 
 @communications_bp.route('/communications/all-communications')
 def all_communications_route():
@@ -124,10 +164,17 @@ def all_communications_route():
         church_id = request.args.get('church_id')
         search_term = request.args.get('search', '')
         
-        current_app.logger.debug(f"all_communications_route called with person_id={person_id}, church_id={church_id}, user_id={user_id}, search_term={search_term}")
+        # Add pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = 50  # Limit the number of communications per page
         
-        # Start with a base query
-        query = session.query(Communication)
+        current_app.logger.debug(f"all_communications_route called with person_id={person_id}, church_id={church_id}, user_id={user_id}, search_term={search_term}, page={page}")
+        
+        # Start with a base query with eager loading
+        query = session.query(Communication).options(
+            db.joinedload(Communication.person),
+            db.joinedload(Communication.church)
+        )
         
         # Apply filters
         if person_id:
@@ -154,8 +201,32 @@ def all_communications_route():
             query = query.filter((Communication.user_id == user_id) | (Communication.user_id == None))
             current_app.logger.debug(f"Filtering communications by user_id={user_id} or user_id=None")
             
+        # Apply search term if provided
+        if search_term:
+            # Join with Person and Church to search in their fields too
+            query = query.outerjoin(Person, Communication.person_id == Person.id)
+            query = query.outerjoin(Church, Communication.church_id == Church.id)
+            
+            # Search in multiple fields
+            search_filter = (
+                func.lower(Communication.message).contains(search_term.lower()) |
+                func.lower(Communication.subject).contains(search_term.lower()) |
+                func.lower(Person.first_name).contains(search_term.lower()) |
+                func.lower(Person.last_name).contains(search_term.lower()) |
+                func.lower(Person.email).contains(search_term.lower()) |
+                func.lower(Church.church_name).contains(search_term.lower()) |
+                func.lower(Church.email).contains(search_term.lower())
+            )
+            query = query.filter(search_filter)
+            
         # Order by date_sent, handling NULL values
         query = query.order_by(func.coalesce(Communication.date_sent, datetime(1900, 1, 1)).desc())
+        
+        # Get total count for pagination
+        total_count = query.count()
+        
+        # Apply pagination
+        query = query.limit(per_page).offset((page - 1) * per_page)
         
         # Debug the SQL query
         current_app.logger.debug(f"SQL Query: {query}")
@@ -196,10 +267,8 @@ def all_communications_route():
                 person_id_int = int(person_id)
                 person = session.query(Person).filter_by(id=person_id_int).first()
                 if person:
-                    filter_name = person.get_name()
-                    current_app.logger.debug(f"Found person: {filter_name}")
-                else:
-                    current_app.logger.warning(f"Person with ID {person_id_int} not found")
+                    # Use first_name and last_name directly instead of get_name()
+                    filter_name = f"{person.first_name} {person.last_name}"
             except ValueError:
                 current_app.logger.error(f"Invalid person_id: {person_id}")
         elif church_id:
@@ -207,10 +276,8 @@ def all_communications_route():
                 church_id_int = int(church_id)
                 church = session.query(Church).filter_by(id=church_id_int).first()
                 if church:
-                    filter_name = church.get_name()
-                    current_app.logger.debug(f"Found church: {filter_name}")
-                else:
-                    current_app.logger.warning(f"Church with ID {church_id_int} not found")
+                    # Use church_name directly instead of get_name()
+                    filter_name = church.church_name
             except ValueError:
                 current_app.logger.error(f"Invalid church_id: {church_id}")
                 
@@ -220,13 +287,30 @@ def all_communications_route():
         for i, comm in enumerate(communications_list[:5]):
             current_app.logger.debug(f"Communication {i+1}: ID={comm.id}, Type={comm.type}, Subject={comm.subject}, Person ID={comm.person_id}, User ID={comm.user_id}, Gmail Message ID={comm.gmail_message_id}")
         
-        people_list = session.query(Person).all()
-        churches_list = session.query(Church).all()
+        # Fetch people and churches in separate queries to avoid loading all communications
+        people_list = session.query(Person.id, Person.first_name, Person.last_name).all()
+        churches_list = session.query(Church.id, Church.church_name).all()
+        
+        # Calculate pagination info
+        total_pages = (total_count + per_page - 1) // per_page
+        has_next = page < total_pages
+        has_prev = page > 1
+        
+        # Import Python's built-in max and min functions for use in the template
+        import builtins
+        
         return render_template('all_communications.html', 
                              communications=communications_list, 
                              people=people_list, 
                              churches=churches_list,
-                             filter_name=filter_name)
+                             filter_name=filter_name,
+                             page=page,
+                             total_pages=total_pages,
+                             has_next=has_next,
+                             has_prev=has_prev,
+                             total_count=total_count,
+                             max=builtins.max,
+                             min=builtins.min)
 
 @communications_bp.route('/communications/send', methods=['POST'])
 def send_communication_route():
@@ -571,9 +655,16 @@ def get_people_api():
 def api_get_churches():
     with session_scope() as session:
         churches = session.query(Church).all()
+        churches_data = []
+        for church in churches:
+            if hasattr(church, 'get_name'):
+                name = church.get_name()
+            else:
+                name = church.church_name
+            churches_data.append({'id': church.id, 'name': name})
         return jsonify({
             'success': True,
-            'churches': [{'id': church.id, 'name': church.get_name()} for church in churches]
+            'churches': churches_data
         })
 
 @communications_bp.route('/api/communications/search')
@@ -585,12 +676,17 @@ def search_communications():
     search_term = request.args.get('q', '').lower()
     person_id = request.args.get('person_id')
     church_id = request.args.get('church_id')
+    page = request.args.get('page', 1, type=int)
+    per_page = 50  # Limit results per page
     
-    current_app.logger.debug(f"Searching communications with term: {search_term}, person_id: {person_id}, church_id: {church_id}")
+    current_app.logger.debug(f"Searching communications with term: {search_term}, person_id: {person_id}, church_id: {church_id}, page: {page}")
     
     with session_scope() as session:
-        # Start with a base query
-        query = session.query(Communication)
+        # Start with a base query with eager loading
+        query = session.query(Communication).options(
+            db.joinedload(Communication.person),
+            db.joinedload(Communication.church)
+        )
         
         # Apply filters
         if person_id:
@@ -631,6 +727,12 @@ def search_communications():
         # Order by date_sent
         query = query.order_by(func.coalesce(Communication.date_sent, datetime(1900, 1, 1)).desc())
         
+        # Get total count for pagination info
+        total_count = query.count()
+        
+        # Apply pagination
+        query = query.limit(per_page).offset((page - 1) * per_page)
+        
         # Execute the query
         results = query.all()
         
@@ -652,9 +754,15 @@ def search_communications():
         for comm in filtered_communications:
             recipient_name = "N/A"
             if comm.person:
-                recipient_name = comm.person.get_name()
+                if hasattr(comm.person, 'get_name'):
+                    recipient_name = comm.person.get_name()
+                else:
+                    recipient_name = f"{comm.person.first_name} {comm.person.last_name}"
             elif comm.church:
-                recipient_name = comm.church.get_name()
+                if hasattr(comm.church, 'get_name'):
+                    recipient_name = comm.church.get_name()
+                else:
+                    recipient_name = comm.church.church_name
                 
             communications_data.append({
                 'id': comm.id,
@@ -667,7 +775,18 @@ def search_communications():
                 'view_url': url_for('communications_bp.view_communication', comm_id=comm.id) if comm.type == 'Email' else None
             })
         
-        return jsonify(communications_data)
+        # Add pagination info to the response
+        response = {
+            'communications': communications_data,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total_count': total_count,
+                'total_pages': (total_count + per_page - 1) // per_page
+            }
+        }
+        
+        return jsonify(response)
 
 @communications_bp.route('/communications/<int:comm_id>')
 def view_communication(comm_id):

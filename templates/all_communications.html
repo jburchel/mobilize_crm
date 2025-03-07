@@ -15,6 +15,17 @@
     </div>
 </div>
 
+<!-- Page Loading Indicator -->
+<div id="pageLoadingIndicator" class="position-fixed top-0 start-0 w-100 h-100" style="background-color: rgba(255, 255, 255, 0.8); z-index: 1050;">
+    <div class="d-flex flex-column justify-content-center align-items-center h-100">
+        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h4 class="text-primary">Loading Communications</h4>
+        <p class="text-center">Please wait while we load your communications...</p>
+    </div>
+</div>
+
 <div class="container mt-4">
     <div class="row mb-4">
         <div class="col-md-12 d-flex justify-content-between align-items-center">
@@ -98,9 +109,17 @@
                                     </td>
                                     <td>
                                         {% if comm.person %}
-                                            {{ comm.person.get_name() }}
+                                            {% if comm.person is mapping or comm.person.__class__.__name__ == 'Row' %}
+                                                {{ comm.person.first_name }} {{ comm.person.last_name }}
+                                            {% else %}
+                                                {{ comm.person.get_name() }}
+                                            {% endif %}
                                         {% elif comm.church %}
-                                            {{ comm.church.get_name() }}
+                                            {% if comm.church is mapping or comm.church.__class__.__name__ == 'Row' %}
+                                                {{ comm.church.church_name }}
+                                            {% else %}
+                                                {{ comm.church.get_name() }}
+                                            {% endif %}
                                         {% else %}
                                             N/A
                                         {% endif %}
@@ -122,6 +141,36 @@
                             </tbody>
                         </table>
                     </div>
+                    
+                    <!-- Pagination Controls -->
+                    {% if total_pages > 1 %}
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            <span class="text-muted">Showing {{ communications|length }} of {{ total_count }} communications</span>
+                        </div>
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination">
+                                <li class="page-item {% if not has_prev %}disabled{% endif %}">
+                                    <a class="page-link" href="{{ url_for('communications_bp.all_communications_route', page=page-1, person_id=request.args.get('person_id'), church_id=request.args.get('church_id'), search=request.args.get('search', '')) }}" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                                
+                                {% for p in range(max(1, page-2), min(total_pages+1, page+3)) %}
+                                <li class="page-item {% if p == page %}active{% endif %}">
+                                    <a class="page-link" href="{{ url_for('communications_bp.all_communications_route', page=p, person_id=request.args.get('person_id'), church_id=request.args.get('church_id'), search=request.args.get('search', '')) }}">{{ p }}</a>
+                                </li>
+                                {% endfor %}
+                                
+                                <li class="page-item {% if not has_next %}disabled{% endif %}">
+                                    <a class="page-link" href="{{ url_for('communications_bp.all_communications_route', page=page+1, person_id=request.args.get('person_id'), church_id=request.args.get('church_id'), search=request.args.get('search', '')) }}" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -163,6 +212,15 @@
                         <label for="person_id" class="form-label">Person</label>
                         <select class="form-select" id="person_id" name="person_id">
                             <option value="">Select a person</option>
+                            {% for person in people %}
+                            <option value="{{ person.id }}">
+                                {% if person is mapping or person.__class__.__name__ == 'Row' %}
+                                    {{ person.first_name }} {{ person.last_name }}
+                                {% else %}
+                                    {{ person.get_name() }}
+                                {% endif %}
+                            </option>
+                            {% endfor %}
                         </select>
                     </div>
 
@@ -170,6 +228,15 @@
                         <label for="church_id" class="form-label">Church</label>
                         <select class="form-select" id="church_id" name="church_id">
                             <option value="">Select a church</option>
+                            {% for church in churches %}
+                            <option value="{{ church.id }}">
+                                {% if church is mapping or church.__class__.__name__ == 'Row' %}
+                                    {{ church.church_name }}
+                                {% else %}
+                                    {{ church.get_name() }}
+                                {% endif %}
+                            </option>
+                            {% endfor %}
                         </select>
                     </div>
 
@@ -236,6 +303,12 @@
 
     // Dynamic search functionality
     document.addEventListener('DOMContentLoaded', function() {
+        // Hide the page loading indicator when the page is fully loaded
+        const pageLoadingIndicator = document.getElementById('pageLoadingIndicator');
+        if (pageLoadingIndicator) {
+            pageLoadingIndicator.style.display = 'none';
+        }
+        
         // Check sync status when the page loads
         checkSyncStatus();
         

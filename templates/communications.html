@@ -15,6 +15,17 @@
     </div>
 </div>
 
+<!-- Page Loading Indicator -->
+<div id="pageLoadingIndicator" class="position-fixed top-0 start-0 w-100 h-100" style="background-color: rgba(255, 255, 255, 0.8); z-index: 1050;">
+    <div class="d-flex flex-column justify-content-center align-items-center h-100">
+        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h4 class="text-primary">Loading Communications</h4>
+        <p class="text-center">Please wait while we load your communications...</p>
+    </div>
+</div>
+
 <div class="container mt-4">
     <div class="row mb-4">
         <div class="col-md-12 d-flex justify-content-between align-items-center">
@@ -82,9 +93,17 @@
                                     </td>
                                     <td>
                                         {% if comm.person %}
-                                            {{ comm.person.get_name() }}
+                                            {% if comm.person is mapping or comm.person.__class__.__name__ == 'Row' %}
+                                                {{ comm.person.first_name }} {{ comm.person.last_name }}
+                                            {% else %}
+                                                {{ comm.person.get_name() }}
+                                            {% endif %}
                                         {% elif comm.church %}
-                                            {{ comm.church.get_name() }}
+                                            {% if comm.church is mapping or comm.church.__class__.__name__ == 'Row' %}
+                                                {{ comm.church.church_name }}
+                                            {% else %}
+                                                {{ comm.church.get_name() }}
+                                            {% endif %}
                                         {% else %}
                                             N/A
                                         {% endif %}
@@ -106,6 +125,36 @@
                             </tbody>
                         </table>
                     </div>
+                    
+                    <!-- Pagination Controls -->
+                    {% if total_pages > 1 %}
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            <span class="text-muted">Showing {{ communications|length }} of {{ total_count }} communications</span>
+                        </div>
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination">
+                                <li class="page-item {% if not has_prev %}disabled{% endif %}">
+                                    <a class="page-link" href="{{ url_for('communications_bp.communications_route', page=page-1, person_id=request.args.get('person_id'), church_id=request.args.get('church_id')) }}" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                                
+                                {% for p in range(max(1, page-2), min(total_pages+1, page+3)) %}
+                                <li class="page-item {% if p == page %}active{% endif %}">
+                                    <a class="page-link" href="{{ url_for('communications_bp.communications_route', page=p, person_id=request.args.get('person_id'), church_id=request.args.get('church_id')) }}">{{ p }}</a>
+                                </li>
+                                {% endfor %}
+                                
+                                <li class="page-item {% if not has_next %}disabled{% endif %}">
+                                    <a class="page-link" href="{{ url_for('communications_bp.communications_route', page=page+1, person_id=request.args.get('person_id'), church_id=request.args.get('church_id')) }}" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -148,7 +197,13 @@
                         <select class="form-select" id="person_id" name="person_id">
                             <option value="">Select a person</option>
                             {% for person in people %}
-                            <option value="{{ person.id }}">{{ person.get_name() }}</option>
+                            <option value="{{ person.id }}">
+                                {% if person is mapping or person.__class__.__name__ == 'Row' %}
+                                    {{ person.first_name }} {{ person.last_name }}
+                                {% else %}
+                                    {{ person.get_name() }}
+                                {% endif %}
+                            </option>
                             {% endfor %}
                         </select>
                     </div>
@@ -158,7 +213,13 @@
                         <select class="form-select" id="church_id" name="church_id">
                             <option value="">Select a church</option>
                             {% for church in churches %}
-                            <option value="{{ church.id }}">{{ church.get_name() }}</option>
+                            <option value="{{ church.id }}">
+                                {% if church is mapping or church.__class__.__name__ == 'Row' %}
+                                    {{ church.church_name }}
+                                {% else %}
+                                    {{ church.get_name() }}
+                                {% endif %}
+                            </option>
                             {% endfor %}
                         </select>
                     </div>
@@ -312,6 +373,12 @@
     
     // Check sync status when the page loads
     document.addEventListener('DOMContentLoaded', function() {
+        // Hide the page loading indicator when the page is fully loaded
+        const pageLoadingIndicator = document.getElementById('pageLoadingIndicator');
+        if (pageLoadingIndicator) {
+            pageLoadingIndicator.style.display = 'none';
+        }
+        
         checkSyncStatus();
         
         // Set up manual sync button
@@ -502,6 +569,7 @@
         const tableBody = document.getElementById('communicationsTableBody');
         const clearButton = document.getElementById('clearSearch');
         let searchTimeout;
+        let currentSearchPage = 1;
         
         // Show/hide clear button based on search input
         searchInput.addEventListener('input', function() {
@@ -516,6 +584,9 @@
             
             // Clear any pending API requests
             clearTimeout(searchTimeout);
+            
+            // Reset to first page when search term changes
+            currentSearchPage = 1;
             
             // Immediate client-side filtering for better UX
             communicationRows.forEach(row => {
@@ -538,7 +609,7 @@
             // If search term is at least 2 characters, fetch from API after a short delay
             if (searchTerm.length >= 2) {
                 searchTimeout = setTimeout(() => {
-                    fetchSearchResults(searchTerm);
+                    fetchSearchResults(searchTerm, currentSearchPage);
                 }, 300); // 300ms delay to avoid too many requests
             }
         });
@@ -558,10 +629,13 @@
             
             // Focus the search input
             searchInput.focus();
+            
+            // Reset pagination
+            document.querySelector('.pagination-container')?.remove();
         });
         
         // Function to fetch search results from the API
-        function fetchSearchResults(searchTerm) {
+        function fetchSearchResults(searchTerm, page = 1) {
             // Get current URL parameters
             const urlParams = new URLSearchParams(window.location.search);
             const personId = urlParams.get('person_id');
@@ -571,7 +645,7 @@
             document.getElementById('searchSpinner').classList.remove('d-none');
             
             // Build the API URL
-            let apiUrl = `/api/communications/search?q=${encodeURIComponent(searchTerm)}`;
+            let apiUrl = `/api/communications/search?q=${encodeURIComponent(searchTerm)}&page=${page}`;
             if (personId) apiUrl += `&person_id=${personId}`;
             if (churchId) apiUrl += `&church_id=${churchId}`;
             
@@ -585,7 +659,7 @@
                 })
                 .then(data => {
                     // Replace table content with search results
-                    updateTableWithResults(data);
+                    updateTableWithResults(data, searchTerm);
                 })
                 .catch(error => {
                     console.error('Error fetching search results:', error);
@@ -597,9 +671,12 @@
         }
         
         // Function to update the table with search results
-        function updateTableWithResults(communications) {
+        function updateTableWithResults(data, searchTerm) {
             // Clear the table
             tableBody.innerHTML = '';
+            
+            const communications = data.communications || [];
+            const pagination = data.pagination || {};
             
             if (communications.length === 0) {
                 // No results found
@@ -610,6 +687,9 @@
                     </td>
                 `;
                 tableBody.appendChild(noResultsRow);
+                
+                // Remove pagination if it exists
+                document.querySelector('.pagination-container')?.remove();
                 return;
             }
             
@@ -650,6 +730,78 @@
                 
                 tableBody.appendChild(row);
             });
+            
+            // Add pagination if needed
+            if (pagination.total_pages > 1) {
+                // Remove existing pagination if it exists
+                document.querySelector('.pagination-container')?.remove();
+                
+                // Create pagination container
+                const paginationContainer = document.createElement('div');
+                paginationContainer.className = 'pagination-container d-flex justify-content-between align-items-center mt-3';
+                
+                // Create info text
+                const infoText = document.createElement('div');
+                infoText.innerHTML = `<span class="text-muted">Showing ${communications.length} of ${pagination.total_count} communications</span>`;
+                
+                // Create pagination nav
+                const nav = document.createElement('nav');
+                nav.setAttribute('aria-label', 'Search results pagination');
+                
+                const ul = document.createElement('ul');
+                ul.className = 'pagination';
+                
+                // Previous button
+                const prevLi = document.createElement('li');
+                prevLi.className = `page-item ${pagination.page <= 1 ? 'disabled' : ''}`;
+                prevLi.innerHTML = `<a class="page-link" href="#" data-page="${pagination.page - 1}" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a>`;
+                
+                // Page numbers
+                const startPage = Math.max(1, pagination.page - 2);
+                const endPage = Math.min(pagination.total_pages, pagination.page + 2);
+                
+                const pageItems = [];
+                for (let i = startPage; i <= endPage; i++) {
+                    const li = document.createElement('li');
+                    li.className = `page-item ${i === pagination.page ? 'active' : ''}`;
+                    li.innerHTML = `<a class="page-link" href="#" data-page="${i}">${i}</a>`;
+                    pageItems.push(li);
+                }
+                
+                // Next button
+                const nextLi = document.createElement('li');
+                nextLi.className = `page-item ${pagination.page >= pagination.total_pages ? 'disabled' : ''}`;
+                nextLi.innerHTML = `<a class="page-link" href="#" data-page="${pagination.page + 1}" aria-label="Next"><span aria-hidden="true">&raquo;</span></a>`;
+                
+                // Assemble pagination
+                ul.appendChild(prevLi);
+                pageItems.forEach(item => ul.appendChild(item));
+                ul.appendChild(nextLi);
+                nav.appendChild(ul);
+                
+                // Add event listeners to pagination links
+                ul.querySelectorAll('a.page-link').forEach(link => {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const page = parseInt(this.getAttribute('data-page'));
+                        if (!isNaN(page) && page > 0) {
+                            currentSearchPage = page;
+                            fetchSearchResults(searchTerm, page);
+                        }
+                    });
+                });
+                
+                // Assemble container
+                paginationContainer.appendChild(infoText);
+                paginationContainer.appendChild(nav);
+                
+                // Add to DOM after the table
+                const cardBody = tableBody.closest('.card-body');
+                cardBody.appendChild(paginationContainer);
+            } else {
+                // Remove pagination if it exists
+                document.querySelector('.pagination-container')?.remove();
+            }
         }
     });
 </script>

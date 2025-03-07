@@ -30,11 +30,27 @@
                         {% if recipient %}
                             {% if communication.person_id %}
                                 <a href="{{ url_for('people_bp.person_detail', person_id=communication.person_id) }}">
-                                    {{ recipient.get_name() }}
+                                    {% if recipient is mapping or recipient.__class__.__name__ == 'Row' %}
+                                        {% if 'church_name' in recipient %}
+                                            {{ recipient.church_name }}
+                                        {% else %}
+                                            {{ recipient.first_name }} {{ recipient.last_name }}
+                                        {% endif %}
+                                    {% else %}
+                                        {{ recipient.get_name() }}
+                                    {% endif %}
                                 </a>
                             {% elif communication.church_id %}
                                 <a href="{{ url_for('churches_bp.church_detail', church_id=communication.church_id) }}">
-                                    {{ recipient.get_name() }}
+                                    {% if recipient is mapping or recipient.__class__.__name__ == 'Row' %}
+                                        {% if 'church_name' in recipient %}
+                                            {{ recipient.church_name }}
+                                        {% else %}
+                                            {{ recipient.first_name }} {{ recipient.last_name }}
+                                        {% endif %}
+                                    {% else %}
+                                        {{ recipient.get_name() }}
+                                    {% endif %}
                                 </a>
                             {% endif %}
                         {% else %}
@@ -90,21 +106,33 @@
                             </div>
                             
                             <div id="person-field" class="mb-3">
-                                <label for="person-id" class="form-label">Person</label>
-                                <select class="form-select" id="person-id" name="person_id">
+                                <label for="person_id" class="form-label">Person</label>
+                                <select class="form-select" id="person_id" name="person_id">
                                     <option value="">Select a person</option>
                                     {% for person in people %}
-                                    <option value="{{ person.id }}">{{ person.get_name() }}</option>
+                                    <option value="{{ person.id }}" {% if communication.person_id == person.id %}selected{% endif %}>
+                                        {% if person is mapping or person.__class__.__name__ == 'Row' %}
+                                            {{ person.first_name }} {{ person.last_name }}
+                                        {% else %}
+                                            {{ person.get_name() }}
+                                        {% endif %}
+                                    </option>
                                     {% endfor %}
                                 </select>
                             </div>
                             
                             <div id="church-field" class="mb-3" style="display: none;">
-                                <label for="church-id" class="form-label">Church</label>
-                                <select class="form-select" id="church-id" name="church_id">
+                                <label for="church_id" class="form-label">Church</label>
+                                <select class="form-select" id="church_id" name="church_id">
                                     <option value="">Select a church</option>
                                     {% for church in churches %}
-                                    <option value="{{ church.id }}">{{ church.get_name() }}</option>
+                                    <option value="{{ church.id }}" {% if communication.church_id == church.id %}selected{% endif %}>
+                                        {% if church is mapping or church.__class__.__name__ == 'Row' %}
+                                            {{ church.church_name }}
+                                        {% else %}
+                                            {{ church.get_name() }}
+                                        {% endif %}
+                                    </option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -181,11 +209,11 @@
         if (recipientType === 'person') {
             personField.style.display = 'block';
             churchField.style.display = 'none';
-            document.getElementById('church-id').value = '';
+            document.getElementById('church_id').value = '';
         } else {
             personField.style.display = 'none';
             churchField.style.display = 'block';
-            document.getElementById('person-id').value = '';
+            document.getElementById('person_id').value = '';
         }
     }
     
@@ -209,14 +237,14 @@
             const recipientType = document.getElementById('recipient-type').value;
             
             if (recipientType === 'person') {
-                const personId = document.getElementById('person-id').value;
+                const personId = document.getElementById('person_id').value;
                 if (!personId) {
                     showStatus('Please select a person', 'danger');
                     return;
                 }
                 data.person_id = personId;
             } else {
-                const churchId = document.getElementById('church-id').value;
+                const churchId = document.getElementById('church_id').value;
                 if (!churchId) {
                     showStatus('Please select a church', 'danger');
                     return;
