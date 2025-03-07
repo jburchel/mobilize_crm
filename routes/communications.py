@@ -59,8 +59,8 @@ def communications_route():
         # Filter by user_id if it's set in the communication
         # But don't exclude communications without a user_id
         if user_id:
-            query = query.filter((Communication.user_id == user_id) | (Communication.user_id == None))
-            current_app.logger.debug(f"Filtering communications by user_id={user_id} or user_id=None")
+            query = query.filter(Communication.user_id == user_id)
+            current_app.logger.debug(f"Filtering communications by user_id={user_id}")
             
         # Order by date_sent, handling NULL values
         query = query.order_by(func.coalesce(Communication.date_sent, datetime(1900, 1, 1)).desc())
@@ -198,8 +198,8 @@ def all_communications_route():
         # Filter by user_id if it's set in the communication
         # But don't exclude communications without a user_id
         if user_id:
-            query = query.filter((Communication.user_id == user_id) | (Communication.user_id == None))
-            current_app.logger.debug(f"Filtering communications by user_id={user_id} or user_id=None")
+            query = query.filter(Communication.user_id == user_id)
+            current_app.logger.debug(f"Filtering communications by user_id={user_id}")
             
         # Apply search term if provided
         if search_term:
@@ -704,7 +704,7 @@ def search_communications():
                 current_app.logger.error(f"Invalid church_id: {church_id}")
         
         # Filter by user_id
-        query = query.filter((Communication.user_id == user_id) | (Communication.user_id == None))
+        query = query.filter(Communication.user_id == user_id)
         
         # Apply search term if provided
         if search_term:

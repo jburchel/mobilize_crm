@@ -903,13 +903,29 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get token from session storage
             const token = sessionStorage.getItem('googleAccessToken');
             if (!token) {
-                showMessage('Google access token not found. Please sign out and sign in again.', 'error');
+                // Try to fetch token status from server
+                const response = await fetch('/google/status', {
+                    headers: {
+                        'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.connected) {
+                    // If server says we're connected but we don't have a token,
+                    // we might need to refresh the page to get the token
+                    showMessage('Google connection exists but token not found in browser. Try refreshing the page.', 'warning');
+                } else {
+                    // We're not connected to Google
+                    showMessage('Google Calendar integration requires authentication. Please connect your Google account in settings.', 'warning');
+                }
                 return null;
             }
             return token;
         } catch (error) {
             console.error('Error getting Google token:', error);
-            showMessage('Failed to get Google access token. Please try again.', 'error');
+            showMessage('Failed to get Google access token. Please try again or reconnect your Google account.', 'error');
             return null;
         }
     }

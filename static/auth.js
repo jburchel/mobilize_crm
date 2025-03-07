@@ -337,8 +337,27 @@ class AuthManager {
                             console.log("Google token storage response:", data);
                             if (data.success) {
                                 console.log("Google token stored successfully on server");
+                                
+                                // Verify the token works by checking Google status
+                                return fetch('/google/status', {
+                                    headers: {
+                                        'Authorization': `Bearer ${token}`,
+                                        'X-Google-Token': googleAccessToken
+                                    }
+                                });
                             } else {
                                 console.error("Failed to store Google token:", data.message);
+                                throw new Error(data.message);
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(statusData => {
+                            console.log("Google connection status:", statusData);
+                            if (!statusData.connected) {
+                                console.warn("Google token is invalid or expired, will prompt for re-authentication");
+                                // Clear the invalid token
+                                sessionStorage.removeItem('googleAccessToken');
+                                // We could add code here to prompt for re-authentication if needed
                             }
                         })
                         .catch(error => {
