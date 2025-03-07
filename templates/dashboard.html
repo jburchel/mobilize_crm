@@ -134,7 +134,7 @@
                         {% for task in pending_tasks %}
                         <tr>
                             <td>
-                                <a href="{{ url_for('tasks_bp.view_task', task_id=task.id) }}">
+                                <a href="{{ url_for('tasks_bp.get_task', task_id=task.id) }}">
                                     {{ task.title }}
                                 </a>
                             </td>
