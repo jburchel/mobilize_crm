@@ -2,33 +2,37 @@
 
 ## Pre-Deployment Checklist
 
-- [x] Ensure all routes are working correctly locally
-- [x] Verify Gmail sync functionality is working
-- [x] Check that authentication is working properly
-- [x] Ensure database connections are functioning
+- [x] Verify all routes are working locally
+- [x] Verify Gmail sync functionality
+- [x] Check authentication
+- [x] Test database connections
+- [x] Verify environment variables
 - [x] Test all critical user flows (people, churches, communications, tasks)
-- [x] Verify that environment variables are properly set
 - [x] Run the application locally to catch any obvious errors
 
 ## Deployment Process
 
-- [x] Make sure you're on the stable branch: `git checkout stable-working-version`
+- [x] Ensure you're on the stable-working-version branch
 - [x] Commit any changes with clear, descriptive messages
 - [x] Push changes to GitHub: `git push origin stable-working-version`
 - [x] Run the deployment script: `./deploy.sh`
 - [x] Verify the deployment was successful
 - [x] Check the application at https://mobilize-crm.org
 - [x] Test critical functionality in the production environment
+- [x] Check that the custom domain is properly mapped
 
 ## Post-Deployment Verification
 
-- [x] Verify people and churches pages are accessible
-- [x] Check that Gmail sync is working without errors
-- [x] Verify authentication and user sessions are working
-- [x] Test email sending functionality
-- [x] Check background jobs are running properly
-- [x] Verify database connections and queries are working
-- [x] Monitor logs for any unexpected errors
+- [x] Verify the application is accessible at the custom domain
+- [x] Verify login functionality
+- [x] Verify dashboard access
+- [x] Verify people/churches pages
+- [x] Verify Gmail sync
+- [x] Verify email sending
+- [x] Verify background jobs
+- [x] Verify database connections
+- [x] Monitor logs for errors
+- [x] Fixed route name mismatch: renamed `people` function to `list_people` to match dashboard template references
 
 ## Common Issues and Solutions
 
@@ -51,6 +55,10 @@
 
 ## Version Control Best Practices
 
+- [x] Use descriptive commit messages
+- [x] Keep the stable-working-version branch clean
+- [x] Test changes thoroughly before merging to stable-working-version
+- [x] Document significant changes
 - [x] Create feature branches for new development
 - [x] Make small, focused commits with clear messages
 - [x] Use pull requests for code review
@@ -63,6 +71,9 @@
 - [x] Document all environment variables
 - [x] Keep a record of deployment history
 - [x] Maintain a stable branch that's known to work
+- [x] Ensure database backups are configured
+- [x] Verify backup restoration process
+- [x] Document recovery procedures
 
 ## Monitoring and Maintenance
 
@@ -71,6 +82,10 @@
 - [x] Update dependencies periodically
 - [x] Schedule regular maintenance windows
 - [x] Keep documentation up to date
+- [x] Set up monitoring for application health
+- [x] Configure alerts for critical errors
+- [x] Regularly review logs for issues
+- [x] Schedule routine maintenance
 
 ## Emergency Rollback Procedure
 
