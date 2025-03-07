@@ -165,7 +165,8 @@ def sync_gmail_emails():
                 logger.warning(f"User {user_id} has no access token")
                 continue
                 
-            logger.info(f"Syncing emails for user {user_id}")
+            user_email = tokens.get('user_email')
+            logger.info(f"Syncing emails for user {user_id} with email {user_email}")
             
             try:
                 # Check if we have a BASE_URL configured
@@ -183,9 +184,16 @@ def sync_gmail_emails():
                         # Use X-Google-Token header which is explicitly allowed in auth_required
                         'X-Google-Token': tokens["access_token"],
                         # Pass the user ID in the custom header
-                        'X-User-ID': user_id
+                        'X-User-ID': user_id,
+                        'Content-Type': 'application/json'
+                    },
+                    json={
+                        'user_id': user_id,  # Also include in the request body for redundancy
+                        'user_email': user_email  # Include the user's email
                     }
                 )
+                
+                logger.info(f"Sync result: {response}")
                 
                 if response.status_code == 200:
                     result = response.json()

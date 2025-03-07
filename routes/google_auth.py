@@ -306,6 +306,16 @@ def save_user_tokens(token_data):
         current_app.logger.debug(f"Token data keys: {token_data.keys()}")
         current_app.logger.debug(f"Token preview: {token_data.get('token', '')[:10]}...")
         
+        # Get the user ID and email
+        user_id = get_current_user_id()
+        user_email = session.get('user_email')
+        
+        if not user_id:
+            current_app.logger.error("Cannot save tokens: No user_id available")
+            return
+            
+        current_app.logger.info(f"Saving tokens for user_id: {user_id}, email: {user_email}")
+        
         # Connect to the database
         conn = sqlite3.connect('mobilize_crm.db')
         cursor = conn.cursor()
@@ -315,6 +325,7 @@ def save_user_tokens(token_data):
             CREATE TABLE IF NOT EXISTS google_tokens (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id VARCHAR NOT NULL,
+                user_email VARCHAR,
                 access_token VARCHAR NOT NULL,
                 refresh_token VARCHAR,
                 token_uri VARCHAR,
@@ -326,13 +337,21 @@ def save_user_tokens(token_data):
             )
         """)
         
+        # Check if we need to add the user_email column
+        try:
+            cursor.execute("SELECT user_email FROM google_tokens LIMIT 1")
+        except sqlite3.OperationalError:
+            current_app.logger.info("Adding user_email column to google_tokens table")
+            cursor.execute("ALTER TABLE google_tokens ADD COLUMN user_email VARCHAR")
+        
         # Insert or update the token
         cursor.execute("""
             INSERT INTO google_tokens 
-            (user_id, access_token, refresh_token, token_uri, client_id, client_secret, scopes, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (user_id, user_email, access_token, refresh_token, token_uri, client_id, client_secret, scopes, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            get_current_user_id(),
+            user_id,
+            user_email,
             token_data['token'],
             token_data.get('refresh_token'),
             token_data['token_uri'],
@@ -424,6 +443,39 @@ def oauth2callback():
     credentials = flow.credentials
     session['credentials'] = credentials_to_dict(credentials)
     
+    # Get user information from Google
+    try:
+        user_info_service = build('oauth2', 'v2', credentials=credentials)
+        user_info = user_info_service.userinfo().get().execute()
+        
+        # Get the user's email from Google
+        google_email = user_info.get('email')
+        
+        if not google_email:
+            current_app.logger.error("Failed to get user email from Google")
+            from flask import flash
+            flash('Failed to get user email from Google. Please try again.', 'danger')
+            return redirect(url_for('dashboard_bp.dashboard'))
+            
+        current_app.logger.info(f"User authenticated with Google email: {google_email}")
+        
+        # Store the user's email in the session
+        session['user_email'] = google_email
+        
+        # Ensure we have a user_id in the session (from Firebase auth)
+        user_id = session.get('user_id')
+        
+        if not user_id:
+            current_app.logger.warning(f"No Firebase user_id in session for Google email: {google_email}")
+            from flask import flash
+            flash('Please sign in with Firebase first before connecting Google.', 'warning')
+            return redirect(url_for('dashboard_bp.dashboard'))
+            
+        current_app.logger.info(f"Associating Google credentials with Firebase user_id: {user_id}")
+    except Exception as e:
+        current_app.logger.error(f"Error getting user info from Google: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+    
     # Also save to database for background jobs
     save_user_tokens(credentials_to_dict(credentials))
     
@@ -508,6 +560,7 @@ def get_all_user_tokens():
             CREATE TABLE IF NOT EXISTS google_tokens (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id VARCHAR NOT NULL,
+                user_email VARCHAR,
                 access_token VARCHAR NOT NULL,
                 refresh_token VARCHAR,
                 token_uri VARCHAR,
@@ -519,9 +572,16 @@ def get_all_user_tokens():
             )
         """)
         
+        # Check if we need to add the user_email column
+        try:
+            cursor.execute("SELECT user_email FROM google_tokens LIMIT 1")
+        except sqlite3.OperationalError:
+            current_app.logger.info("Adding user_email column to google_tokens table")
+            cursor.execute("ALTER TABLE google_tokens ADD COLUMN user_email VARCHAR")
+        
         # Query for all tokens
         cursor.execute("""
-            SELECT user_id, access_token, refresh_token, token_uri, client_id, client_secret, scopes
+            SELECT user_id, user_email, access_token, refresh_token, token_uri, client_id, client_secret, scopes
             FROM google_tokens
             WHERE access_token IS NOT NULL
             GROUP BY user_id
@@ -535,13 +595,18 @@ def get_all_user_tokens():
         for row in results:
             user_id = row[0] or 'default'
             tokens[user_id] = {
-                'access_token': row[1],
-                'refresh_token': row[2],
-                'token_uri': row[3],
-                'client_id': row[4],
-                'client_secret': row[5],
-                'scopes': row[6].split(' ') if row[6] else []
+                'user_email': row[1],
+                'access_token': row[2],
+                'refresh_token': row[3],
+                'token_uri': row[4],
+                'client_id': row[5],
+                'client_secret': row[6],
+                'scopes': row[7].split(' ') if row[7] else []
             }
+        
+        current_app.logger.info(f"Retrieved tokens for {len(tokens)} users")
+        for user_id, token_data in tokens.items():
+            current_app.logger.debug(f"User {user_id} has email: {token_data.get('user_email')}")
         
         return tokens
     except Exception as e:

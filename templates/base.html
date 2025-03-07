@@ -80,10 +80,8 @@
             <div class="sidebar-footer">
                 <div class="auth-container">
                     <div class="footer-links">
-                        <a href="/contacts" class="nav-link {% if request.endpoint and 'contacts_bp' in request.endpoint %}active{% endif %}"><span><i class="bi bi-journal-richtext"></i></span><span>Contacts</span></a>
-                        <a href="/dashboard/email-signatures" class="nav-link {% if request.endpoint == 'dashboard_bp.email_signatures' %}active{% endif %}"><span><i class="bi bi-envelope"></i></span><span>Email Signatures</span></a>
-                        <a href="/dashboard/google-settings" class="nav-link {% if request.endpoint == 'dashboard_bp.google_settings' %}active{% endif %}"><span>⚙️</span><span>Google Settings</span></a>
-                        <a href="/import-csv" class="nav-link {% if request.endpoint == 'import_csv_bp.import_csv' %}active{% endif %}"><span><i class="bi bi-file-earmark-arrow-up"></i></span><span>Import CSV</span></a>
+                        <a href="/contacts" class="nav-link {% if request.endpoint and 'contacts_bp' in request.endpoint %}active{% endif %}"><span><i class="bi bi-cloud-arrow-down"></i></span><span>Google Contact Sync</span></a>
+                        <a href="/dashboard/settings" class="nav-link {% if request.endpoint == 'dashboard_bp.settings' %}active{% endif %}"><span><i class="bi bi-gear"></i></span><span>Settings</span></a>
                         <button id="sign-out" class="hidden"><span>Sign out</span></button>
                     </div>
                     <button id="sign-in" class="btn-google">

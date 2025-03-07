@@ -212,7 +212,19 @@ def send_email():
             logger.debug("Getting user profile from Gmail")
             profile = gmail_service.users().getProfile(userId='me').execute()
             sender_email = profile['emailAddress']
-            logger.info(f"Sender email: {sender_email}")
+            logger.info(f"Sender email from Gmail API: {sender_email}")
+            
+            # Get user's name from session or database
+            from routes.google_auth import get_current_user_id
+            user_id = get_current_user_id()
+            user_email = session.get('user_email')
+            
+            # If we have a user_email in the session, verify it matches the Gmail profile
+            if user_email and user_email != sender_email:
+                logger.warning(f"Session email ({user_email}) doesn't match Gmail profile email ({sender_email})")
+                # We'll still use the Gmail profile email as it's the one authorized to send
+            
+            logger.info(f"Using sender email: {sender_email} for user_id: {user_id}")
         except Exception as e:
             logger.error(f"Error getting user profile: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
@@ -591,6 +603,7 @@ def _sync_emails_impl():
         # Get the current user ID
         from routes.google_auth import get_current_user_id, get_access_token_from_header
         user_id = get_current_user_id()
+        user_email = session.get('user_email')
         
         # If no user ID from auth, check for X-User-ID header (used by background jobs)
         if not user_id:
@@ -598,13 +611,23 @@ def _sync_emails_impl():
             if user_id:
                 current_app.logger.info(f"Using user ID from X-User-ID header: {user_id}")
             else:
-                current_app.logger.warning("No user ID found for email sync")
-                return jsonify({
-                    'success': False,
-                    'message': 'User not authenticated'
-                }), 401
+                # Try to get user_id from request body
+                if request.is_json and request.json and 'user_id' in request.json:
+                    user_id = request.json.get('user_id')
+                    current_app.logger.info(f"Using user ID from request body: {user_id}")
+                else:
+                    current_app.logger.warning("No user ID found for email sync")
+                    return jsonify({
+                        'success': False,
+                        'message': 'User not authenticated'
+                    }), 401
         
-        current_app.logger.info(f"Syncing emails for user_id: {user_id}")
+        # If no user email from session, check request body
+        if not user_email and request.is_json and request.json and 'user_email' in request.json:
+            user_email = request.json.get('user_email')
+            current_app.logger.info(f"Using user email from request body: {user_email}")
+        
+        current_app.logger.info(f"Syncing emails for user_id: {user_id}, email: {user_email}")
         
         # Get access token
         current_app.logger.debug("Attempting to extract Google access token")
@@ -749,11 +772,16 @@ def _sync_emails_impl():
                 contact_is_sender = sender_email and sender_email.lower() in [email.lower() for email in all_contacts_emails]
                 contact_is_recipient = recipient_email and recipient_email.lower() in [email.lower() for email in all_contacts_emails]
 
-                # User sending to contact OR contact sending to user
-                valid_email = (user_is_sender and contact_is_recipient) or (contact_is_sender and user_is_recipient)
+                # Modified validation logic:
+                # 1. User sending to contact OR
+                # 2. Contact sending to user OR
+                # 3. Email involves a contact (either as sender or recipient)
+                valid_email = (user_is_sender and contact_is_recipient) or \
+                              (contact_is_sender and user_is_recipient) or \
+                              contact_is_sender or contact_is_recipient
 
                 if not valid_email:
-                    current_app.logger.debug(f"Skipping message - not between user and contact: {sender_email} -> {recipient_email}")
+                    current_app.logger.debug(f"Skipping message - not involving any contact: {sender_email} -> {recipient_email}")
                     continue
                 
                 # Create new communication record
@@ -764,7 +792,7 @@ def _sync_emails_impl():
                     subject=message_data.get('subject', ''),
                     gmail_message_id=msg_id,
                     gmail_thread_id=message_data.get('threadId'),
-                    user_id=user_id
+                    user_id=user_id  # Ensure user_id is set
                 )
                 
                 # Parse date if available

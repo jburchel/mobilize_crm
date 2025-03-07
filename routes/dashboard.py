@@ -478,3 +478,24 @@ def pipeline_stats():
     except Exception as e:
         current_app.logger.error(f"Error retrieving pipeline stats: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@dashboard_bp.route('/settings')
+@auth_required
+def settings():
+    """Settings page that combines Email Signatures, Google Settings, and Import CSV"""
+    user_id = get_current_user_id()
+    if not user_id:
+        return redirect(url_for('home'))
+    
+    current_app.logger.info(f"Accessing settings page for user: {user_id}")
+    
+    try:
+        with session_scope() as session:
+            # Get email signatures for the user
+            signatures = session.query(EmailSignature).filter_by(user_id=user_id).all()
+            current_app.logger.info(f"Found {len(signatures)} signatures for user {user_id}")
+            
+            return render_template('settings.html', signatures=signatures)
+    except Exception as e:
+        current_app.logger.error(f"Error retrieving settings data: {str(e)}")
+        return render_template('settings.html', signatures=[], error=str(e))
