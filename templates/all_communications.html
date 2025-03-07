@@ -4,6 +4,17 @@
 {% block page_description %}View all communications with people and churches{% endblock %}
 
 {% block content %}
+<!-- Email Sync Loading Overlay -->
+<div id="syncLoadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="background-color: rgba(255, 255, 255, 0.8); z-index: 1050;">
+    <div class="d-flex flex-column justify-content-center align-items-center h-100">
+        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h4 class="text-primary">Syncing Email Communications</h4>
+        <p class="text-center">Please wait while we sync your email communications.<br>This may take a moment depending on the number of emails.</p>
+    </div>
+</div>
+
 <div class="container mt-4">
     <div class="row mb-4">
         <div class="col-md-12 d-flex justify-content-between align-items-center">
@@ -30,6 +41,9 @@
                 {% endif %}
                 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newCommunicationModal">
                     <i class="bi bi-plus-circle"></i> New Communication
+                </button>
+                <button id="syncEmailsBtn" type="button" class="btn btn-outline-primary ms-2">
+                    <i class="bi bi-arrow-repeat"></i> Sync Emails
                 </button>
             </div>
         </div>
@@ -187,89 +201,156 @@
 
 {% block scripts %}
 <script>
-    // Function to toggle email fields based on communication type
-    function toggleEmailFields() {
-        const commType = document.getElementById('type').value;
-        const emailFields = document.getElementById('email-fields');
+    // Function to check email sync status
+    function checkSyncStatus() {
+        const overlay = document.getElementById('syncLoadingOverlay');
         
-        if (commType === 'Email') {
-            emailFields.style.display = 'block';
-            // Fetch default signature when email type is selected
-            fetchDefaultSignature();
-        } else {
-            emailFields.style.display = 'none';
-        }
-    }
-    
-    // Function to fetch the default signature
-    function fetchDefaultSignature() {
-        console.log('⚡ fetchDefaultSignature called');
+        // Show the loading overlay initially
+        overlay.classList.remove('d-none');
         
-        // Check if the textarea element exists
-        const messageArea = document.getElementById('message');
-        if (!messageArea) {
-            console.error('Message textarea not found when fetching signature');
-            return; // Exit if the textarea doesn't exist
-        }
-        
-        // Check if we're in email mode
-        const typeSelect = document.getElementById('type');
-        if (typeSelect && typeSelect.value !== 'Email') {
-            console.log('Not in Email mode, skipping signature fetch');
-            return; // Exit if not in email mode
-        }
-        
-        fetch('/dashboard/api/email-signatures')
-            .then(response => {
-                console.log('Signature API response status:', response.status);
-                return response.json();
-            })
-            .then(data => {
-                console.log('Signature data:', data);
-                if (data.success && data.signatures && data.signatures.length > 0) {
-                    // Find the default signature
-                    const defaultSignature = data.signatures.find(sig => sig.is_default);
-                    console.log('Default signature:', defaultSignature);
+        // Function to poll the sync status
+        function pollSyncStatus() {
+            fetch('/api/gmail/sync-status')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Sync status:', data);
                     
-                    if (defaultSignature && defaultSignature.content) {
-                        // Set the signature_id input value
-                        const signatureIdElement = document.getElementById('signature_id');
-                        if (signatureIdElement) {
-                            signatureIdElement.value = defaultSignature.id;
-                            console.log('Default signature ID set:', defaultSignature.id);
-                        } else {
-                            console.error('signature_id input not found');
-                        }
+                    // If sync is in progress, keep polling
+                    if (data.status === 'in_progress') {
+                        setTimeout(pollSyncStatus, 2000); // Check again in 2 seconds
+                    } else {
+                        // Hide the overlay when sync is complete
+                        overlay.classList.add('d-none');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking sync status:', error);
+                    // Hide the overlay on error
+                    overlay.classList.add('d-none');
+                });
+        }
+        
+        // Start polling
+        pollSyncStatus();
+    }
+
+    // Dynamic search functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check sync status when the page loads
+        checkSyncStatus();
+        
+        // Set up manual sync button
+        const syncButton = document.getElementById('syncEmailsBtn');
+        if (syncButton) {
+            syncButton.addEventListener('click', function() {
+                // Show the loading overlay
+                const overlay = document.getElementById('syncLoadingOverlay');
+                overlay.classList.remove('d-none');
+                
+                // Trigger manual sync
+                fetch('/api/gmail/force-sync-emails')
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Manual sync triggered:', data);
+                        // Start checking sync status
+                        checkSyncStatus();
+                    })
+                    .catch(error => {
+                        console.error('Error triggering manual sync:', error);
+                        // Hide the overlay on error
+                        overlay.classList.add('d-none');
+                    });
+            });
+        }
+        
+        const searchInput = document.getElementById('communicationSearch');
+        const communicationRows = document.querySelectorAll('.communication-row');
+        const tableBody = document.getElementById('communicationsTableBody');
+        const clearButton = document.getElementById('clearSearch');
+        let searchTimeout;
+        
+        // Function to toggle email fields based on communication type
+        function toggleEmailFields() {
+            const commType = document.getElementById('type').value;
+            const emailFields = document.getElementById('email-fields');
+            
+            if (commType === 'Email') {
+                emailFields.style.display = 'block';
+                // Fetch default signature when email type is selected
+                fetchDefaultSignature();
+            } else {
+                emailFields.style.display = 'none';
+            }
+        }
+        
+        // Function to fetch the default signature
+        function fetchDefaultSignature() {
+            console.log('⚡ fetchDefaultSignature called');
+            
+            // Check if the textarea element exists
+            const messageArea = document.getElementById('message');
+            if (!messageArea) {
+                console.error('Message textarea not found when fetching signature');
+                return; // Exit if the textarea doesn't exist
+            }
+            
+            // Check if we're in email mode
+            const typeSelect = document.getElementById('type');
+            if (typeSelect && typeSelect.value !== 'Email') {
+                console.log('Not in Email mode, skipping signature fetch');
+                return; // Exit if not in email mode
+            }
+            
+            fetch('/dashboard/api/email-signatures')
+                .then(response => {
+                    console.log('Signature API response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Signature data:', data);
+                    if (data.success && data.signatures && data.signatures.length > 0) {
+                        // Find the default signature
+                        const defaultSignature = data.signatures.find(sig => sig.is_default);
+                        console.log('Default signature:', defaultSignature);
                         
-                        // No longer adding plain text signature to the message textarea
-                        // Instead, just show the HTML preview
-                        
-                        // Show HTML preview of the signature
-                        const previewContainer = document.getElementById('signature-preview-container');
-                        const previewContent = document.getElementById('signature-preview-content');
-                        
-                        if (previewContainer && previewContent) {
-                            // Display the container
-                            previewContainer.style.display = 'block';
+                        if (defaultSignature && defaultSignature.content) {
+                            // Set the signature_id input value
+                            const signatureIdElement = document.getElementById('signature_id');
+                            if (signatureIdElement) {
+                                signatureIdElement.value = defaultSignature.id;
+                                console.log('Default signature ID set:', defaultSignature.id);
+                            } else {
+                                console.error('signature_id input not found');
+                            }
                             
-                            // Set the HTML content
-                            previewContent.innerHTML = defaultSignature.content;
-                            console.log('✅ Signature preview displayed with HTML formatting');
+                            // No longer adding plain text signature to the message textarea
+                            // Instead, just show the HTML preview
+                            
+                            // Show HTML preview of the signature
+                            const previewContainer = document.getElementById('signature-preview-container');
+                            const previewContent = document.getElementById('signature-preview-content');
+                            
+                            if (previewContainer && previewContent) {
+                                // Display the container
+                                previewContainer.style.display = 'block';
+                                
+                                // Set the HTML content
+                                previewContent.innerHTML = defaultSignature.content;
+                                console.log('✅ Signature preview displayed with HTML formatting');
+                            }
+                        } else {
+                            console.warn('No default signature content found');
                         }
                     } else {
-                        console.warn('No default signature content found');
+                        console.warn('No signatures available or API returned no success');
                     }
-                } else {
-                    console.warn('No signatures available or API returned no success');
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching signatures:', error);
-            });
-    }
-    
-    // Initialize the form on page load
-    document.addEventListener('DOMContentLoaded', function() {
+                })
+                .catch(error => {
+                    console.error('Error fetching signatures:', error);
+                });
+        }
+        
+        // Initialize the form on page load
         toggleEmailFields();
         
         // Fetch people and churches for the dropdown

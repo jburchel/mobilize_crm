@@ -4,6 +4,17 @@
 {% block page_description %}Manage and track your communications with people and churches{% endblock %}
 
 {% block content %}
+<!-- Email Sync Loading Overlay -->
+<div id="syncLoadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="background-color: rgba(255, 255, 255, 0.8); z-index: 1050;">
+    <div class="d-flex flex-column justify-content-center align-items-center h-100">
+        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h4 class="text-primary">Syncing Email Communications</h4>
+        <p class="text-center">Please wait while we sync your email communications.<br>This may take a moment depending on the number of emails.</p>
+    </div>
+</div>
+
 <div class="container mt-4">
     <div class="row mb-4">
         <div class="col-md-12 d-flex justify-content-between align-items-center">
@@ -15,6 +26,9 @@
                 <a href="{{ url_for('google_auth.authorize') }}" class="btn btn-outline-primary ms-2">
                     <i class="bi bi-google"></i> Connect Google Account
                 </a>
+                <button id="syncEmailsBtn" type="button" class="btn btn-outline-primary ms-2">
+                    <i class="bi bi-arrow-repeat"></i> Sync Emails
+                </button>
             </div>
         </div>
     </div>
@@ -263,8 +277,68 @@
             });
     }
     
-    // Initialize the form on page load
+    // Function to check email sync status
+    function checkSyncStatus() {
+        const overlay = document.getElementById('syncLoadingOverlay');
+        
+        // Show the loading overlay initially
+        overlay.classList.remove('d-none');
+        
+        // Function to poll the sync status
+        function pollSyncStatus() {
+            fetch('/api/gmail/sync-status')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Sync status:', data);
+                    
+                    // If sync is in progress, keep polling
+                    if (data.status === 'in_progress') {
+                        setTimeout(pollSyncStatus, 2000); // Check again in 2 seconds
+                    } else {
+                        // Hide the overlay when sync is complete
+                        overlay.classList.add('d-none');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking sync status:', error);
+                    // Hide the overlay on error
+                    overlay.classList.add('d-none');
+                });
+        }
+        
+        // Start polling
+        pollSyncStatus();
+    }
+    
+    // Check sync status when the page loads
     document.addEventListener('DOMContentLoaded', function() {
+        checkSyncStatus();
+        
+        // Set up manual sync button
+        const syncButton = document.getElementById('syncEmailsBtn');
+        if (syncButton) {
+            syncButton.addEventListener('click', function() {
+                // Show the loading overlay
+                const overlay = document.getElementById('syncLoadingOverlay');
+                overlay.classList.remove('d-none');
+                
+                // Trigger manual sync
+                fetch('/api/gmail/force-sync-emails')
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Manual sync triggered:', data);
+                        // Start checking sync status
+                        checkSyncStatus();
+                    })
+                    .catch(error => {
+                        console.error('Error triggering manual sync:', error);
+                        // Hide the overlay on error
+                        overlay.classList.add('d-none');
+                    });
+            });
+        }
+        
+        // Rest of your existing DOMContentLoaded code
         toggleEmailFields();
         
         // Ensure modal events are properly bound
