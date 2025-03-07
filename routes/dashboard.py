@@ -159,14 +159,12 @@ def google_settings():
     return render_template('google_settings.html')
 
 @dashboard_bp.route('/email-signatures')
-# @auth_required  # Temporarily commented out for testing
+@auth_required
 def email_signatures():
-    # Temporarily bypass authentication check for testing
-    # user_id = get_current_user_id()
-    # if not user_id:
-    #     return redirect(url_for('home'))
+    user_id = get_current_user_id()
+    if not user_id:
+        return redirect(url_for('home'))
     
-    user_id = "test_user_123"  # Consistent test user ID
     current_app.logger.info(f"Accessing email signatures for user: {user_id}")
     
     try:
@@ -179,14 +177,12 @@ def email_signatures():
         return render_template('email_signatures.html', signatures=[], error=str(e))
 
 @dashboard_bp.route('/email-signatures/create', methods=['GET', 'POST'])
-# @auth_required  # Temporarily commented out for testing
+@auth_required
 def create_signature():
-    # Temporarily bypass authentication check for testing
-    # user_id = get_current_user_id()
-    # if not user_id:
-    #     return redirect(url_for('home'))
+    user_id = get_current_user_id()
+    if not user_id:
+        return redirect(url_for('home'))
     
-    user_id = "test_user_123"  # Consistent test user ID
     current_app.logger.info(f"Creating signature for user: {user_id}")
     
     if request.method == 'POST':
@@ -249,14 +245,12 @@ def create_signature():
     return render_template('create_signature.html')
 
 @dashboard_bp.route('/email-signatures/edit/<int:signature_id>', methods=['GET', 'POST'])
-# @auth_required  # Temporarily commented out for testing
+@auth_required
 def edit_signature(signature_id):
-    # Temporarily bypass authentication check for testing
-    # user_id = get_current_user_id()
-    # if not user_id:
-    #     return redirect(url_for('home'))
+    user_id = get_current_user_id()
+    if not user_id:
+        return redirect(url_for('home'))
     
-    user_id = "test_user_123"  # Consistent test user ID
     current_app.logger.info(f"Editing signature {signature_id} for user: {user_id}")
     
     try:
@@ -317,14 +311,12 @@ def edit_signature(signature_id):
         return render_template('edit_signature.html', signature=None, error=str(e))
 
 @dashboard_bp.route('/email-signatures/delete/<int:signature_id>', methods=['POST'])
-# @auth_required  # Temporarily commented out for testing
+@auth_required
 def delete_signature(signature_id):
-    # Temporarily bypass authentication check for testing
-    # user_id = get_current_user_id()
-    # if not user_id:
-    #     return jsonify({'success': False, 'message': 'Authentication required'}), 401
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'message': 'Authentication required'}), 401
     
-    user_id = "test_user_123"  # Consistent test user ID
     current_app.logger.info(f"Deleting signature {signature_id} for user: {user_id}")
     
     try:
@@ -378,19 +370,17 @@ def get_signatures():
         return jsonify({'success': True, 'signatures': result})
 
 @dashboard_bp.route('/api/email-signatures', methods=['GET'])
-# @auth_required  # Temporarily commented out for testing
+@auth_required
 def get_email_signatures_api():
     """API endpoint to get the user's email signatures"""
     try:
-        # Temporarily bypass authentication check for testing
-        # user_id = get_current_user_id()
-        # if not user_id:
-        #     return jsonify({
-        #         'success': False,
-        #         'message': 'User not authenticated'
-        #     }), 401
+        user_id = get_current_user_id()
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': 'User not authenticated'
+            }), 401
             
-        user_id = "test_user_123"  # Consistent test user ID
         current_app.logger.info(f"API request for email signatures for user: {user_id}")
         
         with session_scope() as db_session:

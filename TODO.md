@@ -38,12 +38,15 @@
 
 ## Debugging
 
-[] Make sure users only see their tasks and their communications
+[X] Make sure users only see their tasks and their communications
 [X] Fix people not showing up on Dashboard page
 [X] Fix Communications page 500 Internal Server Error
 [X] Change Email signatures to not show the raw text and only show the HTML below the message body
 [X] Clicking on a person returns the user to the dashboard instead of opening the person detail page.
 [X] Clicking Edit from within a church or person a 'Method not allowed' message
+[X] Communications still showing up in John Doe's loginin...  he should not have any communications. I thin Jim's communications are showing up for him... Need to fix this.
+[X] Get rid of any 'Connection' buttons anywhere in the app... all connections should happen at initial login making these buttons redundant.
+[X] Email signatures should be specific to users and not accross users in the app
 
 ## New or Upgraded Functions
 

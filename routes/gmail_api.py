@@ -161,6 +161,8 @@ def send_email():
                         if default_signature:
                             signature_html = default_signature.content
                             logger.debug(f"Using default signature: {default_signature.name}")
+                        else:
+                            logger.debug(f"No default signature found for user {user_id}")
             except Exception as e:
                 logger.error(f"Error retrieving default signature: {str(e)}")
                 logger.error(traceback.format_exc())
