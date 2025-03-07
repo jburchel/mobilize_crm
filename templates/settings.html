@@ -130,9 +130,6 @@
                                         <span class="placeholder col-4"></span>
                                     </div>
                                 </div>
-                                <button id="reconnectGoogle" class="btn btn-primary">
-                                    <i class="bi bi-google"></i> Reconnect Google
-                                </button>
                             </div>
                         </div>
                         
@@ -536,25 +533,6 @@
                         this.disabled = false;
                         this.innerHTML = '<i class="bi bi-clock-history"></i> Sync with History';
                     });
-            }
-        });
-        
-        // Reconnect Google button
-        document.getElementById('reconnectGoogle').addEventListener('click', async function() {
-            try {
-                const { auth, provider } = await initializeFirebase();
-                signInWithPopup(auth, provider)
-                    .then((result) => {
-                        console.log("Google sign-in successful");
-                        window.location.reload();
-                    })
-                    .catch((error) => {
-                        console.error("Google sign-in error:", error);
-                        alert('Error reconnecting to Google: ' + error.message);
-                    });
-            } catch (error) {
-                console.error('Error reconnecting to Google:', error);
-                alert('Error reconnecting to Google: ' + error.message);
             }
         });
     });
