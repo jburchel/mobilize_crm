@@ -99,6 +99,7 @@ try:
     from routes.calendar_api import calendar_api
     from routes.gmail_api import gmail_api
     from routes.import_csv import import_csv_bp
+    from routes.offices_admin import offices_admin_bp
     from utils.background_jobs import start_background_jobs
 
     # Register blueprints
@@ -115,6 +116,7 @@ try:
     app.register_blueprint(calendar_api)
     app.register_blueprint(gmail_api)
     app.register_blueprint(import_csv_bp)
+    app.register_blueprint(offices_admin_bp)
 
     # Initialize Flask-Migrate
     migrate = Migrate(app, Base)

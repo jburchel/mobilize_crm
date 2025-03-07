@@ -1,0 +1,101 @@
+# Mobilize CRM Deployment Rules
+
+# Pre-Deployment Checks
+rule "Verify all routes are working locally" {
+  description = "Ensure all routes are working correctly before deployment"
+  severity = "error"
+  when = contains(git.staged_files, "app.py") or contains(git.staged_files, "routes/")
+  message = "Have you verified all routes are working locally? Check DeploymentandMaintenenceChecklist.md"
+}
+
+rule "Verify Gmail sync functionality" {
+  description = "Ensure Gmail sync is working properly"
+  severity = "error"
+  when = contains(git.staged_files, "routes/gmail_api.py") or contains(git.staged_files, "utils/background_jobs.py")
+  message = "Have you verified Gmail sync functionality is working? Check for include_history parameter and timedelta.minutes errors."
+}
+
+rule "Check authentication" {
+  description = "Ensure authentication is working properly"
+  severity = "error"
+  when = contains(git.staged_files, "routes/google_auth.py") or contains(git.staged_files, "routes/dashboard.py")
+  message = "Have you verified authentication is working properly? Check DeploymentandMaintenenceChecklist.md"
+}
+
+rule "Test database connections" {
+  description = "Ensure database connections are functioning"
+  severity = "error"
+  when = contains(git.staged_files, "database.py") or contains(git.staged_files, "models.py")
+  message = "Have you verified database connections are working? Check DeploymentandMaintenenceChecklist.md"
+}
+
+rule "Verify environment variables" {
+  description = "Ensure environment variables are properly set"
+  severity = "error"
+  when = contains(git.staged_files, "config.py") or contains(git.staged_files, ".env") or contains(git.staged_files, "deploy.sh")
+  message = "Have you verified all environment variables are properly set? Check DeploymentandMaintenenceChecklist.md"
+}
+
+# Route-specific checks
+rule "Check blueprint registrations" {
+  description = "Ensure blueprint registrations have correct URL prefixes"
+  severity = "warning"
+  when = contains(git.staged_files, "app.py")
+  message = "Check that blueprint registrations in app.py have correct URL prefixes to avoid 404 errors"
+}
+
+rule "Check route definitions" {
+  description = "Ensure route definitions don't duplicate prefixes"
+  severity = "warning"
+  when = contains(git.staged_files, "routes/")
+  message = "Check that route definitions in blueprint files don't duplicate prefixes to avoid 404 errors"
+}
+
+# Gmail sync specific checks
+rule "Check list_messages parameter" {
+  description = "Ensure list_messages() doesn't use include_history parameter"
+  severity = "error"
+  when = contains(git.staged_files, "routes/gmail_api.py")
+  pattern = "list_messages\\(.*include_history.*\\)"
+  message = "The list_messages() function doesn't accept an include_history parameter"
+}
+
+rule "Check timedelta.minutes usage" {
+  description = "Ensure timedelta objects use total_seconds() instead of minutes attribute"
+  severity = "error"
+  when = contains(git.staged_files, "utils/background_jobs.py")
+  pattern = "\\.minutes"
+  message = "Use timedelta.total_seconds() / 60 instead of timedelta.minutes"
+}
+
+# Deployment process reminder
+rule "Deployment branch check" {
+  description = "Ensure you're on the stable branch before deployment"
+  severity = "error"
+  when = contains(git.staged_files, "deploy.sh")
+  message = "Make sure you're on the stable-working-version branch before deploying. Run: git checkout stable-working-version"
+}
+
+# Post-deployment reminder
+rule "Post-deployment verification" {
+  description = "Reminder to verify deployment"
+  severity = "info"
+  when = contains(git.staged_files, "deploy.sh")
+  message = "After deployment, verify: people/churches pages, Gmail sync, authentication, email sending, background jobs, database connections, and monitor logs"
+}
+
+# Version control best practices
+rule "Commit message quality" {
+  description = "Ensure commit messages are descriptive"
+  severity = "warning"
+  when = true
+  message = "Make sure your commit messages are clear and descriptive"
+}
+
+# Emergency rollback reminder
+rule "Rollback procedure" {
+  description = "Reminder of rollback procedure"
+  severity = "info"
+  when = contains(git.staged_files, "deploy.sh")
+  message = "If deployment fails, follow the Emergency Rollback Procedure in DeploymentandMaintenenceChecklist.md"
+} 

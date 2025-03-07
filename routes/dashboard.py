@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, jsonify, session, flash
 from sqlalchemy import func
-from models import Session, Person, Church, Task, Communication, EmailSignature
+from models import Session, Person, Church, Task, Communication, EmailSignature, UserOffice, Office
 from database import db, session_scope
 from firebase_admin import auth
 from functools import wraps
@@ -93,71 +93,49 @@ def dashboard():
                 Task.title,
                 Task.description,
                 Task.due_date,
+                Task.due_time,
                 Task.status,
+                Task.priority,
                 Person.first_name,
                 Person.last_name,
-                Church.church_name.label('church_name')
+                Church.church_name,
+                Task.person_id,
+                Task.church_id
             )
             .outerjoin(Person, Task.person_id == Person.id)
             .outerjoin(Church, Task.church_id == Church.id)
-            .filter(
-                Task.status != 'Completed',
-                Task.user_id == user_id
-            )
+            .filter(Task.user_id == user_id)
+            .filter(Task.status != 'Completed')
+            .order_by(Task.due_date)
+            .limit(5)
             .all()
         )
         
-        # Format the tasks with full names
-        formatted_tasks = []
-        for task in pending_tasks:
-            person_name = None
-            if task.first_name and task.last_name:
-                person_name = f"{task.first_name} {task.last_name}"
-            
-            formatted_tasks.append({
-                'id': task.id,
-                'title': task.title,
-                'description': task.description,
-                'due_date': task.due_date,
-                'status': task.status,
-                'person_name': person_name,
-                'church_name': task.church_name
-            })
-        
         # Get recent communications
-        # Only show communications related to the user's people or to any church
-        recent_comms_query = (
-            session.query(
-                Communication,
-                Person.first_name,
-                Person.last_name,
-                Church.church_name
-            )
-            .outerjoin(Person, Communication.person_id == Person.id)
-            .outerjoin(Church, Communication.church_id == Church.id)
-            .filter(
-                # Only include communications for this user's people or for any church
-                ((Person.user_id == user_id) | (Communication.church_id != None))
-            )
+        recent_communications = (
+            session.query(Communication)
+            .filter(Communication.user_id == user_id)
             .order_by(Communication.date_sent.desc())
             .limit(5)
             .all()
         )
         
-        # Format the communications with full names
-        recent_communications = []
-        for comm, first_name, last_name, church_name in recent_comms_query:
-            person_name = None
-            if first_name and last_name:
-                person_name = f"{first_name} {last_name}"
-            
-            recent_communications.append((comm, person_name, church_name))
+        # Get user's offices and roles
+        user_offices = (
+            session.query(UserOffice)
+            .filter(UserOffice.user_id == user_id)
+            .join(Office, UserOffice.office_id == Office.id)
+            .all()
+        )
         
-        return render_template('dashboard.html', 
-                             people=total_people, 
-                             churches=total_churches, 
-                             tasks=formatted_tasks, 
-                             communications=recent_communications)
+        return render_template(
+            'dashboard.html',
+            total_people=total_people,
+            total_churches=total_churches,
+            pending_tasks=pending_tasks,
+            recent_communications=recent_communications,
+            user_offices=user_offices
+        )
 
 @dashboard_bp.route('/google-settings')
 @auth_required

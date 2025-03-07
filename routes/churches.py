@@ -1,63 +1,73 @@
-from models import Session, Church, Person, Contacts, Communication
+from models import Session, Church, Person, Contacts, Communication, Office
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort, current_app
 from datetime import datetime
 from sqlalchemy import func, or_
 from database import db, session_scope
 from routes.dashboard import auth_required
 from routes.google_auth import get_current_user_id
+from routes.offices_admin import is_super_admin, get_user_offices
+from utils.auth import get_current_user_id as utils_get_current_user_id
+from utils.permissions import has_permission
 import logging
 
 churches_bp = Blueprint('churches_bp', __name__)
 
 @churches_bp.route('/')
 @auth_required
-def churches():
+@has_permission('view_churches')
+def list_churches():
+    """List all churches."""
     user_id = get_current_user_id()
-    current_app.logger.info(f"Getting churches for user_id: {user_id}")
+    office_id = request.args.get('office_id', type=int)
     
-    # Debug: Check if format parameter is present
-    format_param = request.args.get('format')
-    current_app.logger.info(f"Format parameter: {format_param}")
+    # Get user's offices
+    super_admin = is_super_admin(user_id)
+    user_offices = get_user_offices(user_id)
+    user_office_ids = [office.id for office in user_offices]
     
     with session_scope() as session:
-        logging.info("Fetching churches from database...")
-        try:
-            # Get all churches without filtering by user_id since Church model doesn't have user_id field
-            query = session.query(Church)
-            
-            # Print the SQL query for debugging
-            current_app.logger.info(f"SQL Query: {query}")
-            
-            churches_list = query.all()
-            current_app.logger.info(f"Found {len(churches_list)} churches")
-            
-            # Return JSON response for debugging
-            if format_param == 'json':
-                current_app.logger.info("Returning JSON response")
-                churches_data = []
-                for church in churches_list:
-                    churches_data.append({
-                        'id': church.id,
-                        'church_name': church.church_name,
-                        'email': church.email,
-                        'phone': church.phone,
-                        'city': church.city,
-                        'state': church.state,
-                        'location': church.location,
-                        'pipeline': church.church_pipeline,
-                        'priority': church.priority
-                    })
-                response = jsonify({
-                    'count': len(churches_list),
-                    'churches': churches_data[:10]  # Return first 10 for brevity
-                })
-                current_app.logger.info(f"JSON response: {response}")
-                return response
-            
-            return render_template('churches.html', churches=churches_list)
-        except Exception as e:
-            logging.error(f"Error fetching churches: {str(e)}", exc_info=True)
-            raise
+        query = session.query(Church).filter(Church.type == 'church')
+        
+        # Filter by office if specified and user has access to that office
+        if office_id:
+            if super_admin or office_id in user_office_ids:
+                query = query.filter(Church.office_id == office_id)
+            else:
+                # If user doesn't have access to the specified office, show no churches
+                query = query.filter(Church.id == -1)  # This will return no results
+        elif not super_admin:
+            # If not super admin and no specific office requested, show churches from user's offices
+            if user_office_ids:
+                query = query.filter(Church.office_id.in_(user_office_ids))
+            else:
+                # If user has no offices, show no churches
+                query = query.filter(Church.id == -1)  # This will return no results
+        
+        # Apply any additional filters
+        search_term = request.args.get('search', '')
+        if search_term:
+            query = query.filter(Church.church_name.ilike(f'%{search_term}%'))
+        
+        # Get all churches
+        churches = query.all()
+        
+        # Get all offices for the filter dropdown
+        offices = []
+        if super_admin:
+            # Get all offices
+            offices = session.query(Office).all()
+        else:
+            # Get only user's offices
+            offices = user_offices
+        
+        return render_template(
+            'churches/list.html',
+            churches=churches,
+            search_term=search_term,
+            offices=offices,
+            selected_office_id=office_id,
+            super_admin=super_admin
+        )
 
 @churches_bp.route('/add_church_form')
 @auth_required
@@ -66,6 +76,7 @@ def add_church_form():
 
 @churches_bp.route('/<int:church_id>')
 @auth_required
+@has_permission('view_churches')
 def church_detail(church_id):
     with session_scope() as session:
         church = session.query(Church).filter(Church.id == church_id).first()
@@ -81,161 +92,147 @@ def church_detail(church_id):
         
         return render_template('church_detail.html', church=church, recent_communications=recent_communications)
 
-@churches_bp.route('/add_church', methods=['POST'])
-def add_church():
-    with session_scope() as session:
-        # Basic Information
-        church_name = request.form['church_name']
-        location = request.form['location']
-        street_address = request.form['street_address']
-        city = request.form['city']
-        state = request.form['state']
-        zip_code = request.form['zip_code']
-        phone = request.form['phone']
-        email = request.form['email']
-        website = request.form['website']
-        denomination = request.form['denomination']
-        congregation_size = request.form['congregation_size'] or None
-        year_founded = request.form['year_founded'] or None
-        
-        # Pastor Information
-        senior_pastor_first_name = request.form['senior_pastor_first_name']
-        senior_pastor_last_name = request.form['senior_pastor_last_name']
-        senior_pastor_phone = request.form['senior_pastor_phone']
-        senior_pastor_email = request.form['senior_pastor_email']
-        missions_pastor_first_name = request.form['missions_pastor_first_name']
-        missions_pastor_last_name = request.form['missions_pastor_last_name']
-        mission_pastor_phone = request.form['mission_pastor_phone']
-        mission_pastor_email = request.form['mission_pastor_email']
-        
-        # Contact Information
-        primary_contact_first_name = request.form['primary_contact_first_name']
-        primary_contact_last_name = request.form['primary_contact_last_name']
-        primary_contact_phone = request.form['primary_contact_phone']
-        primary_contact_email = request.form['primary_contact_email']
-        main_contact_id = request.form['main_contact_id'] or None
-        
-        # Additional Information
-        church_pipeline = request.form['church_pipeline']
-        priority = request.form['priority']
-        assigned_to = request.form['assigned_to']
-        source = request.form['source']
-        referred_by = request.form['referred_by']
-        initial_notes = request.form['initial_notes']
-        info_given = request.form['info_given']
-        virtuous = 'virtuous' in request.form
-        
-        new_church = Church(
-            type='church',  # Explicitly set the type
-            church_name=church_name,
-            location=location,
-            street_address=street_address,
-            city=city,
-            state=state,
-            zip_code=zip_code,
-            phone=phone,
-            email=email,
-            website=website,
-            denomination=denomination,
-            congregation_size=congregation_size,
-            year_founded=year_founded,
-            senior_pastor_first_name=senior_pastor_first_name,
-            senior_pastor_last_name=senior_pastor_last_name,
-            senior_pastor_phone=senior_pastor_phone,
-            senior_pastor_email=senior_pastor_email,
-            missions_pastor_first_name=missions_pastor_first_name,
-            missions_pastor_last_name=missions_pastor_last_name,
-            mission_pastor_phone=mission_pastor_phone,
-            mission_pastor_email=mission_pastor_email,
-            primary_contact_first_name=primary_contact_first_name,
-            primary_contact_last_name=primary_contact_last_name,
-            primary_contact_phone=primary_contact_phone,
-            primary_contact_email=primary_contact_email,
-            main_contact_id=main_contact_id,
-            church_pipeline=church_pipeline,
-            priority=priority,
-            assigned_to=assigned_to,
-            source=source,
-            referred_by=referred_by,
-            initial_notes=initial_notes,
-            info_given=info_given,
-            virtuous=virtuous
-        )
-        
-        logging.info(f"Creating new church: {new_church.get_name()} (type={new_church.type})")
-        session.add(new_church)
-        session.flush()  # Flush to get the ID
-        logging.info(f"Created church with ID: {new_church.id}")
-        
-        return redirect(url_for('churches_bp.churches'))
-
-@churches_bp.route('/edit_church/<int:church_id>', methods=['GET', 'POST'])
+@churches_bp.route('/new', methods=['GET', 'POST'])
 @auth_required
+@has_permission('add_church')
+def new_church():
+    """Create a new church."""
+    user_id = get_current_user_id()
+    
+    # Check if user has access to create churches
+    super_admin = is_super_admin(user_id)
+    user_offices = get_user_offices(user_id)
+    user_office_ids = [office.id for office in user_offices]
+    
+    if request.method == 'POST':
+        # Get form data
+        church_name = request.form.get('church_name')
+        location = request.form.get('location')
+        website = request.form.get('website')
+        denomination = request.form.get('denomination')
+        congregation_size = request.form.get('congregation_size', type=int)
+        year_founded = request.form.get('year_founded', type=int)
+        
+        # Get office ID
+        office_id = request.form.get('office_id', type=int)
+        
+        # Check if user has access to the selected office
+        if office_id and not (super_admin or office_id in user_office_ids):
+            flash("You don't have permission to create a church in this office.", "danger")
+            return redirect(url_for('churches_bp.list_churches'))
+        
+        # Get contact information
+        phone = request.form.get('phone')
+        email = request.form.get('email')
+        street_address = request.form.get('street_address')
+        city = request.form.get('city')
+        state = request.form.get('state')
+        zip_code = request.form.get('zip_code')
+        
+        # Create new church
+        with session_scope() as session:
+            new_church = Church(
+                church_name=church_name,
+                location=location,
+                website=website,
+                denomination=denomination,
+                congregation_size=congregation_size,
+                year_founded=year_founded,
+                office_id=office_id,
+                phone=phone,
+                email=email,
+                street_address=street_address,
+                city=city,
+                state=state,
+                zip_code=zip_code,
+                date_created=datetime.date.today(),
+                date_modified=datetime.date.today(),
+                type='church'
+            )
+            
+            session.add(new_church)
+            session.commit()
+            
+            return redirect(url_for('churches_bp.view_church', church_id=new_church.id))
+    
+    # Get all offices for the dropdown
+    with session_scope() as session:
+        offices = []
+        if super_admin:
+            # Super admin can see all offices
+            offices = session.query(Office).all()
+        else:
+            # Other users can only see their offices
+            offices = user_offices
+        
+        return render_template('churches/new.html', offices=offices)
+
+@churches_bp.route('/edit/<int:church_id>', methods=['GET', 'POST'])
+@auth_required
+@has_permission('edit_church')
 def edit_church(church_id):
+    """Edit a church."""
+    user_id = get_current_user_id()
+    
+    # Check if user has access to this church
+    super_admin = is_super_admin(user_id)
+    user_offices = get_user_offices(user_id)
+    user_office_ids = [office.id for office in user_offices]
+    
     with session_scope() as session:
         church = session.query(Church).filter(Church.id == church_id).first()
+        
         if not church:
-            return "Church not found", 404
+            return redirect(url_for('churches_bp.list_churches'))
+        
+        # Check if user has access to this church's office
+        if not super_admin and church.office_id not in user_office_ids:
+            flash("You don't have permission to edit this church.", "danger")
+            return redirect(url_for('churches_bp.list_churches'))
+        
+        if request.method == 'POST':
+            # Update church details
+            church.church_name = request.form.get('church_name')
+            church.location = request.form.get('location')
+            church.website = request.form.get('website')
+            church.denomination = request.form.get('denomination')
+            church.congregation_size = request.form.get('congregation_size', type=int)
+            church.year_founded = request.form.get('year_founded', type=int)
             
-        if request.method == 'GET':
-            # For GET requests, render the edit form with the church data
-            people = session.query(Person).order_by(Person.first_name, Person.last_name).all()
-            return render_template('add_church.html', church=church, people=people, edit_mode=True)
+            # Update office if user is super admin or has access to both offices
+            new_office_id = request.form.get('office_id', type=int)
+            if new_office_id:
+                if super_admin or new_office_id in user_office_ids:
+                    church.office_id = new_office_id
+            
+            # Update contact information
+            church.phone = request.form.get('phone')
+            church.email = request.form.get('email')
+            church.street_address = request.form.get('street_address')
+            church.city = request.form.get('city')
+            church.state = request.form.get('state')
+            church.zip_code = request.form.get('zip_code')
+            
+            # Update other fields as needed
+            # ...
+            
+            # Update date modified
+            church.date_modified = datetime.date.today()
+            
+            session.commit()
+            
+            return redirect(url_for('churches_bp.view_church', church_id=church.id))
+        
+        # Get all offices for the dropdown
+        offices = []
+        if super_admin:
+            # Super admin can see all offices
+            offices = session.query(Office).all()
         else:
-            # For POST requests, update the church data
-            # Basic Information
-            church.church_name = request.form['church_name']
-            church.location = request.form['location']
-            church.street_address = request.form['street_address']
-            church.city = request.form['city']
-            church.state = request.form['state']
-            church.zip_code = request.form['zip_code']
-            church.phone = request.form['phone']
-            church.email = request.form['email']
-            church.website = request.form['website']
-            church.denomination = request.form['denomination']
-            church.congregation_size = request.form['congregation_size'] if request.form['congregation_size'] else None
-            church.year_founded = request.form['year_founded'] if request.form['year_founded'] else None
-
-            # Senior Pastor Information
-            church.senior_pastor_first_name = request.form['senior_pastor_first_name']
-            church.senior_pastor_last_name = request.form['senior_pastor_last_name']
-            church.senior_pastor_phone = request.form['senior_pastor_phone']
-            church.senior_pastor_email = request.form['senior_pastor_email']
-
-            # Missions Pastor Information
-            church.missions_pastor_first_name = request.form['missions_pastor_first_name']
-            church.missions_pastor_last_name = request.form['missions_pastor_last_name']
-            church.mission_pastor_phone = request.form['mission_pastor_phone']
-            church.mission_pastor_email = request.form['mission_pastor_email']
-
-            # Primary Contact Information
-            church.primary_contact_first_name = request.form['primary_contact_first_name']
-            church.primary_contact_last_name = request.form['primary_contact_last_name']
-            church.primary_contact_phone = request.form['primary_contact_phone']
-            church.primary_contact_email = request.form['primary_contact_email']
-
-            # Additional Information
-            church.church_pipeline = request.form['church_pipeline']
-            church.priority = request.form['priority']
-            church.assigned_to = request.form['assigned_to']
-            church.source = request.form['source']
-            church.referred_by = request.form['referred_by']
-            church.info_given = request.form['info_given']
-            church.virtuous = 'virtuous' in request.form
-            church.reason_closed = request.form['reason_closed']
-            
-            # Convert date_closed string to Python date object if present
-            date_closed_str = request.form['date_closed']
-            if date_closed_str:
-                try:
-                    church.date_closed = datetime.strptime(date_closed_str, '%Y-%m-%d').date()
-                except ValueError:
-                    church.date_closed = None
-            else:
-                church.date_closed = None
-
-            return redirect(url_for('churches_bp.church_detail', church_id=church_id))
+            # Other users can only see their offices
+            offices = user_offices
+        
+        return render_template('churches/edit.html', church=church, offices=offices)
 
 @churches_bp.route('/batch_update', methods=['POST'])
 def batch_update():
@@ -395,3 +392,39 @@ def churches_api():
         except Exception as e:
             logging.error(f"API: Error fetching churches: {str(e)}", exc_info=True)
             return jsonify({'error': str(e)}), 500
+
+@churches_bp.route('/<int:church_id>')
+@auth_required
+@has_permission('view_churches')
+def view_church(church_id):
+    """View a church."""
+    user_id = get_current_user_id()
+    
+    # Check if user has access to this church
+    super_admin = is_super_admin(user_id)
+    user_offices = get_user_offices(user_id)
+    user_office_ids = [office.id for office in user_offices]
+    
+    with session_scope() as session:
+        church = session.query(Church).filter(Church.id == church_id).first()
+        
+        if not church:
+            return redirect(url_for('churches_bp.list_churches'))
+        
+        # Check if user has access to this church's office
+        if not super_admin and church.office_id not in user_office_ids:
+            flash("You don't have permission to view this church.", "danger")
+            return redirect(url_for('churches_bp.list_churches'))
+        
+        # Get tasks for this church
+        tasks = session.query(Task).filter(Task.church_id == church_id).all()
+        
+        # Get communications for this church
+        communications = session.query(Communication).filter(Communication.church_id == church_id).all()
+        
+        return render_template(
+            'churches/view.html',
+            church=church,
+            tasks=tasks,
+            communications=communications
+        )
