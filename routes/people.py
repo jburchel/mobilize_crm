@@ -11,7 +11,7 @@ people_bp = Blueprint('people_bp', __name__)
 
 @people_bp.route('/')
 @auth_required
-def people():
+def list_people():
     user_id = get_current_user_id()
     current_app.logger.info(f"Getting people for user_id: {user_id}")
     
@@ -50,13 +50,13 @@ def people():
                     'type': person.type,
                     'user_id': person.user_id
                 })
-            return jsonify({
+            response = jsonify({
                 'count': len(people_list),
-                'people': people_data[:10],  # Return first 10 for brevity
-                'user_filtered_count': user_filtered_count,
-                'current_user_id': user_id
+                'people': people_data[:10]  # Return first 10 for brevity
             })
-        
+            current_app.logger.info(f"JSON response: {response}")
+            return response
+            
         return render_template('people.html', people=people_list)
 
 @people_bp.route('/add_person_form')
@@ -189,7 +189,7 @@ def add_person():
         )
         
         session.add(new_person)
-        return redirect(url_for('people_bp.people'))
+        return redirect(url_for('people_bp.list_people'))
 
 @people_bp.route('/edit_person/<int:person_id>', methods=['GET', 'POST'])
 @auth_required
@@ -257,7 +257,7 @@ def batch_update():
         selected_ids = request.form.get('selected_ids', '')
         if not selected_ids:
             flash('No people selected for update', 'error')
-            return redirect(url_for('people_bp.people'))
+            return redirect(url_for('people_bp.list_people'))
         
         # Parse the comma-separated list of IDs
         person_ids = [int(id) for id in selected_ids.split(',')]
@@ -296,7 +296,7 @@ def batch_update():
         # Flash a success message
         flash(f'Successfully updated {update_count} people', 'success')
         
-        return redirect(url_for('people_bp.people'))
+        return redirect(url_for('people_bp.list_people'))
 
 @people_bp.route('/batch_delete', methods=['POST'])
 def batch_delete():
@@ -305,7 +305,7 @@ def batch_delete():
         selected_ids = request.form.get('selected_ids', '')
         if not selected_ids:
             flash('No people selected for deletion', 'error')
-            return redirect(url_for('people_bp.people'))
+            return redirect(url_for('people_bp.list_people'))
         
         # Parse the comma-separated list of IDs
         person_ids = [int(id) for id in selected_ids.split(',')]
@@ -326,7 +326,7 @@ def batch_delete():
         # Flash a success message
         flash(f'Successfully deleted {delete_count} people', 'success')
         
-        return redirect(url_for('people_bp.people'))
+        return redirect(url_for('people_bp.list_people'))
 
 @people_bp.route('/api/people/<int:person_id>', methods=['GET'])
 def get_person_api(person_id):
