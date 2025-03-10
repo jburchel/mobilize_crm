@@ -53,3 +53,20 @@ app.yaml
 
 # Deployment
 .dockerignore
+
+# Utility scripts
+check_dashboard_routes.py
+check_database_config.py
+compare_database_data.py
+compare_databases.py
+firebase_credentials_base64.txt
+fix_admin_access.py
+fix_app_db.py
+fix_database.py
+fix_database_connection.py
+fix_people_table.py
+fix_sqlite_database.py
+setup_dev_env.sh
+sync_database_data.py
+sync_to_sqlite.py
+test_db_connection.py
