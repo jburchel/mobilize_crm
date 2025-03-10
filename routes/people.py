@@ -1,11 +1,12 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort, current_app
 from datetime import datetime
-from models import Session, Person, Church, Communication
-from sqlalchemy import func
+from models import Session, Person, Church, Communication, UserOffice, Office, Contacts
+from sqlalchemy import func, or_, text
 import logging
 from database import db, session_scope
 from routes.dashboard import auth_required
 from routes.google_auth import get_current_user_id
+from utils.permissions import is_super_admin
 
 people_bp = Blueprint('people_bp', __name__)
 
@@ -22,49 +23,32 @@ def list_people():
     current_app.logger.info(f"Request headers: {request.headers}")
     
     with session_scope() as session:
-        # Filter people by user_id
-        query = session.query(Person).filter(
-            Person.type == 'person',
-            Person.user_id == user_id
-        )
-        
-        # Also get count of people with this user_id for comparison
-        user_filtered_count = query.count()
-        current_app.logger.info(f"Count of people with user_id={user_id}: {user_filtered_count}")
-        
-        # Print the SQL query for debugging
-        current_app.logger.info(f"SQL Query: {query}")
-        
-        people_list = query.all()
-        current_app.logger.info(f"Found {len(people_list)} people total")
-        
-        # Return JSON response for debugging
-        if request.args.get('format') == 'json':
-            people_data = []
-            for person in people_list:
-                people_data.append({
-                    'id': person.id,
-                    'first_name': person.first_name,
-                    'last_name': person.last_name,
-                    'email': person.email,
-                    'type': person.type,
-                    'user_id': person.user_id
-                })
-            response = jsonify({
-                'count': len(people_list),
-                'people': people_data[:10]  # Return first 10 for brevity
-            })
-            current_app.logger.info(f"JSON response: {response}")
-            return response
+        try:
+            # Use ORM query instead of raw SQL
+            people_query = session.query(Person).filter(Person.type == 'person')
             
-        return render_template('people.html', people=people_list)
+            # Apply user filter if not super admin
+            if not is_super_admin(user_id):
+                people_query = people_query.filter(Person.user_id == user_id)
+            
+            # Get the people
+            people_objects = people_query.limit(100).all()
+            
+            current_app.logger.info(f"Found {len(people_objects)} people total using ORM query")
+            
+            return render_template('people/list.html', people=people_objects)
+        except Exception as e:
+            current_app.logger.error(f"Error in list_people: {str(e)}")
+            import traceback
+            current_app.logger.error(traceback.format_exc())
+            return redirect(url_for('dashboard_bp.dashboard'))
 
 @people_bp.route('/add_person_form')
 @auth_required
 def add_person_form():
     with session_scope() as session:
         churches = session.query(Church).all()
-        return render_template('add_person.html', churches=churches)
+        return render_template('people/new.html', churches=churches)
 
 @people_bp.route('/<int:person_id>')
 @auth_required
@@ -105,27 +89,66 @@ def person_detail(person_id):
         seen_message_ids = set()
         recent_communications = []
         
-        # Filter out duplicates based on gmail_message_id
         for comm in all_communications:
+            # Skip if we've already seen this message ID
             if comm.gmail_message_id and comm.gmail_message_id in seen_message_ids:
                 continue
                 
+            # Add to recent communications
+            recent_communications.append(comm)
+            
+            # Add message ID to seen set if it exists
             if comm.gmail_message_id:
                 seen_message_ids.add(comm.gmail_message_id)
                 
-            recent_communications.append(comm)
-            
-            # Only keep the first 5 unique communications
+            # Limit to 5 recent communications
             if len(recent_communications) >= 5:
                 break
+                
+        current_app.logger.debug(f"Found {len(recent_communications)} recent communications")
         
-        current_app.logger.debug(f"Found {len(all_communications)} total communications, {len(recent_communications)} unique recent communications")
+        # Get tasks for this person
+        tasks = []
+        try:
+            from models import Task
+            tasks = session.query(Task).filter(Task.person_id == person_id).all()
+            current_app.logger.debug(f"Found {len(tasks)} tasks for person {person_id}")
+        except Exception as e:
+            current_app.logger.error(f"Error getting tasks: {str(e)}")
+            
+        # Get activity timeline
+        activities = []
         
-        # Debug the communications we're showing
-        for i, comm in enumerate(recent_communications):
-            current_app.logger.debug(f"Communication {i+1}: ID={comm.id}, Type={comm.type}, Subject={comm.subject}, Date={comm.date_sent}, User ID={comm.user_id}")
+        # Add communications to activities
+        for comm in all_communications[:10]:  # Limit to 10 most recent
+            activities.append({
+                'type': 'communication',
+                'title': f"{comm.type} Communication",
+                'description': comm.subject or comm.message[:50] + ('...' if len(comm.message) > 50 else ''),
+                'date': comm.date_sent
+            })
+            
+        # Add tasks to activities
+        for task in tasks:
+            activities.append({
+                'type': 'task',
+                'title': task.title,
+                'description': task.description[:50] + ('...' if len(task.description) > 50 else ''),
+                'date': task.due_date or task.date_created
+            })
+            
+        # Sort activities by date, newest first
+        activities.sort(key=lambda x: x['date'], reverse=True)
         
-        return render_template('person_detail.html', person=person, churches=churches, recent_communications=recent_communications)
+        # Limit to 10 most recent activities
+        activities = activities[:10]
+        
+        return render_template('people/view.html', 
+                              person=person, 
+                              churches=churches,
+                              recent_communications=recent_communications,
+                              tasks=tasks,
+                              activities=activities)
 
 @people_bp.route('/add_person', methods=['POST'])
 @auth_required
@@ -208,7 +231,7 @@ def edit_person(person_id):
         if request.method == 'GET':
             # For GET requests, render the edit form with the person data
             churches = session.query(Church).order_by(Church.church_name).all()
-            return render_template('add_person.html', person=person, churches=churches, edit_mode=True)
+            return render_template('people/edit.html', person=person, churches=churches)
         else:
             # For POST requests, update the person data
             person.title = request.form['title']

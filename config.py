@@ -87,7 +87,12 @@ class BaseConfig:
 class DevelopmentConfig(BaseConfig):
     """Development environment configuration"""
     DEBUG = True
+    # Use absolute path to ensure SQLite database is found
     SQLALCHEMY_DATABASE_URI = 'sqlite:///mobilize_crm.db'
+    # Enable more detailed logging for development
+    LOG_LEVEL = 'DEBUG'
+    # Enable SQLAlchemy echo for query debugging
+    SQLALCHEMY_ECHO = True
 
 
 class ProductionConfig(BaseConfig):
@@ -98,31 +103,42 @@ class ProductionConfig(BaseConfig):
     if DB_CONNECTION_STRING:
         SQLALCHEMY_DATABASE_URI = DB_CONNECTION_STRING
     else:
-        # For Supabase PostgreSQL using individual variables
-        DB_USER = os.environ.get('DB_USER', 'postgres')
-        DB_PASS = os.environ.get('DB_PASS')
-        DB_NAME = os.environ.get('DB_NAME', 'postgres')
+        # Construct connection string from individual components
+        DB_USER = os.environ.get('DB_USER')
+        DB_PASSWORD = os.environ.get('DB_PASSWORD')
         DB_HOST = os.environ.get('DB_HOST')
         DB_PORT = os.environ.get('DB_PORT', '5432')
+        DB_NAME = os.environ.get('DB_NAME')
         
-        # Construct the database URI
-        SQLALCHEMY_DATABASE_URI = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    
-    # SSL mode for Supabase connection
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        "connect_args": {"sslmode": "require"}
-    }
+        if all([DB_USER, DB_PASSWORD, DB_HOST, DB_NAME]):
+            SQLALCHEMY_DATABASE_URI = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        else:
+            # Fallback to SQLite if no PostgreSQL configuration is provided
+            SQLALCHEMY_DATABASE_URI = 'sqlite:///mobilize_crm.db'
     
     # Production-specific settings
-    LOG_TO_STDOUT = True  # Cloud Run logs to stdout
+    LOG_TO_STDOUT = True
+    LOG_LEVEL = 'INFO'
+    SQLALCHEMY_ECHO = False
 
 
-# Function to get the right config based on environment
+class TestingConfig(BaseConfig):
+    """Testing environment configuration"""
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    WTF_CSRF_ENABLED = False
+
+
 def get_config():
-    env = os.environ.get('FLASK_ENV', 'development')
+    """Return the appropriate configuration class based on environment"""
+    env = os.environ.get('FLASK_ENV', 'development').lower()
+    
     if env == 'production':
         return ProductionConfig
-    return DevelopmentConfig
+    elif env == 'testing':
+        return TestingConfig
+    else:
+        return DevelopmentConfig
 
 
 # For backward compatibility - this is what the app currently uses
