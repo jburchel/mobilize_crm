@@ -151,7 +151,7 @@
                             <div class="info-label">Church:</div>
                             <div class="info-value">
                                 {% if person.church_id %}
-                                    <a href="{{ url_for('churches_bp.church_detail', church_id=person.church_id) }}">
+                                    <a href="{{ url_for('churches_bp.view_church', church_id=person.church_id) }}">
                                         {{ person.church.church_name }}
                                     </a>
                                 {% else %}

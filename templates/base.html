@@ -76,12 +76,19 @@
                 <li><a href="/tasks/" class="nav-link {% if request.endpoint and 'tasks_bp' in request.endpoint %}active{% endif %}"><span>✅</span><span>Tasks</span></a></li>
                 <li><a href="/communications" class="nav-link {% if request.endpoint and 'communications_bp' in request.endpoint %}active{% endif %}"><span>✉️</span><span>Communications</span></a></li>
             </ul>
+            
+            <hr class="sidebar-divider">
+            <ul class="nav-list secondary-nav">
+                <li><a href="/admin/offices" class="nav-link secondary-link {% if request.endpoint and 'offices_admin_bp' in request.endpoint %}active{% endif %}"><span>⚙️</span><span>Administration</span></a></li>
+                <li><a href="/contacts" class="nav-link secondary-link {% if request.endpoint and 'contacts_bp' in request.endpoint %}active{% endif %}"><span><i class="bi bi-cloud-arrow-down"></i></span><span>Google Contact Sync</span></a></li>
+                <li><a href="/dashboard/settings" class="nav-link secondary-link {% if request.endpoint == 'dashboard_bp.settings' %}active{% endif %}"><span><i class="bi bi-gear"></i></span><span>Settings</span></a></li>
+            </ul>
+            
             <div class="sidebar-spacer"></div>
+            <hr class="sidebar-divider">
             <div class="sidebar-footer">
                 <div class="auth-container">
                     <div class="footer-links">
-                        <a href="/contacts" class="nav-link {% if request.endpoint and 'contacts_bp' in request.endpoint %}active{% endif %}"><span><i class="bi bi-cloud-arrow-down"></i></span><span>Google Contact Sync</span></a>
-                        <a href="/dashboard/settings" class="nav-link {% if request.endpoint == 'dashboard_bp.settings' %}active{% endif %}"><span><i class="bi bi-gear"></i></span><span>Settings</span></a>
                         <button id="sign-out" class="hidden"><span>Sign out</span></button>
                     </div>
                     <button id="sign-in" class="btn-google">

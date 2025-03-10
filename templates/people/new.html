@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+
+{% block title %}Add New Person{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Add New Person</h1>
+            <p class="lead">Create a new contact in your CRM</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('people_bp.list_people') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to People
+            </a>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('people_bp.add_person') }}">
+        <div class="row">
+            <div class="col-md-8">
+                <!-- Personal Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Personal Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-2">
+                                <label for="title" class="form-label">Title</label>
+                                <select class="form-select" id="title" name="title">
+                                    <option value=""></option>
+                                    <option value="Mr.">Mr.</option>
+                                    <option value="Mrs.">Mrs.</option>
+                                    <option value="Ms.">Ms.</option>
+                                    <option value="Dr.">Dr.</option>
+                                    <option value="Rev.">Rev.</option>
+                                </select>
+                            </div>
+                            <div class="col-md-5">
+                                <label for="first_name" class="form-label">First Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="first_name" name="first_name" required>
+                            </div>
+                            <div class="col-md-5">
+                                <label for="last_name" class="form-label">Last Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="last_name" name="last_name" required>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label">Phone</label>
+                                <input type="text" class="form-control" id="phone" name="phone">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="preferred_contact_method" class="form-label">Preferred Contact Method</label>
+                                <select class="form-select" id="preferred_contact_method" name="preferred_contact_method">
+                                    <option value="Email">Email</option>
+                                    <option value="Phone">Phone</option>
+                                    <option value="Text">Text</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="church_id" class="form-label">Church</label>
+                                <select class="form-select" id="church_id" name="church_id">
+                                    <option value="">None</option>
+                                    {% for church in churches %}
+                                    <option value="{{ church.id }}">{{ church.church_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="marital_status" class="form-label">Marital Status</label>
+                                <select class="form-select" id="marital_status" name="marital_status">
+                                    <option value=""></option>
+                                    <option value="Single">Single</option>
+                                    <option value="Married">Married</option>
+                                    <option value="Divorced">Divorced</option>
+                                    <option value="Widowed">Widowed</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="home_country" class="form-label">Home Country</label>
+                                <input type="text" class="form-control" id="home_country" name="home_country">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Spouse Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Spouse Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="spouse_first_name" class="form-label">Spouse First Name</label>
+                                <input type="text" class="form-control" id="spouse_first_name" name="spouse_first_name">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="spouse_last_name" class="form-label">Spouse Last Name</label>
+                                <input type="text" class="form-control" id="spouse_last_name" name="spouse_last_name">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Address Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Address Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="street_address" class="form-label">Street Address</label>
+                            <input type="text" class="form-control" id="street_address" name="street_address">
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-5">
+                                <label for="city" class="form-label">City</label>
+                                <input type="text" class="form-control" id="city" name="city">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="state" class="form-label">State</label>
+                                <input type="text" class="form-control" id="state" name="state" maxlength="2">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="zip_code" class="form-label">ZIP Code</label>
+                                <input type="text" class="form-control" id="zip_code" name="zip_code">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Professional Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Professional Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="organization" class="form-label">Organization</label>
+                                <input type="text" class="form-control" id="organization" name="organization">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="job_title" class="form-label">Job Title</label>
+                                <input type="text" class="form-control" id="job_title" name="job_title">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="church_role" class="form-label">Church Role</label>
+                            <input type="text" class="form-control" id="church_role" name="church_role">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pipeline and Status Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Pipeline and Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="people_pipeline" class="form-label">Pipeline Stage</label>
+                                <select class="form-select" id="people_pipeline" name="people_pipeline">
+                                    <option value=""></option>
+                                    <option value="PROMOTION">Promotion</option>
+                                    <option value="INFORMATION">Information</option>
+                                    <option value="INVITATION">Invitation</option>
+                                    <option value="CONFIRMATION">Confirmation</option>
+                                    <option value="AUTOMATION">Automation</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="priority" class="form-label">Priority</label>
+                                <select class="form-select" id="priority" name="priority">
+                                    <option value=""></option>
+                                    <option value="URGENT">Urgent</option>
+                                    <option value="HIGH">High</option>
+                                    <option value="MEDIUM">Medium</option>
+                                    <option value="LOW">Low</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="assigned_to" class="form-label">Assigned To</label>
+                                <select class="form-select" id="assigned_to" name="assigned_to">
+                                    <option value=""></option>
+                                    <option value="UNASSIGNED">Unassigned</option>
+                                    <option value="BILL JONES">Bill Jones</option>
+                                    <option value="JASON MODOMO">Jason Modomo</option>
+                                    <option value="KEN KATAYAMA">Ken Katayama</option>
+                                    <option value="MATTHEW RULE">Matthew Rule</option>
+                                    <option value="CHIP ATKINSON">Chip Atkinson</option>
+                                    <option value="RACHEL LIVELY">Rachel Lively</option>
+                                    <option value="JIM BURCHEL">Jim Burchel</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label d-block">Virtuous</label>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="virtuous" id="virtuous_yes" value="true">
+                                    <label class="form-check-label" for="virtuous_yes">Yes</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="virtuous" id="virtuous_no" value="false" checked>
+                                    <label class="form-check-label" for="virtuous_no">No</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="source" class="form-label">Source</label>
+                                <select class="form-select" id="source" name="source">
+                                    <option value=""></option>
+                                    <option value="WEBFORM">Web Form</option>
+                                    <option value="INCOMING CALL">Incoming Call</option>
+                                    <option value="EMAIL">Email</option>
+                                    <option value="SOCIAL MEDIA">Social Media</option>
+                                    <option value="COLD CALL">Cold Call</option>
+                                    <option value="PERSPECTIVES">Perspectives</option>
+                                    <option value="REFERAL">Referral</option>
+                                    <option value="OTHER">Other</option>
+                                    <option value="UNKNOWN">Unknown</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="referred_by" class="form-label">Referred By</label>
+                                <input type="text" class="form-control" id="referred_by" name="referred_by">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Closure Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Closure Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="date_closed" class="form-label">Date Closed</label>
+                                <input type="date" class="form-control" id="date_closed" name="date_closed">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="reason_closed" class="form-label">Reason Closed</label>
+                            <textarea class="form-control" id="reason_closed" name="reason_closed" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Additional Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="info_given" class="form-label">Information Given</label>
+                            <textarea class="form-control" id="info_given" name="info_given" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="desired_service" class="form-label">Desired Service</label>
+                            <textarea class="form-control" id="desired_service" name="desired_service" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="initial_notes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="initial_notes" name="initial_notes" rows="4"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <!-- Form Actions -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Person
+                            </button>
+                            <a href="{{ url_for('people_bp.list_people') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Help Card -->
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Help</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">
+                            <i class="fas fa-info-circle text-info"></i> Fields marked with <span class="text-danger">*</span> are required.
+                        </p>
+                        <p class="card-text">
+                            <i class="fas fa-lightbulb text-warning"></i> Adding contact information will help you stay connected with this person.
+                        </p>
+                        <p class="card-text">
+                            <i class="fas fa-chart-line text-success"></i> Setting a pipeline stage helps track your relationship progress.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %} 

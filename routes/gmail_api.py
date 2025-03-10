@@ -602,8 +602,10 @@ def _sync_emails_impl():
     try:
         # Get the current user ID
         from routes.google_auth import get_current_user_id, get_access_token_from_header
+        from flask import session
+        
         user_id = get_current_user_id()
-        user_email = session.get('user_email')
+        user_email = session.get('user_email') if 'user_email' in session else None
         
         # If no user ID from auth, check for X-User-ID header (used by background jobs)
         if not user_id:

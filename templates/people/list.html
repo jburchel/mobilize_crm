@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+
+{% block title %}People{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>People</h1>
+            <p class="lead">Manage your contacts and relationships</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('people_bp.add_person_form') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add New Person
+            </a>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Filters</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="peopleSearch" class="form-label">Search</label>
+                    <input type="text" class="form-control" id="peopleSearch" placeholder="Search people...">
+                </div>
+                <div class="col-md-4">
+                    <label for="filterPipeline" class="form-label">Pipeline Stage</label>
+                    <select class="form-select" id="filterPipeline">
+                        <option value="">All Stages</option>
+                        <option value="PROMOTION">Promotion</option>
+                        <option value="INFORMATION">Information</option>
+                        <option value="INVITATION">Invitation</option>
+                        <option value="CONFIRMATION">Confirmation</option>
+                        <option value="AUTOMATION">Automation</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="button" class="btn btn-primary w-100" id="applyFilters">Apply Filters</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Batch Update Controls -->
+    <div class="card mb-4" id="batchUpdateContainer" style="display: none;">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Batch Update</h5>
+        </div>
+        <div class="card-body">
+            <form id="batchUpdateForm" method="POST" action="{{ url_for('people_bp.batch_update') }}">
+                <input type="hidden" name="selected_ids" id="selectedIds">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="batch_pipeline" class="form-label">Pipeline Stage</label>
+                        <select class="form-select" name="batch_pipeline" id="batch_pipeline">
+                            <option value="">No Change</option>
+                            <option value="PROMOTION">Promotion</option>
+                            <option value="INFORMATION">Information</option>
+                            <option value="INVITATION">Invitation</option>
+                            <option value="CONFIRMATION">Confirmation</option>
+                            <option value="AUTOMATION">Automation</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="batch_priority" class="form-label">Priority</label>
+                        <select class="form-select" name="batch_priority" id="batch_priority">
+                            <option value="">No Change</option>
+                            <option value="URGENT">Urgent</option>
+                            <option value="HIGH">High</option>
+                            <option value="MEDIUM">Medium</option>
+                            <option value="LOW">Low</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="batch_assigned_to" class="form-label">Assigned To</label>
+                        <select class="form-select" name="batch_assigned_to" id="batch_assigned_to">
+                            <option value="">No Change</option>
+                            <option value="UNASSIGNED">Unassigned</option>
+                            <option value="BILL JONES">Bill Jones</option>
+                            <option value="JASON MODOMO">Jason Modomo</option>
+                            <option value="KEN KATAYAMA">Ken Katayama</option>
+                            <option value="MATTHEW RULE">Matthew Rule</option>
+                            <option value="CHIP ATKINSON">Chip Atkinson</option>
+                            <option value="RACHEL LIVELY">Rachel Lively</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="batch_virtuous" class="form-label">Virtuous</label>
+                        <select class="form-select" name="batch_virtuous" id="batch_virtuous">
+                            <option value="">No Change</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-3 d-flex justify-content-between">
+                    <button type="submit" class="btn btn-primary">Update Selected</button>
+                    <button type="button" class="btn btn-danger" id="batchDeleteBtn">Delete Selected</button>
+                    <button type="button" class="btn btn-secondary" id="cancelBatchBtn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-light">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h5 class="mb-0">People</h5>
+                </div>
+                <div class="col-auto">
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="selectAllBtn">Select All</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="batchUpdateBtn" style="display: none;">Batch Update</button>
+                    <span class="badge bg-primary ms-2">{{ people|length }} people</span>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th width="40px">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="selectAll">
+                                </div>
+                            </th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Pipeline</th>
+                            <th>Priority</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for person in people %}
+                        <tr class="person-row" data-id="{{ person.id }}">
+                            <td>
+                                <div class="form-check">
+                                    <input class="form-check-input person-checkbox" type="checkbox" value="{{ person.id }}">
+                                </div>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('people_bp.person_detail', person_id=person.id) }}">
+                                    {{ person.first_name }} {{ person.last_name }}
+                                </a>
+                            </td>
+                            <td>{{ person.email or 'N/A' }}</td>
+                            <td>{{ person.phone or 'N/A' }}</td>
+                            <td>
+                                {% if person.pipeline %}
+                                <span class="badge 
+                                    {% if person.pipeline == 'PROMOTION' %}bg-secondary
+                                    {% elif person.pipeline == 'INFORMATION' %}bg-info
+                                    {% elif person.pipeline == 'INVITATION' %}bg-primary
+                                    {% elif person.pipeline == 'CONFIRMATION' %}bg-warning
+                                    {% elif person.pipeline == 'AUTOMATION' %}bg-success
+                                    {% else %}bg-light text-dark{% endif %}">
+                                    {{ person.pipeline }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">Not set</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if person.priority %}
+                                <span class="badge 
+                                    {% if person.priority == 'URGENT' %}bg-danger
+                                    {% elif person.priority == 'HIGH' %}bg-warning
+                                    {% elif person.priority == 'MEDIUM' %}bg-info
+                                    {% elif person.priority == 'LOW' %}bg-success
+                                    {% else %}bg-light text-dark{% endif %}">
+                                    {{ person.priority }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">Not set</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('people_bp.person_detail', person_id=person.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                    <a href="{{ url_for('people_bp.edit_person', person_id=person.id) }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">
+                                <p class="text-muted mb-0">No people found.</p>
+                                <a href="{{ url_for('people_bp.add_person_form') }}" class="btn btn-primary mt-2">
+                                    <i class="fas fa-plus"></i> Add New Person
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Batch Delete Confirmation Modal -->
+    <div class="modal fade" id="batchDeleteModal" tabindex="-1" aria-labelledby="batchDeleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="batchDeleteModalLabel">Confirm Deletion</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete the selected people? This action cannot be undone.</p>
+                    <p><strong>Number of people to delete: <span id="deleteCount">0</span></strong></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form id="batchDeleteForm" method="POST" action="{{ url_for('people_bp.batch_delete') }}">
+                        <input type="hidden" name="selected_ids" id="deleteSelectedIds">
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Search functionality
+        const searchInput = document.getElementById('peopleSearch');
+        const personRows = document.querySelectorAll('.person-row');
+        
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            
+            personRows.forEach(row => {
+                const name = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+                const email = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+                const phone = row.querySelector('td:nth-child(4)').textContent.toLowerCase();
+                
+                if (name.includes(searchTerm) || email.includes(searchTerm) || phone.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+        
+        // Pipeline filter
+        const filterPipeline = document.getElementById('filterPipeline');
+        
+        filterPipeline.addEventListener('change', function() {
+            const selectedPipeline = this.value.toUpperCase();
+            
+            if (!selectedPipeline) {
+                // Show all rows if no pipeline is selected
+                personRows.forEach(row => {
+                    row.style.display = '';
+                });
+                return;
+            }
+            
+            personRows.forEach(row => {
+                const pipelineCell = row.querySelector('td:nth-child(5)');
+                const pipeline = pipelineCell.textContent.trim().toUpperCase();
+                
+                if (pipeline.includes(selectedPipeline)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+        
+        // Batch update functionality
+        const selectAllCheckbox = document.getElementById('selectAll');
+        const personCheckboxes = document.querySelectorAll('.person-checkbox');
+        const batchUpdateBtn = document.getElementById('batchUpdateBtn');
+        const batchUpdateContainer = document.getElementById('batchUpdateContainer');
+        const cancelBatchBtn = document.getElementById('cancelBatchBtn');
+        const selectedIdsInput = document.getElementById('selectedIds');
+        const deleteSelectedIdsInput = document.getElementById('deleteSelectedIds');
+        const deleteCountSpan = document.getElementById('deleteCount');
+        const batchDeleteBtn = document.getElementById('batchDeleteBtn');
+        const batchDeleteModal = new bootstrap.Modal(document.getElementById('batchDeleteModal'));
+        
+        // Select all checkbox
+        selectAllCheckbox.addEventListener('change', function() {
+            const isChecked = this.checked;
+            
+            personCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+            
+            updateBatchButtonVisibility();
+        });
+        
+        // Individual checkboxes
+        personCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateBatchButtonVisibility();
+                
+                // Update "select all" checkbox state
+                selectAllCheckbox.checked = Array.from(personCheckboxes).every(cb => cb.checked);
+                selectAllCheckbox.indeterminate = !selectAllCheckbox.checked && Array.from(personCheckboxes).some(cb => cb.checked);
+            });
+        });
+        
+        // Show/hide batch update button based on selections
+        function updateBatchButtonVisibility() {
+            const checkedCount = document.querySelectorAll('.person-checkbox:checked').length;
+            
+            if (checkedCount > 0) {
+                batchUpdateBtn.style.display = '';
+            } else {
+                batchUpdateBtn.style.display = 'none';
+            }
+        }
+        
+        // Show batch update form
+        batchUpdateBtn.addEventListener('click', function() {
+            batchUpdateContainer.style.display = '';
+            
+            // Collect selected IDs
+            const selectedIds = Array.from(document.querySelectorAll('.person-checkbox:checked'))
+                .map(checkbox => checkbox.value);
+            
+            selectedIdsInput.value = selectedIds.join(',');
+        });
+        
+        // Cancel batch update
+        cancelBatchBtn.addEventListener('click', function() {
+            batchUpdateContainer.style.display = 'none';
+        });
+        
+        // Batch delete button
+        batchDeleteBtn.addEventListener('click', function() {
+            const selectedIds = Array.from(document.querySelectorAll('.person-checkbox:checked'))
+                .map(checkbox => checkbox.value);
+            
+            if (selectedIds.length === 0) {
+                alert('Please select at least one person to delete.');
+                return;
+            }
+            
+            deleteSelectedIdsInput.value = selectedIds.join(',');
+            deleteCountSpan.textContent = selectedIds.length;
+            
+            batchDeleteModal.show();
+        });
+        
+        // Select all button
+        document.getElementById('selectAllBtn').addEventListener('click', function() {
+            selectAllCheckbox.checked = true;
+            
+            personCheckboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            
+            updateBatchButtonVisibility();
+        });
+    });
+</script>
+{% endblock %} 

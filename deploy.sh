@@ -18,6 +18,24 @@ NC='\033[0m' # No Color
 
 echo -e "${YELLOW}Starting deployment process...${NC}"
 
+# Run pre-deployment checks
+echo -e "${YELLOW}Running pre-deployment checks...${NC}"
+
+# Verify routes
+echo -e "${YELLOW}Verifying route definitions...${NC}"
+if ! python verify_routes.py; then
+    echo -e "${RED}Route verification failed. Please fix the issues before deploying.${NC}"
+    echo -e "${YELLOW}You can run './verify_routes.py' manually to see the details.${NC}"
+    
+    # Ask if user wants to continue anyway
+    read -p "Do you want to continue with deployment anyway? (y/N): " continue_deploy
+    if [[ ! "$continue_deploy" =~ ^[Yy]$ ]]; then
+        echo -e "${YELLOW}Deployment aborted.${NC}"
+        exit 1
+    fi
+    echo -e "${YELLOW}Continuing with deployment despite route verification issues...${NC}"
+fi
+
 # Check if gcloud is installed
 if ! command -v gcloud &> /dev/null; then
     echo -e "${RED}Error: gcloud CLI is not installed. Please install it first.${NC}"

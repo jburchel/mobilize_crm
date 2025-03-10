@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ person.first_name }} {{ person.last_name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Edit Person</h1>
+            <p class="lead">Update information for {{ person.first_name }} {{ person.last_name }}</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('people_bp.person_detail', person_id=person.id) }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Person
+            </a>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('people_bp.edit_person', person_id=person.id) }}">
+        <div class="row">
+            <div class="col-md-8">
+                <!-- Personal Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Personal Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-2">
+                                <label for="title" class="form-label">Title</label>
+                                <select class="form-select" id="title" name="title">
+                                    <option value="" {% if not person.title %}selected{% endif %}></option>
+                                    <option value="Mr." {% if person.title == 'Mr.' %}selected{% endif %}>Mr.</option>
+                                    <option value="Mrs." {% if person.title == 'Mrs.' %}selected{% endif %}>Mrs.</option>
+                                    <option value="Ms." {% if person.title == 'Ms.' %}selected{% endif %}>Ms.</option>
+                                    <option value="Dr." {% if person.title == 'Dr.' %}selected{% endif %}>Dr.</option>
+                                    <option value="Rev." {% if person.title == 'Rev.' %}selected{% endif %}>Rev.</option>
+                                </select>
+                            </div>
+                            <div class="col-md-5">
+                                <label for="first_name" class="form-label">First Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="first_name" name="first_name" value="{{ person.first_name }}" required>
+                            </div>
+                            <div class="col-md-5">
+                                <label for="last_name" class="form-label">Last Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="last_name" name="last_name" value="{{ person.last_name }}" required>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" value="{{ person.email or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label">Phone</label>
+                                <input type="text" class="form-control" id="phone" name="phone" value="{{ person.phone or '' }}">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="preferred_contact_method" class="form-label">Preferred Contact Method</label>
+                                <select class="form-select" id="preferred_contact_method" name="preferred_contact_method">
+                                    <option value="Email" {% if person.preferred_contact_method == 'Email' %}selected{% endif %}>Email</option>
+                                    <option value="Phone" {% if person.preferred_contact_method == 'Phone' %}selected{% endif %}>Phone</option>
+                                    <option value="Text" {% if person.preferred_contact_method == 'Text' %}selected{% endif %}>Text</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="church_id" class="form-label">Church</label>
+                                <select class="form-select" id="church_id" name="church_id">
+                                    <option value="">None</option>
+                                    {% for church in churches %}
+                                    <option value="{{ church.id }}" {% if person.church_id == church.id %}selected{% endif %}>{{ church.church_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="marital_status" class="form-label">Marital Status</label>
+                                <select class="form-select" id="marital_status" name="marital_status">
+                                    <option value="" {% if not person.marital_status %}selected{% endif %}></option>
+                                    <option value="Single" {% if person.marital_status == 'Single' %}selected{% endif %}>Single</option>
+                                    <option value="Married" {% if person.marital_status == 'Married' %}selected{% endif %}>Married</option>
+                                    <option value="Divorced" {% if person.marital_status == 'Divorced' %}selected{% endif %}>Divorced</option>
+                                    <option value="Widowed" {% if person.marital_status == 'Widowed' %}selected{% endif %}>Widowed</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="home_country" class="form-label">Home Country</label>
+                                <input type="text" class="form-control" id="home_country" name="home_country" value="{{ person.home_country or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Spouse Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Spouse Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="spouse_first_name" class="form-label">Spouse First Name</label>
+                                <input type="text" class="form-control" id="spouse_first_name" name="spouse_first_name" value="{{ person.spouse_first_name or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="spouse_last_name" class="form-label">Spouse Last Name</label>
+                                <input type="text" class="form-control" id="spouse_last_name" name="spouse_last_name" value="{{ person.spouse_last_name or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Address Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Address Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="street_address" class="form-label">Street Address</label>
+                            <input type="text" class="form-control" id="street_address" name="street_address" value="{{ person.street_address or '' }}">
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-5">
+                                <label for="city" class="form-label">City</label>
+                                <input type="text" class="form-control" id="city" name="city" value="{{ person.city or '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="state" class="form-label">State</label>
+                                <input type="text" class="form-control" id="state" name="state" maxlength="2" value="{{ person.state or '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="zip_code" class="form-label">ZIP Code</label>
+                                <input type="text" class="form-control" id="zip_code" name="zip_code" value="{{ person.zip_code or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Professional Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Professional Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="organization" class="form-label">Organization</label>
+                                <input type="text" class="form-control" id="organization" name="organization" value="{{ person.organization or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="job_title" class="form-label">Job Title</label>
+                                <input type="text" class="form-control" id="job_title" name="job_title" value="{{ person.job_title or '' }}">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="church_role" class="form-label">Church Role</label>
+                            <input type="text" class="form-control" id="church_role" name="church_role" value="{{ person.church_role or '' }}">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pipeline and Status Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Pipeline and Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="people_pipeline" class="form-label">Pipeline Stage</label>
+                                <select class="form-select" id="people_pipeline" name="people_pipeline">
+                                    <option value="" {% if not person.people_pipeline %}selected{% endif %}></option>
+                                    <option value="PROMOTION" {% if person.people_pipeline == 'PROMOTION' %}selected{% endif %}>Promotion</option>
+                                    <option value="INFORMATION" {% if person.people_pipeline == 'INFORMATION' %}selected{% endif %}>Information</option>
+                                    <option value="INVITATION" {% if person.people_pipeline == 'INVITATION' %}selected{% endif %}>Invitation</option>
+                                    <option value="CONFIRMATION" {% if person.people_pipeline == 'CONFIRMATION' %}selected{% endif %}>Confirmation</option>
+                                    <option value="AUTOMATION" {% if person.people_pipeline == 'AUTOMATION' %}selected{% endif %}>Automation</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="priority" class="form-label">Priority</label>
+                                <select class="form-select" id="priority" name="priority">
+                                    <option value="" {% if not person.priority %}selected{% endif %}></option>
+                                    <option value="URGENT" {% if person.priority == 'URGENT' %}selected{% endif %}>Urgent</option>
+                                    <option value="HIGH" {% if person.priority == 'HIGH' %}selected{% endif %}>High</option>
+                                    <option value="MEDIUM" {% if person.priority == 'MEDIUM' %}selected{% endif %}>Medium</option>
+                                    <option value="LOW" {% if person.priority == 'LOW' %}selected{% endif %}>Low</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="assigned_to" class="form-label">Assigned To</label>
+                                <select class="form-select" id="assigned_to" name="assigned_to">
+                                    <option value="" {% if not person.assigned_to %}selected{% endif %}></option>
+                                    <option value="UNASSIGNED" {% if person.assigned_to == 'UNASSIGNED' %}selected{% endif %}>Unassigned</option>
+                                    <option value="BILL JONES" {% if person.assigned_to == 'BILL JONES' %}selected{% endif %}>Bill Jones</option>
+                                    <option value="JASON MODOMO" {% if person.assigned_to == 'JASON MODOMO' %}selected{% endif %}>Jason Modomo</option>
+                                    <option value="KEN KATAYAMA" {% if person.assigned_to == 'KEN KATAYAMA' %}selected{% endif %}>Ken Katayama</option>
+                                    <option value="MATTHEW RULE" {% if person.assigned_to == 'MATTHEW RULE' %}selected{% endif %}>Matthew Rule</option>
+                                    <option value="CHIP ATKINSON" {% if person.assigned_to == 'CHIP ATKINSON' %}selected{% endif %}>Chip Atkinson</option>
+                                    <option value="RACHEL LIVELY" {% if person.assigned_to == 'RACHEL LIVELY' %}selected{% endif %}>Rachel Lively</option>
+                                    <option value="JIM BURCHEL" {% if person.assigned_to == 'JIM BURCHEL' %}selected{% endif %}>Jim Burchel</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label d-block">Virtuous</label>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="virtuous" id="virtuous_yes" value="true" {% if person.virtuous %}checked{% endif %}>
+                                    <label class="form-check-label" for="virtuous_yes">Yes</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="virtuous" id="virtuous_no" value="false" {% if not person.virtuous %}checked{% endif %}>
+                                    <label class="form-check-label" for="virtuous_no">No</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="source" class="form-label">Source</label>
+                                <select class="form-select" id="source" name="source">
+                                    <option value="" {% if not person.source %}selected{% endif %}></option>
+                                    <option value="WEBFORM" {% if person.source == 'WEBFORM' %}selected{% endif %}>Web Form</option>
+                                    <option value="INCOMING CALL" {% if person.source == 'INCOMING CALL' %}selected{% endif %}>Incoming Call</option>
+                                    <option value="EMAIL" {% if person.source == 'EMAIL' %}selected{% endif %}>Email</option>
+                                    <option value="SOCIAL MEDIA" {% if person.source == 'SOCIAL MEDIA' %}selected{% endif %}>Social Media</option>
+                                    <option value="COLD CALL" {% if person.source == 'COLD CALL' %}selected{% endif %}>Cold Call</option>
+                                    <option value="PERSPECTIVES" {% if person.source == 'PERSPECTIVES' %}selected{% endif %}>Perspectives</option>
+                                    <option value="REFERAL" {% if person.source == 'REFERAL' %}selected{% endif %}>Referral</option>
+                                    <option value="OTHER" {% if person.source == 'OTHER' %}selected{% endif %}>Other</option>
+                                    <option value="UNKNOWN" {% if person.source == 'UNKNOWN' %}selected{% endif %}>Unknown</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="referred_by" class="form-label">Referred By</label>
+                                <input type="text" class="form-control" id="referred_by" name="referred_by" value="{{ person.referred_by or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Closure Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Closure Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="date_closed" class="form-label">Date Closed</label>
+                                <input type="date" class="form-control" id="date_closed" name="date_closed" value="{{ person.date_closed.strftime('%Y-%m-%d') if person.date_closed else '' }}">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="reason_closed" class="form-label">Reason Closed</label>
+                            <textarea class="form-control" id="reason_closed" name="reason_closed" rows="3">{{ person.reason_closed or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Additional Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="info_given" class="form-label">Information Given</label>
+                            <textarea class="form-control" id="info_given" name="info_given" rows="3">{{ person.info_given or '' }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="desired_service" class="form-label">Desired Service</label>
+                            <textarea class="form-control" id="desired_service" name="desired_service" rows="3">{{ person.desired_service or '' }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="4">{{ person.notes or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <!-- Form Actions -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                            <a href="{{ url_for('people_bp.person_detail', person_id=person.id) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Help Card -->
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Help</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">
+                            <i class="fas fa-info-circle text-info"></i> Fields marked with <span class="text-danger">*</span> are required.
+                        </p>
+                        <p class="card-text">
+                            <i class="fas fa-lightbulb text-warning"></i> Adding contact information will help you stay connected with this person.
+                        </p>
+                        <p class="card-text">
+                            <i class="fas fa-chart-line text-success"></i> Setting a pipeline stage helps track your relationship progress.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %} 

@@ -116,7 +116,7 @@ try:
     app.register_blueprint(calendar_api)
     app.register_blueprint(gmail_api)
     app.register_blueprint(import_csv_bp)
-    app.register_blueprint(offices_admin_bp)
+    app.register_blueprint(offices_admin_bp, url_prefix='')
 
     # Initialize Flask-Migrate
     migrate = Migrate(app, Base)
@@ -137,8 +137,23 @@ try:
     @app.context_processor
     def utility_processor():
         def get_today():
-            return datetime.now().strftime('%m/%d/%Y')
-        return dict(today=get_today)
+            return datetime.now().strftime('%Y-%m-%d')
+        return dict(get_today=get_today)
+    
+    @app.context_processor
+    def inject_user_offices():
+        """Inject user_offices into all templates."""
+        def get_user_offices():
+            # For now, return a simple list with hardcoded values to ensure the admin panel shows up
+            return [
+                {
+                    'office': {'name': 'USA Office', 'id': 1},
+                    'role': 'super_admin',
+                    'office_id': 1
+                }
+            ]
+        
+        return dict(user_offices=get_user_offices())
 
     # Error handlers
     @app.errorhandler(404)

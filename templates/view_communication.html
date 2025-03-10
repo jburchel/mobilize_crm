@@ -41,7 +41,7 @@
                                     {% endif %}
                                 </a>
                             {% elif communication.church_id %}
-                                <a href="{{ url_for('churches_bp.church_detail', church_id=communication.church_id) }}">
+                                <a href="{{ url_for('churches_bp.view_church', church_id=communication.church_id) }}">
                                     {% if recipient is mapping or recipient.__class__.__name__ == 'Row' %}
                                         {% if 'church_name' in recipient %}
                                             {{ recipient.church_name }}

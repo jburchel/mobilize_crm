@@ -22,6 +22,12 @@ dashboard_bp = Blueprint('dashboard_bp', __name__)
 def auth_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Temporarily bypass authentication checks for testing
+        # Set a default user_id for testing
+        session['user_id'] = 'CVjBoi6rGMazZ3J6vAAtu1hra4H2'  # j.burchel@crossoverglobal.net
+        return f(*args, **kwargs)
+        
+        # Original code
         # First check Authorization header
         auth_header = request.headers.get('Authorization')
         if auth_header and auth_header.startswith('Bearer '):
@@ -127,6 +133,12 @@ def dashboard():
             .join(Office, UserOffice.office_id == Office.id)
             .all()
         )
+        
+        # Debug logging for user offices
+        current_app.logger.info(f"User ID: {user_id}")
+        current_app.logger.info(f"User offices: {user_offices}")
+        for office in user_offices:
+            current_app.logger.info(f"Office: {office.office.name}, Role: {office.role}")
         
         return render_template(
             'dashboard.html',

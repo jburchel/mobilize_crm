@@ -42,7 +42,7 @@
                         <i class="bi bi-arrow-left"></i> Back to Person
                     </a>
                 {% elif request.args.get('church_id') %}
-                    <a href="{{ url_for('churches_bp.church_detail', church_id=request.args.get('church_id')) }}" class="btn btn-outline-secondary me-2">
+                    <a href="{{ url_for('churches_bp.view_church', church_id=request.args.get('church_id')) }}" class="btn btn-outline-secondary me-2">
                         <i class="bi bi-arrow-left"></i> Back to Church
                     </a>
                 {% else %}

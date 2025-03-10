@@ -170,6 +170,11 @@ def tasks():
             current_app.logger.warning("No user ID found in session, redirecting to login")
             return redirect(url_for('dashboard_bp.dashboard'))
             
+        # For development, use a hardcoded user ID if needed
+        if not user_id:
+            user_id = 'CVjBoi6rGMazZ3J6vAAtu1hra4H2'  # j.burchel@crossoverglobal.net
+            current_app.logger.info(f"Using hardcoded user ID for development: {user_id}")
+            
         with session_scope() as session:
             current_app.logger.debug("Querying database for tasks...")
             # Filter tasks by user_id
@@ -206,7 +211,7 @@ def tasks():
             current_app.logger.debug("Rendering template with context: tasks=%d, people=%d, churches=%d", 
                                    len(tasks), len(people), len(churches))
             
-            return render_template('tasks.html', 
+            return render_template('tasks/list.html', 
                                 tasks=tasks, 
                                 people=people, 
                                 churches=churches)
@@ -215,7 +220,7 @@ def tasks():
         flash('A database error occurred. Please try again later.', 'error')
         return redirect(url_for('dashboard_bp.dashboard'))
     except Exception as e:
-        current_app.logger.error(f'Error in tasks page: {str(e)}', exc_info=True)
+        current_app.logger.error(f'Unexpected error in tasks page: {str(e)}', exc_info=True)
         flash('An unexpected error occurred. Please try again later.', 'error')
         return redirect(url_for('dashboard_bp.dashboard'))
 

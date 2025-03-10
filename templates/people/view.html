@@ -1,0 +1,660 @@
+{% extends "base.html" %}
+
+{% block title %}{{ person.first_name }} {{ person.last_name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>{{ person.first_name }} {{ person.last_name }}</h1>
+            <p class="lead">
+                {% if person.title %}{{ person.title }}{% endif %}
+                {% if person.title and person.organization %} at {% endif %}
+                {% if person.organization %}{{ person.organization }}{% endif %}
+            </p>
+        </div>
+        <div class="col-auto">
+            <div class="btn-group">
+                <a href="{{ url_for('people_bp.edit_person', person_id=person.id) }}" class="btn btn-primary">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#communicationModal">
+                    <i class="fas fa-comment"></i> Communication
+                </button>
+                <a href="{{ url_for('people_bp.list_people') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to People
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pipeline Progress -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Pipeline Progress</h5>
+        </div>
+        <div class="card-body">
+            <div class="progress" style="height: 25px;">
+                {% set pipeline_percent = 0 %}
+                {% if person.pipeline == 'PROMOTION' %}
+                    {% set pipeline_percent = 20 %}
+                {% elif person.pipeline == 'INFORMATION' %}
+                    {% set pipeline_percent = 40 %}
+                {% elif person.pipeline == 'INVITATION' %}
+                    {% set pipeline_percent = 60 %}
+                {% elif person.pipeline == 'CONFIRMATION' %}
+                    {% set pipeline_percent = 80 %}
+                {% elif person.pipeline == 'AUTOMATION' %}
+                    {% set pipeline_percent = 100 %}
+                {% endif %}
+                
+                <div class="progress-bar bg-success" role="progressbar" style="width: {{ pipeline_percent }}%;" 
+                    aria-valuenow="{{ pipeline_percent }}" aria-valuemin="0" aria-valuemax="100">
+                    {% if pipeline_percent > 0 %}{{ person.pipeline }}{% endif %}
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between mt-3">
+                <div class="text-center">
+                    <div class="pipeline-step-marker {% if person.pipeline == 'PROMOTION' %}bg-primary{% elif pipeline_percent >= 20 %}bg-success{% else %}bg-light{% endif %}">1</div>
+                    <div>Promotion</div>
+                </div>
+                <div class="text-center">
+                    <div class="pipeline-step-marker {% if person.pipeline == 'INFORMATION' %}bg-primary{% elif pipeline_percent >= 40 %}bg-success{% else %}bg-light{% endif %}">2</div>
+                    <div>Information</div>
+                </div>
+                <div class="text-center">
+                    <div class="pipeline-step-marker {% if person.pipeline == 'INVITATION' %}bg-primary{% elif pipeline_percent >= 60 %}bg-success{% else %}bg-light{% endif %}">3</div>
+                    <div>Invitation</div>
+                </div>
+                <div class="text-center">
+                    <div class="pipeline-step-marker {% if person.pipeline == 'CONFIRMATION' %}bg-primary{% elif pipeline_percent >= 80 %}bg-success{% else %}bg-light{% endif %}">4</div>
+                    <div>Confirmation</div>
+                </div>
+                <div class="text-center">
+                    <div class="pipeline-step-marker {% if person.pipeline == 'AUTOMATION' %}bg-primary{% elif pipeline_percent >= 100 %}bg-success{% else %}bg-light{% endif %}">5</div>
+                    <div>Automation</div>
+                </div>
+            </div>
+            
+            <div class="mt-3">
+                <form action="{{ url_for('people_bp.update_pipeline', person_id=person.id) }}" method="POST" class="d-flex align-items-center">
+                    <label for="pipeline" class="form-label me-2 mb-0">Update Pipeline:</label>
+                    <select name="pipeline" id="pipeline" class="form-select me-2" style="max-width: 200px;">
+                        <option value="PROMOTION" {% if person.pipeline == 'PROMOTION' %}selected{% endif %}>Promotion</option>
+                        <option value="INFORMATION" {% if person.pipeline == 'INFORMATION' %}selected{% endif %}>Information</option>
+                        <option value="INVITATION" {% if person.pipeline == 'INVITATION' %}selected{% endif %}>Invitation</option>
+                        <option value="CONFIRMATION" {% if person.pipeline == 'CONFIRMATION' %}selected{% endif %}>Confirmation</option>
+                        <option value="AUTOMATION" {% if person.pipeline == 'AUTOMATION' %}selected{% endif %}>Automation</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary">Update</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Contact Information -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Contact Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Email:</div>
+                        <div class="col-md-8">
+                            {% if person.email %}
+                            <a href="mailto:{{ person.email }}">{{ person.email }}</a>
+                            {% else %}
+                            <span class="text-muted">Not specified</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Phone:</div>
+                        <div class="col-md-8">
+                            {% if person.phone %}
+                            <a href="tel:{{ person.phone }}">{{ person.phone }}</a>
+                            {% else %}
+                            <span class="text-muted">Not specified</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Address:</div>
+                        <div class="col-md-8">
+                            {% if person.street_address %}
+                            {{ person.street_address }}<br>
+                            {% if person.city or person.state or person.zip_code %}
+                            {{ person.city or '' }}{% if person.city and (person.state or person.zip_code) %}, {% endif %}
+                            {{ person.state or '' }}{% if person.state and person.zip_code %} {% endif %}
+                            {{ person.zip_code or '' }}
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted">Not specified</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Church:</div>
+                        <div class="col-md-8">
+                            {% if person.church_id %}
+                            <a href="{{ url_for('churches_bp.view_church', church_id=person.church_id) }}">
+                                {{ person.church.church_name }}
+                            </a>
+                            {% else %}
+                            <span class="text-muted">Not specified</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Information -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Additional Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Priority:</div>
+                        <div class="col-md-8">
+                            {% if person.priority %}
+                            <span class="badge 
+                                {% if person.priority == 'URGENT' %}bg-danger
+                                {% elif person.priority == 'HIGH' %}bg-warning
+                                {% elif person.priority == 'MEDIUM' %}bg-info
+                                {% elif person.priority == 'LOW' %}bg-success
+                                {% else %}bg-light text-dark{% endif %}">
+                                {{ person.priority }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">Not specified</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Assigned To:</div>
+                        <div class="col-md-8">
+                            {% if person.assigned_to %}
+                            {{ person.assigned_to }}
+                            {% else %}
+                            <span class="text-muted">Not assigned</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Virtuous:</div>
+                        <div class="col-md-8">
+                            {% if person.virtuous %}
+                            <span class="badge bg-success">Yes</span>
+                            {% else %}
+                            <span class="badge bg-secondary">No</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Notes:</div>
+                        <div class="col-md-8">
+                            {% if person.notes %}
+                            <div class="notes-content">{{ person.notes|nl2br }}</div>
+                            {% else %}
+                            <span class="text-muted">No notes</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Communications -->
+            <div class="card mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Communications</h5>
+                    <a href="{{ url_for('communications_bp.all_communications_route', person_id=person.id) }}" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Subject</th>
+                                    <th>Message</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for comm in recent_communications %}
+                                <tr>
+                                    <td>{{ comm.date_sent.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        {% if comm.type == 'Email' %}
+                                        <span class="badge bg-primary">Email</span>
+                                        {% elif comm.type == 'Phone Call' %}
+                                        <span class="badge bg-success">Phone</span>
+                                        {% elif comm.type == 'Text Message' %}
+                                        <span class="badge bg-info">SMS</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ comm.type }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if comm.type == 'Email' %}
+                                        <a href="{{ url_for('communications_bp.view_communication', comm_id=comm.id) }}">
+                                            {{ comm.subject or 'No Subject' }}
+                                        </a>
+                                        {% else %}
+                                        {{ comm.subject or 'N/A' }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="text-truncate" style="max-width: 300px;">
+                                            {{ comm.message or 'No message content' }}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <p class="text-muted mb-0">No communications found.</p>
+                                        <button type="button" class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#communicationModal">
+                                            <i class="fas fa-plus"></i> Add Communication
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Tasks -->
+            <div class="card mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Tasks</h5>
+                    <a href="{{ url_for('tasks_bp.tasks', person_id=person.id) }}" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for task in tasks %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">
+                                    <a href="{{ url_for('tasks_bp.get_task', task_id=task.id) }}">{{ task.title }}</a>
+                                </h6>
+                                <small>
+                                    {% if task.due_date %}
+                                    {{ task.due_date.strftime('%m/%d/%Y') }}
+                                    {% else %}
+                                    No due date
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <p class="mb-1 text-truncate">{{ task.description }}</p>
+                            <div>
+                                {% if task.status == 'Not Started' %}
+                                <span class="badge bg-secondary">Not Started</span>
+                                {% elif task.status == 'In Progress' %}
+                                <span class="badge bg-primary">In Progress</span>
+                                {% else %}
+                                <span class="badge bg-success">Completed</span>
+                                {% endif %}
+                                
+                                {% if task.priority == 'High' %}
+                                <span class="badge bg-danger">High</span>
+                                {% elif task.priority == 'Medium' %}
+                                <span class="badge bg-warning">Medium</span>
+                                {% else %}
+                                <span class="badge bg-info">Low</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="list-group-item text-center py-4">
+                            <p class="text-muted mb-0">No tasks found.</p>
+                            <a href="{{ url_for('tasks_bp.tasks', person_id=person.id) }}" class="btn btn-primary mt-2">
+                                <i class="fas fa-plus"></i> Add Task
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity Timeline -->
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Activity Timeline</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="timeline">
+                        {% for activity in activities %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker 
+                                {% if activity.type == 'communication' %}bg-primary
+                                {% elif activity.type == 'task' %}bg-success
+                                {% elif activity.type == 'note' %}bg-info
+                                {% else %}bg-secondary{% endif %}">
+                            </div>
+                            <div class="timeline-content">
+                                <div class="d-flex justify-content-between">
+                                    <h6 class="mb-1">{{ activity.title }}</h6>
+                                    <small>{{ activity.date.strftime('%m/%d/%Y') }}</small>
+                                </div>
+                                <p class="mb-0">{{ activity.description }}</p>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4">
+                            <p class="text-muted mb-0">No activity recorded yet.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Communication Modal -->
+    <div class="modal fade" id="communicationModal" tabindex="-1" aria-labelledby="communicationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="communicationModalLabel">New Communication</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="communicationForm" action="{{ url_for('communications_bp.send_communication_route') }}" method="post">
+                        <input type="hidden" name="person_id" value="{{ person.id }}">
+                        
+                        <div class="mb-3">
+                            <label for="type" class="form-label">Communication Type</label>
+                            <select class="form-select" id="type" name="type" required onchange="toggleEmailFields()">
+                                <option value="Phone Call">Phone Call</option>
+                                <option value="Email">Email</option>
+                                <option value="Text Message">Text Message</option>
+                                <option value="In-Person Meeting">In-Person Meeting</option>
+                                <option value="Video Call">Video Call</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div id="email-fields" style="display: none;">
+                            <div class="mb-3">
+                                <label for="subject" class="form-label">Email Subject</label>
+                                <input type="text" class="form-control" id="subject" name="subject" placeholder="Enter email subject">
+                            </div>
+                            <input type="hidden" id="signature_id" name="signature_id" value="">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="message" class="form-label">Message</label>
+                            <textarea class="form-control" id="message" name="message" rows="5" required></textarea>
+                        </div>
+                        
+                        <div class="mb-3" id="signature-preview-container" style="display: none;">
+                            <label class="form-label">Signature Preview:</label>
+                            <div class="signature-preview p-3 border rounded bg-light">
+                                <div id="signature-preview-content"></div>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    <div id="statusMessage" class="mt-3" style="display: none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="sendCommunicationBtn">Send Communication</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .pipeline-step-marker {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 5px;
+        color: white;
+        font-weight: bold;
+    }
+    
+    .timeline {
+        position: relative;
+        padding: 1rem 0;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 1rem;
+        height: 100%;
+        width: 2px;
+        background-color: #e9ecef;
+    }
+    
+    .timeline-item {
+        position: relative;
+        padding-left: 2.5rem;
+        padding-bottom: 1.5rem;
+    }
+    
+    .timeline-marker {
+        position: absolute;
+        left: 0;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        top: 0.25rem;
+    }
+    
+    .notes-content {
+        white-space: pre-line;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Function to toggle email fields based on communication type
+        function toggleEmailFields() {
+            const commType = document.getElementById('type').value;
+            const emailFields = document.getElementById('email-fields');
+            
+            if (commType === 'Email') {
+                emailFields.style.display = 'block';
+                // Fetch default signature when email type is selected
+                fetchDefaultSignature();
+            } else {
+                emailFields.style.display = 'none';
+            }
+        }
+        
+        // Initialize the form on page load
+        toggleEmailFields();
+        
+        // Add event listener to type select
+        const typeSelect = document.getElementById('type');
+        if (typeSelect) {
+            typeSelect.addEventListener('change', toggleEmailFields);
+        }
+        
+        // Function to fetch the default signature
+        function fetchDefaultSignature() {
+            const signaturePreviewContainer = document.getElementById('signature-preview-container');
+            const signaturePreviewContent = document.getElementById('signature-preview-content');
+            
+            fetch('/dashboard/api/email-signatures')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.signatures && data.signatures.length > 0) {
+                        // Find the default signature
+                        const defaultSignature = data.signatures.find(sig => sig.is_default);
+                        
+                        if (defaultSignature && defaultSignature.content) {
+                            // Set the signature_id input value
+                            const signatureIdElement = document.getElementById('signature_id');
+                            if (signatureIdElement) {
+                                signatureIdElement.value = defaultSignature.id;
+                            }
+                            
+                            // Show HTML preview of the signature
+                            if (signaturePreviewContainer && signaturePreviewContent) {
+                                // Display the container
+                                signaturePreviewContainer.style.display = 'block';
+                                
+                                // Set the HTML content
+                                signaturePreviewContent.innerHTML = defaultSignature.content;
+                            }
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching signatures:', error);
+                });
+        }
+        
+        // Set up form submission via AJAX
+        const form = document.getElementById('communicationForm');
+        const statusMessage = document.getElementById('statusMessage');
+        const sendButton = document.getElementById('sendCommunicationBtn');
+        
+        if (sendButton) {
+            sendButton.addEventListener('click', function() {
+                // Show loading state
+                const originalButtonText = sendButton.innerHTML;
+                sendButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
+                sendButton.disabled = true;
+                
+                // Clear previous status messages
+                statusMessage.style.display = 'none';
+                statusMessage.innerHTML = '';
+                
+                // Validate form
+                const type = document.getElementById('type').value;
+                const message = document.getElementById('message').value;
+                
+                if (!type) {
+                    showError('Please select a communication type');
+                    return;
+                }
+                
+                if (!message) {
+                    showError('Please enter a message');
+                    return;
+                }
+                
+                if (type === 'Email') {
+                    const subject = document.getElementById('subject').value;
+                    if (!subject) {
+                        showError('Please enter an email subject');
+                        return;
+                    }
+                }
+                
+                // Get form data
+                const formData = new FormData(form);
+                const jsonData = {};
+                formData.forEach((value, key) => {
+                    jsonData[key] = value;
+                });
+                
+                // Send AJAX request
+                fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(jsonData)
+                })
+                .then(response => {
+                    // Check if the response is JSON
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        return response.json().then(data => {
+                            return {
+                                status: response.status,
+                                ok: response.ok,
+                                data: data
+                            };
+                        });
+                    } else {
+                        // Handle non-JSON response (like a redirect)
+                        if (response.ok) {
+                            // If it's a successful redirect, reload the page
+                            window.location.reload();
+                            return null;
+                        } else {
+                            return {
+                                status: response.status,
+                                ok: false,
+                                data: { message: 'Server returned a non-JSON response' }
+                            };
+                        }
+                    }
+                })
+                .then(result => {
+                    if (!result) return; // Page is already reloading
+                    
+                    if (result.ok) {
+                        // Display success message
+                        statusMessage.style.display = 'block';
+                        statusMessage.className = 'alert alert-success mt-3';
+                        statusMessage.innerHTML = result.data.message || 'Communication sent successfully';
+                        
+                        // Reset form
+                        form.reset();
+                        toggleEmailFields();
+                        
+                        // Refresh the page after a short delay
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    } else {
+                        // Display error message
+                        showError(result.data.message || 'An error occurred while sending the communication');
+                    }
+                })
+                .catch(error => {
+                    showError('An error occurred while sending the communication. Please try again.');
+                })
+                .finally(() => {
+                    // Reset button state
+                    sendButton.innerHTML = originalButtonText;
+                    sendButton.disabled = false;
+                });
+            });
+        }
+        
+        function showError(message) {
+            statusMessage.style.display = 'block';
+            statusMessage.className = 'alert alert-danger mt-3';
+            statusMessage.innerHTML = message;
+            
+            // Reset button state
+            if (sendButton) {
+                sendButton.innerHTML = 'Send Communication';
+                sendButton.disabled = false;
+            }
+        }
+    });
+</script>
+{% endblock %} 

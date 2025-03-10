@@ -10,6 +10,21 @@
 - [x] Test all critical user flows (people, churches, communications, tasks)
 - [x] Run the application locally to catch any obvious errors
 
+## Development Environment Testing (REQUIRED)
+- [ ] Deploy changes to development environment first
+- [ ] Verify landing page loads correctly
+- [ ] Test Google authentication flow end-to-end
+- [ ] Verify dashboard loads after authentication
+- [ ] Check all links on dashboard for correct routes
+- [ ] Test people management functionality
+- [ ] Test church management functionality
+- [ ] Test task management functionality
+- [ ] Test communications functionality
+- [ ] Check logs for any errors or warnings
+- [ ] Verify all new features work as expected
+- [ ] Test on different browsers if applicable
+- [ ] Test on mobile devices if applicable
+
 ## Deployment Process
 
 - [x] Ensure you're on the stable-working-version branch
@@ -33,8 +48,16 @@
 - [x] Verify database connections
 - [x] Monitor logs for errors
 - [x] Fixed route name mismatch: renamed `people` function to `list_people` to match dashboard template references
+- [x] Fixed route name mismatch: changed `people_bp.new_person` to `people_bp.add_person_form` in dashboard template
+- [x] Fixed route name mismatch: changed `tasks_bp.view_task` to `tasks_bp.get_task` in dashboard template
 
 ## Common Issues and Solutions
+
+### Route Name Mismatches
+- Check template files for references to non-existent routes
+- Ensure route function names match what's referenced in templates
+- Use grep to search for url_for references and verify they exist
+- After fixing route names, check for other references that might need updating
 
 ### 404 Errors on Pages
 

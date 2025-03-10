@@ -19,9 +19,10 @@
     <form action="{{ url_for('churches_bp.edit_church', church_id=church.id) }}" method="POST">
         <div class="row">
             <div class="col-md-8">
+                <!-- Basic Church Information -->
                 <div class="card mb-4">
                     <div class="card-header bg-light">
-                        <h5 class="mb-0">Church Information</h5>
+                        <h5 class="mb-0">Basic Information</h5>
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
@@ -29,88 +30,182 @@
                             <input type="text" class="form-control" id="church_name" name="church_name" value="{{ church.church_name }}" required>
                         </div>
                         
-                        <div class="mb-3">
-                            <label for="location" class="form-label">Location</label>
-                            <input type="text" class="form-control" id="location" name="location" value="{{ church.location or '' }}">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="denomination" class="form-label">Denomination</label>
+                                <input type="text" class="form-control" id="denomination" name="denomination" value="{{ church.denomination or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="office_id" class="form-label">Office</label>
+                                <select class="form-select" id="office_id" name="office_id">
+                                    <option value="">Select Office</option>
+                                    {% for office in offices %}
+                                    <option value="{{ office.id }}" {% if church.office_id == office.id %}selected{% endif %}>{{ office.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="congregation_size" class="form-label">Congregation Size</label>
+                                <input type="number" class="form-control" id="congregation_size" name="congregation_size" value="{{ church.congregation_size or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="year_founded" class="form-label">Year Founded</label>
+                                <input type="number" class="form-control" id="year_founded" name="year_founded" value="{{ church.year_founded or '' }}">
+                            </div>
                         </div>
                         
                         <div class="mb-3">
                             <label for="website" class="form-label">Website</label>
-                            <input type="url" class="form-control" id="website" name="website" value="{{ church.website or '' }}">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="denomination" class="form-label">Denomination</label>
-                            <input type="text" class="form-control" id="denomination" name="denomination" value="{{ church.denomination or '' }}">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="congregation_size" class="form-label">Congregation Size</label>
-                            <input type="number" class="form-control" id="congregation_size" name="congregation_size" value="{{ church.congregation_size or '' }}">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="year_founded" class="form-label">Year Founded</label>
-                            <input type="number" class="form-control" id="year_founded" name="year_founded" value="{{ church.year_founded or '' }}">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="office_id" class="form-label">Office</label>
-                            <select class="form-select" id="office_id" name="office_id">
-                                <option value="">Select Office</option>
-                                {% for office in offices %}
-                                <option value="{{ office.id }}" {% if church.office_id == office.id %}selected{% endif %}>{{ office.name }}</option>
-                                {% endfor %}
-                            </select>
+                            <input type="url" class="form-control" id="website" name="website" value="{{ church.website or '' }}" placeholder="https://...">
                         </div>
                     </div>
                 </div>
                 
+                <!-- Contact Information -->
                 <div class="card mb-4">
                     <div class="card-header bg-light">
                         <h5 class="mb-0">Contact Information</h5>
                     </div>
                     <div class="card-body">
-                        <div class="mb-3">
-                            <label for="phone" class="form-label">Phone</label>
-                            <input type="tel" class="form-control" id="phone" name="phone" value="{{ church.phone or '' }}">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label">Phone</label>
+                                <input type="tel" class="form-control" id="phone" name="phone" value="{{ church.phone or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" value="{{ church.email or '' }}">
+                            </div>
                         </div>
-                        
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Email</label>
-                            <input type="email" class="form-control" id="email" name="email" value="{{ church.email or '' }}">
+                    </div>
+                </div>
+                
+                <!-- Primary Contact Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Primary Contact Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="primary_contact_first_name" class="form-label">First Name</label>
+                                <input type="text" class="form-control" id="primary_contact_first_name" name="primary_contact_first_name" value="{{ church.primary_contact_first_name or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="primary_contact_last_name" class="form-label">Last Name</label>
+                                <input type="text" class="form-control" id="primary_contact_last_name" name="primary_contact_last_name" value="{{ church.primary_contact_last_name or '' }}">
+                            </div>
                         </div>
-                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="primary_contact_phone" class="form-label">Phone</label>
+                                <input type="tel" class="form-control" id="primary_contact_phone" name="primary_contact_phone" value="{{ church.primary_contact_phone or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="primary_contact_email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="primary_contact_email" name="primary_contact_email" value="{{ church.primary_contact_email or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Senior Pastor Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Senior Pastor Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="senior_pastor_first_name" class="form-label">First Name</label>
+                                <input type="text" class="form-control" id="senior_pastor_first_name" name="senior_pastor_first_name" value="{{ church.senior_pastor_first_name or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="senior_pastor_last_name" class="form-label">Last Name</label>
+                                <input type="text" class="form-control" id="senior_pastor_last_name" name="senior_pastor_last_name" value="{{ church.senior_pastor_last_name or '' }}">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="senior_pastor_phone" class="form-label">Phone</label>
+                                <input type="tel" class="form-control" id="senior_pastor_phone" name="senior_pastor_phone" value="{{ church.senior_pastor_phone or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="senior_pastor_email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="senior_pastor_email" name="senior_pastor_email" value="{{ church.senior_pastor_email or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Missions Pastor Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Missions Pastor Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="missions_pastor_first_name" class="form-label">First Name</label>
+                                <input type="text" class="form-control" id="missions_pastor_first_name" name="missions_pastor_first_name" value="{{ church.missions_pastor_first_name or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="missions_pastor_last_name" class="form-label">Last Name</label>
+                                <input type="text" class="form-control" id="missions_pastor_last_name" name="missions_pastor_last_name" value="{{ church.missions_pastor_last_name or '' }}">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="mission_pastor_phone" class="form-label">Phone</label>
+                                <input type="tel" class="form-control" id="mission_pastor_phone" name="mission_pastor_phone" value="{{ church.mission_pastor_phone or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="mission_pastor_email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="mission_pastor_email" name="mission_pastor_email" value="{{ church.mission_pastor_email or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Address Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Address Information</h5>
+                    </div>
+                    <div class="card-body">
                         <div class="mb-3">
                             <label for="street_address" class="form-label">Street Address</label>
                             <input type="text" class="form-control" id="street_address" name="street_address" value="{{ church.street_address or '' }}">
                         </div>
                         
                         <div class="row mb-3">
-                            <div class="col-md-6">
+                            <div class="col-md-5">
                                 <label for="city" class="form-label">City</label>
                                 <input type="text" class="form-control" id="city" name="city" value="{{ church.city or '' }}">
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label for="state" class="form-label">State</label>
                                 <select class="form-select" id="state" name="state">
                                     <option value="">Select State</option>
                                     {% for state_code, state_name in [
-                                        ('al', 'Alabama'), ('ak', 'Alaska'), ('az', 'Arizona'), ('ar', 'Arkansas'),
-                                        ('ca', 'California'), ('co', 'Colorado'), ('ct', 'Connecticut'), ('de', 'Delaware'),
-                                        ('fl', 'Florida'), ('ga', 'Georgia'), ('hi', 'Hawaii'), ('id', 'Idaho'),
-                                        ('il', 'Illinois'), ('in', 'Indiana'), ('ia', 'Iowa'), ('ks', 'Kansas'),
-                                        ('ky', 'Kentucky'), ('la', 'Louisiana'), ('me', 'Maine'), ('md', 'Maryland'),
-                                        ('ma', 'Massachusetts'), ('mi', 'Michigan'), ('mn', 'Minnesota'), ('ms', 'Mississippi'),
-                                        ('mo', 'Missouri'), ('mt', 'Montana'), ('ne', 'Nebraska'), ('nv', 'Nevada'),
-                                        ('nh', 'New Hampshire'), ('nj', 'New Jersey'), ('nm', 'New Mexico'), ('ny', 'New York'),
-                                        ('nc', 'North Carolina'), ('nd', 'North Dakota'), ('oh', 'Ohio'), ('ok', 'Oklahoma'),
-                                        ('or', 'Oregon'), ('pa', 'Pennsylvania'), ('ri', 'Rhode Island'), ('sc', 'South Carolina'),
-                                        ('sd', 'South Dakota'), ('tn', 'Tennessee'), ('tx', 'Texas'), ('ut', 'Utah'),
-                                        ('vt', 'Vermont'), ('va', 'Virginia'), ('wa', 'Washington'), ('wv', 'West Virginia'),
-                                        ('wi', 'Wisconsin'), ('wy', 'Wyoming'), ('dc', 'District of Columbia')
+                                        ('AL', 'Alabama'), ('AK', 'Alaska'), ('AZ', 'Arizona'), ('AR', 'Arkansas'),
+                                        ('CA', 'California'), ('CO', 'Colorado'), ('CT', 'Connecticut'), ('DE', 'Delaware'),
+                                        ('FL', 'Florida'), ('GA', 'Georgia'), ('HI', 'Hawaii'), ('ID', 'Idaho'),
+                                        ('IL', 'Illinois'), ('IN', 'Indiana'), ('IA', 'Iowa'), ('KS', 'Kansas'),
+                                        ('KY', 'Kentucky'), ('LA', 'Louisiana'), ('ME', 'Maine'), ('MD', 'Maryland'),
+                                        ('MA', 'Massachusetts'), ('MI', 'Michigan'), ('MN', 'Minnesota'), ('MS', 'Mississippi'),
+                                        ('MO', 'Missouri'), ('MT', 'Montana'), ('NE', 'Nebraska'), ('NV', 'Nevada'),
+                                        ('NH', 'New Hampshire'), ('NJ', 'New Jersey'), ('NM', 'New Mexico'), ('NY', 'New York'),
+                                        ('NC', 'North Carolina'), ('ND', 'North Dakota'), ('OH', 'Ohio'), ('OK', 'Oklahoma'),
+                                        ('OR', 'Oregon'), ('PA', 'Pennsylvania'), ('RI', 'Rhode Island'), ('SC', 'South Carolina'),
+                                        ('SD', 'South Dakota'), ('TN', 'Tennessee'), ('TX', 'Texas'), ('UT', 'Utah'),
+                                        ('VT', 'Vermont'), ('VA', 'Virginia'), ('WA', 'Washington'), ('WV', 'West Virginia'),
+                                        ('WI', 'Wisconsin'), ('WY', 'Wyoming'), ('DC', 'District of Columbia')
                                     ] %}
-                                    <option value="{{ state_code }}" {% if church.state == state_code %}selected{% endif %}>{{ state_name }}</option>
+                                    <option value="{{ state_code }}" {% if church.state and church.state.upper() == state_code %}selected{% endif %}>{{ state_name }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -119,21 +214,153 @@
                                 <input type="text" class="form-control" id="zip_code" name="zip_code" value="{{ church.zip_code or '' }}">
                             </div>
                         </div>
+                        
+                        <div class="mb-3">
+                            <label for="location" class="form-label">Additional Location Info</label>
+                            <input type="text" class="form-control" id="location" name="location" value="{{ church.location or '' }}" placeholder="e.g., Building name, landmark, etc.">
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Rest of the form remains unchanged -->
-                
+                <!-- Pipeline and Status Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Pipeline and Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="church_pipeline" class="form-label">Pipeline Stage</label>
+                                <select class="form-select" id="church_pipeline" name="church_pipeline">
+                                    <option value="">Select Pipeline Stage</option>
+                                    <option value="PROMOTION" {% if church.church_pipeline == 'PROMOTION' %}selected{% endif %}>Promotion</option>
+                                    <option value="INFORMATION" {% if church.church_pipeline == 'INFORMATION' %}selected{% endif %}>Information</option>
+                                    <option value="INVITATION" {% if church.church_pipeline == 'INVITATION' %}selected{% endif %}>Invitation</option>
+                                    <option value="CONFIRMATION" {% if church.church_pipeline == 'CONFIRMATION' %}selected{% endif %}>Confirmation</option>
+                                    <option value="EN42" {% if church.church_pipeline == 'EN42' %}selected{% endif %}>EN42</option>
+                                    <option value="AUTOMATION" {% if church.church_pipeline == 'AUTOMATION' %}selected{% endif %}>Automation</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="priority" class="form-label">Priority</label>
+                                <select class="form-select" id="priority" name="priority">
+                                    <option value="">Select Priority</option>
+                                    <option value="URGENT" {% if church.priority == 'URGENT' %}selected{% endif %}>Urgent</option>
+                                    <option value="HIGH" {% if church.priority == 'HIGH' %}selected{% endif %}>High</option>
+                                    <option value="MEDIUM" {% if church.priority == 'MEDIUM' %}selected{% endif %}>Medium</option>
+                                    <option value="LOW" {% if church.priority == 'LOW' %}selected{% endif %}>Low</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="assigned_to" class="form-label">Assigned To</label>
+                                <select class="form-select" id="assigned_to" name="assigned_to">
+                                    <option value="">Select Assignee</option>
+                                    <option value="UNASSIGNED" {% if church.assigned_to == 'UNASSIGNED' %}selected{% endif %}>Unassigned</option>
+                                    <option value="BILL JONES" {% if church.assigned_to == 'BILL JONES' %}selected{% endif %}>Bill Jones</option>
+                                    <option value="JASON MODOMO" {% if church.assigned_to == 'JASON MODOMO' %}selected{% endif %}>Jason Modomo</option>
+                                    <option value="KEN KATAYAMA" {% if church.assigned_to == 'KEN KATAYAMA' %}selected{% endif %}>Ken Katayama</option>
+                                    <option value="MATTHEW RULE" {% if church.assigned_to == 'MATTHEW RULE' %}selected{% endif %}>Matthew Rule</option>
+                                    <option value="CHIP ATKINSON" {% if church.assigned_to == 'CHIP ATKINSON' %}selected{% endif %}>Chip Atkinson</option>
+                                    <option value="RACHEL LIVELY" {% if church.assigned_to == 'RACHEL LIVELY' %}selected{% endif %}>Rachel Lively</option>
+                                    <option value="JIM BURCHEL" {% if church.assigned_to == 'JIM BURCHEL' %}selected{% endif %}>Jim Burchel</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label d-block">Virtuous</label>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="virtuous" id="virtuous_yes" value="true" {% if church.virtuous %}checked{% endif %}>
+                                    <label class="form-check-label" for="virtuous_yes">Yes</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="virtuous" id="virtuous_no" value="false" {% if not church.virtuous %}checked{% endif %}>
+                                    <label class="form-check-label" for="virtuous_no">No</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="source" class="form-label">Source</label>
+                                <select class="form-select" id="source" name="source">
+                                    <option value="">Select Source</option>
+                                    <option value="WEBFORM" {% if church.source == 'WEBFORM' %}selected{% endif %}>Web Form</option>
+                                    <option value="INCOMING CALL" {% if church.source == 'INCOMING CALL' %}selected{% endif %}>Incoming Call</option>
+                                    <option value="EMAIL" {% if church.source == 'EMAIL' %}selected{% endif %}>Email</option>
+                                    <option value="SOCIAL MEDIA" {% if church.source == 'SOCIAL MEDIA' %}selected{% endif %}>Social Media</option>
+                                    <option value="COLD CALL" {% if church.source == 'COLD CALL' %}selected{% endif %}>Cold Call</option>
+                                    <option value="PERSPECTIVES" {% if church.source == 'PERSPECTIVES' %}selected{% endif %}>Perspectives</option>
+                                    <option value="REFERAL" {% if church.source == 'REFERAL' %}selected{% endif %}>Referral</option>
+                                    <option value="OTHER" {% if church.source == 'OTHER' %}selected{% endif %}>Other</option>
+                                    <option value="UNKNOWN" {% if church.source == 'UNKNOWN' %}selected{% endif %}>Unknown</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="referred_by" class="form-label">Referred By</label>
+                                <input type="text" class="form-control" id="referred_by" name="referred_by" value="{{ church.referred_by or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Information -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Additional Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="info_given" class="form-label">Information Given</label>
+                            <textarea class="form-control" id="info_given" name="info_given" rows="3">{{ church.info_given or '' }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="reason_closed" class="form-label">Reason Closed</label>
+                            <textarea class="form-control" id="reason_closed" name="reason_closed" rows="3">{{ church.reason_closed or '' }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="date_closed" class="form-label">Date Closed</label>
+                            <input type="date" class="form-control" id="date_closed" name="date_closed" value="{{ church.date_closed.strftime('%Y-%m-%d') if church.date_closed else '' }}">
+                        </div>
+                    </div>
+                </div>
             </div>
-            
+
             <div class="col-md-4">
-                <!-- Sidebar sections remain unchanged -->
+                <!-- Form Actions -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                            <a href="{{ url_for('churches_bp.view_church', church_id=church.id) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Help Card -->
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Help</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">
+                            <i class="fas fa-info-circle text-info"></i> Fields marked with <span class="text-danger">*</span> are required.
+                        </p>
+                        <p class="card-text">
+                            <i class="fas fa-lightbulb text-warning"></i> Adding contact information will help you stay connected with this church.
+                        </p>
+                        <p class="card-text">
+                            <i class="fas fa-chart-line text-success"></i> Setting a pipeline stage helps track your relationship progress.
+                        </p>
+                    </div>
+                </div>
             </div>
-        </div>
-        
-        <div class="d-flex justify-content-end mb-4">
-            <a href="{{ url_for('churches_bp.view_church', church_id=church.id) }}" class="btn btn-secondary me-2">Cancel</a>
-            <button type="submit" class="btn btn-primary">Save Changes</button>
         </div>
     </form>
 </div>

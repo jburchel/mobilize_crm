@@ -130,7 +130,7 @@ def import_csv():
             
             # Redirect to the appropriate page
             if contact_type == 'person':
-                return redirect(url_for('people_bp.people'))
+                return redirect(url_for('people_bp.list_people'))
             else:
                 return redirect(url_for('churches_bp.churches'))
         else:
