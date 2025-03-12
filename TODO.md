@@ -45,20 +45,21 @@
 [X] Clicking on a person returns the user to the dashboard instead of opening the person detail page.
 [X] Clicking Edit from within a church or person a 'Method not allowed' message
 [X] Communications still showing up in John Doe's loginin...  he should not have any communications. I thin Jim's communications are showing up for him... Need to fix this.
-[] Get rid of any 'Connection' buttons anywhere in the app... all connections should happen at initial login making these buttons redundant.
+[X] Get rid of any 'Connection' buttons anywhere in the app... all connections should happen at initial login making these buttons redundant.
 [X] Email signatures should be specific to users and not accross users in the app
-[] Person detail pg not showing the pipeline at the top of page
+[X] Person detail pg not showing the pipeline at the top of page
 [] Tried to register a sent text message in the communications and got an error: 'An error occurred: local variable 'recipient_name' referenced before assignment'
 [] Similar to above when trying to register In-Person meeting: 'An error occurred: local variable 'recipient_name' referenced before assignment'... same with video call, other, and phone call
 [] Clicked on Add Task from a person detail page and it diverted to the task page
 [] On task page error: 'An unexpected error occurred. Please try again later.'
 [] When trying to create a church when I click 'Create Church' button it reverts to the churches page and I get the message: 'An error occurred while creating the church. Please try again.'
 [] Church dynamic search not working
+[X] Gradient on people/view page on the pipeline visualization fix
 
 ## New or Upgraded Functions
 
 [X] Wrap everything under the divider on sidebar into one page called Settings
-[] Church detail page needs to show all fields... should look more like the person detail page w/ Church pipeline across the top and Add Task button and Recent communications on bottom
+[X] Church detail page needs to show all fields... should look more like the person detail page w/ Church pipeline across the top and Add Task button and Recent communications on bottom
 [] When creating a user from Super Admin or Office Admin
 [] Need ability to edit users in Administration
 [] Need a place/way to see what the various permission are and what each allows and/or disallows

@@ -40,17 +40,32 @@ async function checkBackgroundSync() {
     try {
         const userId = sessionStorage.getItem('userId');
         const authToken = sessionStorage.getItem('authToken');
+        const googleAccessToken = sessionStorage.getItem('googleAccessToken');
         
-        if (!userId || !authToken) return;
+        if (!userId || !authToken) {
+            console.log("Missing userId or authToken, skipping sync status check");
+            return;
+        }
+        
+        console.log("Checking background sync status with tokens:", {
+            authToken: authToken ? authToken.substring(0, 10) + '...' : 'none',
+            googleAccessToken: googleAccessToken ? googleAccessToken.substring(0, 10) + '...' : 'none'
+        });
         
         const response = await fetch('/api/gmail/sync-status', {
             headers: {
                 'Authorization': `Bearer ${authToken}`,
-                'X-User-ID': userId
+                'X-User-ID': userId,
+                'X-Google-Token': googleAccessToken || ''
             }
         });
         
+        if (!response.ok) {
+            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+        }
+        
         const result = await response.json();
+        console.log("Sync status result:", result);
         
         if (result.sync_in_progress) {
             showEmailSyncIndicator();
@@ -477,6 +492,38 @@ class AuthManager {
             
             if (!accessToken) {
                 console.warn("No Google access token available for email sync");
+                
+                // Try to get a token from the server
+                try {
+                    console.log("Attempting to retrieve Google token from server...");
+                    const tokenResponse = await fetch('/google/status', {
+                        headers: {
+                            'Authorization': `Bearer ${firebaseToken}`
+                        }
+                    });
+                    
+                    if (tokenResponse.ok) {
+                        const tokenData = await tokenResponse.json();
+                        console.log("Google token status:", tokenData);
+                        
+                        if (!tokenData.connected) {
+                            console.warn("No valid Google token on server. User needs to authenticate with Google.");
+                            // Show a message to the user that they need to connect their Google account
+                            if (this.syncStatus) {
+                                this.syncStatus.textContent = "Please connect your Google account to sync emails";
+                                this.syncStatus.style.display = 'block';
+                                
+                                // Hide the status after a few seconds
+                                setTimeout(() => {
+                                    this.syncStatus.style.display = 'none';
+                                }, 5000);
+                            }
+                        }
+                    }
+                } catch (tokenError) {
+                    console.error("Error checking Google token status:", tokenError);
+                }
+                
                 return;
             }
             
@@ -491,6 +538,11 @@ class AuthManager {
                 this.syncStatus.style.display = 'block';
             }
             
+            console.log("Calling force sync endpoint with tokens:", {
+                firebaseToken: firebaseToken ? firebaseToken.substring(0, 10) + '...' : 'none',
+                accessToken: accessToken ? accessToken.substring(0, 10) + '...' : 'none'
+            });
+            
             // Call the force sync endpoint
             const response = await fetch('/api/gmail/force-sync-emails', {
                 method: 'GET',
@@ -500,6 +552,10 @@ class AuthManager {
                     'X-User-ID': userId
                 }
             });
+            
+            if (!response.ok) {
+                throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+            }
             
             const result = await response.json();
             console.log("Email sync result:", result);
@@ -516,12 +572,17 @@ class AuthManager {
                 }, 3000);
             }
         } catch (error) {
-            console.error("Error syncing emails:", error);
+            console.error("Error during email sync:", error);
+            
+            // Show error in sync status
             if (this.syncStatus) {
-                this.syncStatus.textContent = "Email sync failed: " + (error.message || "Unknown error");
+                this.syncStatus.textContent = "Email sync error: " + error.message;
+                this.syncStatus.style.display = 'block';
+                
+                // Hide the status after a few seconds
                 setTimeout(() => {
                     this.syncStatus.style.display = 'none';
-                }, 3000);
+                }, 5000);
             }
         }
     }

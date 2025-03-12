@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Debug: {{ church.church_name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="page-header">
+        <div class="header-left">
+            <h2>Church Details (Debug View)</h2>
+            <h1 class="church-name">{{ church.church_name }}</h1>
+        </div>
+        <div class="button-group">
+            <a href="{{ url_for('churches_bp.list_churches') }}" class="button">Back to Churches</a>
+        </div>
+    </div>
+
+    <div class="content-container">
+        <div class="row">
+            <!-- Church Information Card -->
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3><i class="bi bi-building"></i> Church Information</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-row">
+                            <div class="info-label">Church Name:</div>
+                            <div class="info-value">{{ church.church_name }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Location:</div>
+                            <div class="info-value">{{ church.location or 'Not specified' }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Denomination:</div>
+                            <div class="info-value">{{ church.denomination or 'Not specified' }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Information Card -->
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3><i class="bi bi-envelope"></i> Contact Information</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-row">
+                            <div class="info-label">Email:</div>
+                            <div class="info-value">
+                                {% if church.email %}
+                                    <a href="mailto:{{ church.email }}">{{ church.email }}</a>
+                                {% else %}
+                                    Not specified
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Phone:</div>
+                            <div class="info-value">
+                                {% if church.phone %}
+                                    <a href="tel:{{ church.phone }}">{{ church.phone }}</a>
+                                {% else %}
+                                    Not specified
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Debug Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3><i class="bi bi-bug"></i> Debug Information</h3>
+            </div>
+            <div class="card-body">
+                <h4>Tasks</h4>
+                <p>Number of tasks: {{ tasks|length }}</p>
+                
+                <h4>Communications</h4>
+                <p>Number of communications: {{ communications|length }}</p>
+                <p>Number of recent communications: {{ recent_communications|length }}</p>
+                
+                {% if recent_communications %}
+                <h4>First Communication Details</h4>
+                <ul>
+                    <li>ID: {{ recent_communications[0].id }}</li>
+                    <li>Date Sent: {{ recent_communications[0].date_sent }}</li>
+                    <li>Message: {{ recent_communications[0].message|truncate(50) }}</li>
+                    <li>Type (if available): 
+                        {% if recent_communications[0].type is defined %}
+                            {{ recent_communications[0].type }}
+                        {% else %}
+                            Not available
+                        {% endif %}
+                    </li>
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
