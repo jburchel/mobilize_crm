@@ -88,7 +88,7 @@ def create_firebase_user(email, password=None):
         current_app.logger.error(f"Error creating Firebase user: {str(e)}")
         return None, None
 
-@offices_admin_bp.route('/admin/offices')
+@offices_admin_bp.route('/offices/')
 @auth_required
 def list_offices():
     """List all offices the user has access to."""
@@ -110,20 +110,21 @@ def list_offices():
         # Get user count for each office
         office_stats = []
         for office in offices:
-            user_count = session.query(func.count(UserOffice.id)).filter(UserOffice.office_id == office.id).scalar()
-            church_count = session.query(func.count(Church.id)).filter(Church.office_id == office.id).scalar()
-            office_stats.append({
-                'office': office,
-                'user_count': user_count,
-                'church_count': church_count
-            })
+            if office is not None:  # Add check to ensure office is not None
+                user_count = session.query(func.count(UserOffice.id)).filter(UserOffice.office_id == office.id).scalar()
+                church_count = session.query(func.count(Church.id)).filter(Church.office_id == office.id).scalar()
+                office_stats.append({
+                    'office': office,
+                    'user_count': user_count,
+                    'church_count': church_count
+                })
         
         return render_template('admin/offices.html', 
                                offices=offices, 
                                office_stats=office_stats,
                                super_admin=super_admin)
 
-@offices_admin_bp.route('/admin/offices/new', methods=['GET', 'POST'])
+@offices_admin_bp.route('/offices/new', methods=['GET', 'POST'])
 @auth_required
 def new_office():
     """Create a new office."""
@@ -142,26 +143,31 @@ def new_office():
         phone = request.form.get('phone')
         email = request.form.get('email')
         
-        with session_scope() as session:
-            new_office = Office(
-                name=name,
-                address=address,
-                city=city,
-                state=state,
-                zip_code=zip_code,
-                phone=phone,
-                email=email,
-                created_at=datetime.datetime.now(),
-                updated_at=datetime.datetime.now()
-            )
-            session.add(new_office)
-            session.commit()
-            
-            return redirect(url_for('offices_admin_bp.list_offices'))
+        try:
+            with session_scope() as session:
+                new_office = Office(
+                    name=name,
+                    address=address,
+                    city=city,
+                    state=state,
+                    zip_code=zip_code,
+                    phone=phone,
+                    email=email,
+                    created_at=datetime.datetime.now(),
+                    updated_at=datetime.datetime.now()
+                )
+                session.add(new_office)
+                session.commit()
+                
+                flash('Office created successfully!', 'success')
+                return redirect(url_for('offices_admin_bp.list_offices'))
+        except Exception as e:
+            current_app.logger.error(f"Error creating office: {str(e)}")
+            flash(f'Error creating office: {str(e)}', 'danger')
     
     return render_template('admin/offices/new.html')
 
-@offices_admin_bp.route('/admin/offices/<int:office_id>/edit', methods=['GET', 'POST'])
+@offices_admin_bp.route('/offices/<int:office_id>/edit', methods=['GET', 'POST'])
 @auth_required
 def edit_office(office_id):
     """Edit an existing office."""
@@ -195,7 +201,7 @@ def edit_office(office_id):
         
         return render_template('admin/offices/edit.html', office=office)
 
-@offices_admin_bp.route('/admin/offices/<int:office_id>/delete', methods=['POST'])
+@offices_admin_bp.route('/offices/<int:office_id>/delete', methods=['POST'])
 @auth_required
 def delete_office(office_id):
     """Delete an office."""
@@ -227,7 +233,7 @@ def delete_office(office_id):
     
     return redirect(url_for('offices_admin_bp.list_offices'))
 
-@offices_admin_bp.route('/admin/offices/<int:office_id>/users')
+@offices_admin_bp.route('/offices/<int:office_id>/users')
 @auth_required
 def list_office_users(office_id):
     """List all users for a specific office."""
@@ -266,7 +272,7 @@ def list_office_users(office_id):
             super_admin=super_admin
         )
 
-@offices_admin_bp.route('/admin/offices/<int:office_id>/users/add', methods=['GET', 'POST'])
+@offices_admin_bp.route('/offices/<int:office_id>/users/add', methods=['GET', 'POST'])
 @auth_required
 def add_office_user(office_id):
     """Add a user to an office."""
@@ -349,7 +355,7 @@ def add_office_user(office_id):
             super_admin=super_admin
         )
 
-@offices_admin_bp.route('/admin/offices/<int:office_id>/users/<user_id>/remove', methods=['POST'])
+@offices_admin_bp.route('/offices/<int:office_id>/users/<user_id>/remove', methods=['POST'])
 @auth_required
 def remove_office_user(office_id, user_id):
     """Remove a user from an office."""

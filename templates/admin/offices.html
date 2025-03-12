@@ -37,6 +37,7 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                {% if office_stats %}
                                 {% for stat in office_stats %}
                                 <tr>
                                     <td>{{ stat.office.name }}</td>
@@ -66,6 +67,7 @@
                                         {% endif %}
                                     </td>
                                 </tr>
+                                {% endfor %}
                                 {% else %}
                                 <tr>
                                     <td colspan="5" class="text-center py-4">
@@ -77,7 +79,7 @@
                                         {% endif %}
                                     </td>
                                 </tr>
-                                {% endfor %}
+                                {% endif %}
                             </tbody>
                         </table>
                     </div>

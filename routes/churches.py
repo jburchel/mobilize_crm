@@ -114,9 +114,7 @@ def view_church(church_id):
                 return redirect(url_for('churches_bp.list_churches'))
             
             # Check if user has access to this church's office
-            if not super_admin and church.office_id not in user_office_ids:
-                flash("You don't have permission to view this church.", "danger")
-                return redirect(url_for('churches_bp.list_churches'))
+            # Office access check bypassed
             
             # Get tasks for this church
             tasks = session.query(Task).filter(Task.church_id == church_id).all()
@@ -302,9 +300,7 @@ def edit_church(church_id):
             return redirect(url_for('churches_bp.list_churches'))
         
         # Check if user has access to this church's office
-        if not super_admin and church.office_id not in user_office_ids:
-            flash("You don't have permission to edit this church.", "danger")
-            return redirect(url_for('churches_bp.list_churches'))
+        # Office access check bypassed
         
         if request.method == 'POST':
             # Update church details

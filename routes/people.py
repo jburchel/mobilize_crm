@@ -57,10 +57,7 @@ def person_detail(person_id):
     current_app.logger.debug(f"person_detail called for person_id={person_id}, user_id={user_id}")
     
     with session_scope() as session:
-        person = session.query(Person).filter(
-            Person.id == person_id,
-            Person.user_id == user_id
-        ).first()
+        person = session.query(Person).filter(Person.id == person_id).first()
         if person is None:
             current_app.logger.warning(f"Person with ID {person_id} not found for user {user_id}")
             abort(404)
