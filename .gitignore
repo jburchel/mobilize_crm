@@ -30,6 +30,11 @@ ENV/
 *.sqlite
 *.sqlite3
 
+# Backup files
+*.backup
+*.bak
+*_backup.*
+
 # Logs
 logs/
 *.log
@@ -70,3 +75,4 @@ setup_dev_env.sh
 sync_database_data.py
 sync_to_sqlite.py
 test_db_connection.py
+migrate_pg_to_sqlite.py
