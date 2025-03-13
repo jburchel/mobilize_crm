@@ -248,7 +248,12 @@
                                     </td>
                                     <td>
                                         <div class="text-truncate" style="max-width: 300px;">
-                                            {{ comm.message or 'No message content' }}
+                                            {% if comm.type == 'Email' and comm.message %}
+                                                {% set message_parts = comm.message.split('<br><br><div class="signature">') %}
+                                                {{ message_parts[0] or 'No message content' }}
+                                            {% else %}
+                                                {{ comm.message or 'No message content' }}
+                                            {% endif %}
                                         </div>
                                     </td>
                                 </tr>
@@ -565,13 +570,22 @@
         function toggleEmailFields() {
             const commType = document.getElementById('type').value;
             const emailFields = document.getElementById('email-fields');
+            const sendButton = document.getElementById('sendCommunicationBtn');
             
             if (commType === 'Email') {
                 emailFields.style.display = 'block';
                 // Fetch default signature when email type is selected
                 fetchDefaultSignature();
+                // Change button text for email
+                if (sendButton) {
+                    sendButton.textContent = 'Send Communication';
+                }
             } else {
                 emailFields.style.display = 'none';
+                // Change button text for non-email
+                if (sendButton) {
+                    sendButton.textContent = 'Record Communication';
+                }
             }
         }
         

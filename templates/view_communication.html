@@ -62,7 +62,20 @@
                         <h6>Message:</h6>
                         <div class="card">
                             <div class="card-body bg-light">
-                                <div style="white-space: pre-wrap;">{% if communication.message %}{{ communication.message }}{% else %}No message content{% endif %}</div>
+                                {% if communication.type == 'Email' %}
+                                    {% if communication.message %}
+                                        {% set message_parts = communication.message.split('<br><br><div class="signature">') %}
+                                        <div style="white-space: pre-wrap;">{{ message_parts[0] }}</div>
+                                        {% if message_parts|length > 1 %}
+                                            <hr>
+                                            <div class="signature">{{ message_parts[1]|safe }}</div>
+                                        {% endif %}
+                                    {% else %}
+                                        <div>No message content</div>
+                                    {% endif %}
+                                {% else %}
+                                    <div style="white-space: pre-wrap;">{% if communication.message %}{{ communication.message }}{% else %}No message content{% endif %}</div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
