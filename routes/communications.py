@@ -357,6 +357,9 @@ def send_communication_route():
             'message': 'User not authenticated'
         }), 401
         
+    # Initialize recipient_name at the start
+    recipient_name = "Unknown"
+        
     with session_scope() as session:
         try:
             # Get form data
@@ -391,9 +394,6 @@ def send_communication_route():
                 current_app.logger.debug(f"Using current date: {date_sent}")
                 
             subject = form_data.get('subject', 'Mobilize CRM Communication')
-            
-            # Initialize recipient_name
-            recipient_name = "Unknown"
             
             # Validate required fields
             if not comm_type:

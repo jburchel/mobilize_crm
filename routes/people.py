@@ -43,12 +43,75 @@ def list_people():
             current_app.logger.error(traceback.format_exc())
             return redirect(url_for('dashboard_bp.dashboard'))
 
-@people_bp.route('/add_person_form')
+@people_bp.route('/new', methods=['GET', 'POST'])
 @auth_required
-def add_person_form():
+def new_person():
+    """Create a new person."""
+    if request.method == 'GET':
+        with session_scope() as session:
+            churches = session.query(Church).all()
+            return render_template('people/new.html', churches=churches)
+    
+    user_id = get_current_user_id()
     with session_scope() as session:
-        churches = session.query(Church).all()
-        return render_template('people/new.html', churches=churches)
+        title = request.form['title']
+        first_name = request.form['first_name']
+        last_name = request.form['last_name']
+        email = request.form['email']
+        phone = request.form['phone']
+        preferred_contact_method = request.form['preferred_contact_method']
+        street_address = request.form['street_address']
+        city = request.form['city']
+        state = request.form['state']
+        zip_code = request.form['zip_code']
+        home_country = request.form['home_country']
+        church_role = request.form['church_role']
+        church_id = request.form['church_id'] or None
+        marital_status = request.form['marital_status']
+        spouse_first_name = request.form['spouse_first_name']
+        spouse_last_name = request.form['spouse_last_name']
+        people_pipeline = request.form['people_pipeline']
+        priority = request.form['priority']
+        assigned_to = request.form['assigned_to']
+        source = request.form['source']
+        referred_by = request.form['referred_by']
+        initial_notes = request.form['initial_notes']
+        info_given = request.form['info_given']
+        desired_service = request.form['desired_service']
+        virtuous = 'virtuous' in request.form
+        
+        new_person = Person(
+            type='person',  # Explicitly set the type
+            title=title,
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            phone=phone,
+            preferred_contact_method=preferred_contact_method,
+            street_address=street_address,
+            city=city,
+            state=state,
+            zip_code=zip_code,
+            home_country=home_country,
+            church_role=church_role,
+            church_id=church_id,
+            marital_status=marital_status,
+            spouse_first_name=spouse_first_name,
+            spouse_last_name=spouse_last_name,
+            people_pipeline=people_pipeline,
+            priority=priority,
+            assigned_to=assigned_to,
+            source=source,
+            referred_by=referred_by,
+            initial_notes=initial_notes,
+            info_given=info_given,
+            desired_service=desired_service,
+            virtuous=virtuous,
+            user_id=user_id  # Associate with current user
+        )
+        
+        session.add(new_person)
+        return redirect(url_for('people_bp.list_people'))
 
 @people_bp.route('/<int:person_id>')
 @auth_required
@@ -174,70 +237,6 @@ def person_detail(person_id):
                               recent_communications=recent_communications,
                               tasks=tasks,
                               activities=activities)
-
-@people_bp.route('/add_person', methods=['POST'])
-@auth_required
-def add_person():
-    user_id = get_current_user_id()
-    with session_scope() as session:
-        title = request.form['title']
-        first_name = request.form['first_name']
-        last_name = request.form['last_name']
-        email = request.form['email']
-        phone = request.form['phone']
-        preferred_contact_method = request.form['preferred_contact_method']
-        street_address = request.form['street_address']
-        city = request.form['city']
-        state = request.form['state']
-        zip_code = request.form['zip_code']
-        home_country = request.form['home_country']
-        church_role = request.form['church_role']
-        church_id = request.form['church_id'] or None
-        marital_status = request.form['marital_status']
-        spouse_first_name = request.form['spouse_first_name']
-        spouse_last_name = request.form['spouse_last_name']
-        people_pipeline = request.form['people_pipeline']
-        priority = request.form['priority']
-        assigned_to = request.form['assigned_to']
-        source = request.form['source']
-        referred_by = request.form['referred_by']
-        initial_notes = request.form['initial_notes']
-        info_given = request.form['info_given']
-        desired_service = request.form['desired_service']
-        virtuous = 'virtuous' in request.form
-        
-        new_person = Person(
-            type='person',  # Explicitly set the type
-            title=title,
-            first_name=first_name,
-            last_name=last_name,
-            email=email,
-            phone=phone,
-            preferred_contact_method=preferred_contact_method,
-            street_address=street_address,
-            city=city,
-            state=state,
-            zip_code=zip_code,
-            home_country=home_country,
-            church_role=church_role,
-            church_id=church_id,
-            marital_status=marital_status,
-            spouse_first_name=spouse_first_name,
-            spouse_last_name=spouse_last_name,
-            people_pipeline=people_pipeline,
-            priority=priority,
-            assigned_to=assigned_to,
-            source=source,
-            referred_by=referred_by,
-            initial_notes=initial_notes,
-            info_given=info_given,
-            desired_service=desired_service,
-            virtuous=virtuous,
-            user_id=user_id  # Associate with current user
-        )
-        
-        session.add(new_person)
-        return redirect(url_for('people_bp.list_people'))
 
 @people_bp.route('/edit_person/<int:person_id>', methods=['GET', 'POST'])
 @auth_required

@@ -62,33 +62,6 @@ def list_churches():
             current_app.logger.error(traceback.format_exc())
             return redirect(url_for('dashboard_bp.dashboard'))
 
-@churches_bp.route('/add_church_form')
-@auth_required
-def add_church_form():
-    """Render the add church form."""
-    user_id = get_current_user_id()
-    
-    with session_scope() as session:
-        try:
-            # Get user's offices for the form
-            super_admin = is_super_admin(user_id)
-            
-            # Get all offices for the dropdown
-            if super_admin:
-                all_offices = session.query(Office).all()
-            else:
-                user_office_records = session.query(UserOffice).filter_by(user_id=user_id).all()
-                office_ids = [uo.office_id for uo in user_office_records]
-                all_offices = session.query(Office).filter(Office.id.in_(office_ids) if office_ids else False).all()
-            
-            return render_template('churches/new.html', offices=all_offices)
-        except Exception as e:
-            current_app.logger.error(f"Error rendering new church form: {str(e)}")
-            import traceback
-            current_app.logger.error(traceback.format_exc())
-            flash("An error occurred while loading the form. Please try again.", "danger")
-            return redirect(url_for('churches_bp.list_churches'))
-
 @churches_bp.route('/<int:church_id>')
 @auth_required
 def view_church(church_id):
