@@ -22,7 +22,7 @@ def upgrade():
     Upgrade the database schema to include admin features.
     """
     # Get database URI from environment or use default
-    database_uri = os.environ.get('DATABASE_URL', 'sqlite:///mobilize_crm.db')
+    database_uri = os.environ.get('DATABASE_URL', 'sqlite:///instance/mobilize_crm.db')
     
     # Create engine and session
     engine = create_engine(database_uri)
@@ -149,7 +149,7 @@ def downgrade():
     Downgrade the database schema by removing admin features.
     """
     # Get database URI from environment or use default
-    database_uri = os.environ.get('DATABASE_URL', 'sqlite:///mobilize_crm.db')
+    database_uri = os.environ.get('DATABASE_URL', 'sqlite:///instance/mobilize_crm.db')
     
     # Create engine
     engine = create_engine(database_uri)

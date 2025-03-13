@@ -24,7 +24,7 @@ def upgrade():
     Create the contacts table if it doesn't exist.
     """
     # Get database URI from environment or use default
-    database_uri = os.environ.get('DATABASE_URL', 'sqlite:///mobilize_crm.db')
+    database_uri = os.environ.get('DATABASE_URL', 'sqlite:///instance/mobilize_crm.db')
     
     # Create engine
     engine = create_engine(database_uri)
@@ -43,7 +43,7 @@ def downgrade():
     Drop the contacts table.
     """
     # Get database URI from environment or use default
-    database_uri = os.environ.get('DATABASE_URL', 'sqlite:///mobilize_crm.db')
+    database_uri = os.environ.get('DATABASE_URL', 'sqlite:///instance/mobilize_crm.db')
     
     # Create engine
     engine = create_engine(database_uri)

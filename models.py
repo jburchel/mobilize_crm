@@ -483,7 +483,8 @@ class UserOffice(Base):
     def __repr__(self):
         return f"<UserOffice(user_id='{self.user_id}', office_id={self.office_id}, role='{self.role}')>"
 
-engine = create_engine('sqlite:///mobilize_crm.db')
+# Use explicit path to instance folder to ensure consistency
+engine = create_engine('sqlite:///instance/mobilize_crm.db')
 Base.metadata.create_all(engine)
 
 # Create a scoped session factory

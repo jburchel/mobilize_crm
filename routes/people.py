@@ -53,20 +53,28 @@ def add_person_form():
 @people_bp.route('/<int:person_id>')
 @auth_required
 def person_detail(person_id):
+    """Display details for a specific person"""
     user_id = get_current_user_id()
-    current_app.logger.debug(f"person_detail called for person_id={person_id}, user_id={user_id}")
-    
+    if not user_id:
+        current_app.logger.warning("No user ID found in session, redirecting to login")
+        return redirect(url_for('dashboard_bp.dashboard'))
+        
     with session_scope() as session:
-        person = session.query(Person).filter(Person.id == person_id).first()
-        if person is None:
-            current_app.logger.warning(f"Person with ID {person_id} not found for user {user_id}")
-            abort(404)
+        # Get the person
+        person = session.query(Person).filter_by(id=person_id).first()
         
-        current_app.logger.debug(f"Found person: {person.first_name} {person.last_name}, Email: {person.email}")
-        
-        churches = session.query(Church).order_by(Church.church_name).all()
-        
-        # Get the 5 most recent communications for this person
+        if not person:
+            flash('Person not found', 'danger')
+            return redirect(url_for('people_bp.people_list'))
+            
+        # Get churches for this person
+        churches = []
+        try:
+            from models import Church
+            churches = session.query(Church).all()
+        except Exception as e:
+            current_app.logger.error(f"Error getting churches: {str(e)}")
+            
         # Use distinct to avoid duplicates
         query = session.query(Communication)\
             .filter(
@@ -82,11 +90,27 @@ def person_detail(person_id):
         # Execute the query and get distinct communications by gmail_message_id
         all_communications = query.all()
         
+        # Log the types of communications found
+        comm_types = {}
+        for comm in all_communications:
+            if comm and comm.type:
+                if comm.type in comm_types:
+                    comm_types[comm.type] += 1
+                else:
+                    comm_types[comm.type] = 1
+        
+        current_app.logger.info(f"Communication types found for person {person_id}: {comm_types}")
+        current_app.logger.info(f"Total communications found for person {person_id}: {len(all_communications)}")
+        
         # Use a set to track seen message IDs
         seen_message_ids = set()
         recent_communications = []
         
         for comm in all_communications:
+            # Skip if comm is None or we've already seen this message ID
+            if comm is None:
+                continue
+                
             # Skip if we've already seen this message ID
             if comm.gmail_message_id and comm.gmail_message_id in seen_message_ids:
                 continue
@@ -118,6 +142,10 @@ def person_detail(person_id):
         
         # Add communications to activities
         for comm in all_communications[:10]:  # Limit to 10 most recent
+            # Skip None communications
+            if comm is None:
+                continue
+                
             activities.append({
                 'type': 'communication',
                 'title': f"{comm.type} Communication",

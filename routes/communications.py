@@ -59,8 +59,9 @@ def communications_route():
         # Filter by user_id if it's set in the communication
         # But don't exclude communications without a user_id
         if user_id:
-            query = query.filter(Communication.user_id == user_id)
-            current_app.logger.debug(f"Filtering communications by user_id={user_id}")
+            # Modified to include communications where user_id is NULL or matches the current user_id
+            query = query.filter((Communication.user_id == user_id) | (Communication.user_id == None))
+            current_app.logger.debug(f"Filtering communications by user_id={user_id} or NULL")
             
         # Order by date_sent, handling NULL values
         query = query.order_by(func.coalesce(Communication.date_sent, datetime(1900, 1, 1)).desc())
@@ -73,6 +74,9 @@ def communications_route():
         
         # Execute the query
         all_communications = query.all()
+        
+        # Filter out None values
+        all_communications = [comm for comm in all_communications if comm is not None]
         
         # Filter out duplicates based on gmail_message_id
         # Use a dictionary to keep track of unique communications
@@ -198,8 +202,8 @@ def all_communications_route():
         # Filter by user_id if it's set in the communication
         # But don't exclude communications without a user_id
         if user_id:
-            query = query.filter(Communication.user_id == user_id)
-            current_app.logger.debug(f"Filtering communications by user_id={user_id}")
+            query = query.filter((Communication.user_id == user_id) | (Communication.user_id == None))
+            current_app.logger.debug(f"Filtering communications by user_id={user_id} or NULL")
             
         # Apply search term if provided
         if search_term:
@@ -225,6 +229,9 @@ def all_communications_route():
         # Get total count for pagination
         total_count = query.count()
         
+        # Add debug logging for total count
+        current_app.logger.info(f"Total communications count before pagination: {total_count}")
+        
         # Apply pagination
         query = query.limit(per_page).offset((page - 1) * per_page)
         
@@ -233,6 +240,26 @@ def all_communications_route():
         
         # Execute the query
         all_communications = query.all()
+        
+        # Add debug logging for query results
+        current_app.logger.info(f"Query returned {len(all_communications)} communications")
+        
+        # Log the types of communications found
+        comm_types = {}
+        for comm in all_communications:
+            if comm and comm.type:
+                if comm.type in comm_types:
+                    comm_types[comm.type] += 1
+                else:
+                    comm_types[comm.type] = 1
+        
+        current_app.logger.info(f"Communication types found: {comm_types}")
+        
+        # Filter out None values
+        all_communications = [comm for comm in all_communications if comm is not None]
+        
+        # Add debug logging after filtering None values
+        current_app.logger.info(f"After filtering None values: {len(all_communications)} communications")
         
         # Filter out duplicates based on gmail_message_id
         # Use a dictionary to keep track of unique communications
@@ -251,12 +278,18 @@ def all_communications_route():
                 # For communications without a gmail_message_id, use the ID as the key
                 unique_communications[f"local_{comm.id}"] = comm
         
+        # Add debug logging after filtering duplicates
+        current_app.logger.info(f"After filtering duplicates: {len(unique_communications)} communications")
+        
         # Convert the dictionary values back to a list and sort by date
         communications_list = sorted(
             unique_communications.values(),
             key=lambda x: x.date_sent if x.date_sent else datetime(1900, 1, 1),
             reverse=True
         )
+        
+        # Add debug logging for final communications list
+        current_app.logger.info(f"Final communications list length: {len(communications_list)}")
         
         current_app.logger.debug(f"Found {len(all_communications)} total communications, filtered to {len(communications_list)} unique communications")
         
@@ -337,8 +370,30 @@ def send_communication_route():
             message = form_data.get('message')
             person_id = form_data.get('person_id') or None
             church_id = form_data.get('church_id') or None
-            date_sent = datetime.now()
+            
+            # Add detailed debug logging
+            current_app.logger.info(f"Processing communication - Type: {comm_type}, Person ID: {person_id}, Church ID: {church_id}, User ID: {user_id}")
+            current_app.logger.debug(f"Form data: {form_data}")
+            
+            # Use custom date if provided, otherwise use current date and time
+            custom_date = form_data.get('custom_date')
+            if custom_date and custom_date.strip():
+                try:
+                    # Parse the datetime-local input format (YYYY-MM-DDTHH:MM)
+                    date_sent = datetime.fromisoformat(custom_date.replace('T', ' '))
+                    current_app.logger.debug(f"Using custom date: {date_sent}")
+                except ValueError:
+                    # If parsing fails, use current time
+                    current_app.logger.warning(f"Invalid custom date format: {custom_date}, using current time instead")
+                    date_sent = datetime.now()
+            else:
+                date_sent = datetime.now()
+                current_app.logger.debug(f"Using current date: {date_sent}")
+                
             subject = form_data.get('subject', 'Mobilize CRM Communication')
+            
+            # Initialize recipient_name
+            recipient_name = "Unknown"
             
             # Validate required fields
             if not comm_type:
@@ -366,23 +421,50 @@ def send_communication_route():
                     'message': 'Please select a person or church as the recipient'
                 }), 400
 
-            # Send Email if type is Email
+            # Get recipient information for any communication type
+            if person_id:
+                person = session.query(Person).filter_by(id=person_id).first()
+                if person:
+                    recipient_name = f"{person.first_name} {person.last_name}"
+                    current_app.logger.debug(f"Found person: {recipient_name}")
+            elif church_id:
+                church = session.query(Church).filter_by(id=church_id).first()
+                if church:
+                    recipient_name = church.church_name
+                    current_app.logger.debug(f"Found church: {recipient_name}")
+
+            # For non-email communications, create the record immediately
+            if comm_type != 'Email':
+                new_communication = Communication(
+                    type=comm_type,
+                    message=message,
+                    date_sent=date_sent,
+                    person_id=person_id,
+                    church_id=church_id,
+                    subject=subject,
+                    user_id=user_id
+                )
+                session.add(new_communication)
+                session.commit()
+                current_app.logger.info(f"Non-email communication logged successfully with ID: {new_communication.id}, Type: {comm_type}")
+                
+                if request.is_json:
+                    return jsonify({
+                        'success': True,
+                        'message': f'{comm_type} communication recorded successfully with {recipient_name}'
+                    })
+                return redirect(url_for('communications_bp.communications_route'))
+
+            # Handle Email communications
             if comm_type == 'Email':
                 to_email = None
-                recipient_name = None
                 
-                if person_id:
-                    person = session.query(Person).filter_by(id=person_id).first()
-                    if person:
-                        to_email = person.email
-                        recipient_name = person.get_name()
-                        current_app.logger.debug(f"Found person: {recipient_name}, email: {to_email}")
-                elif church_id:
-                    church = session.query(Church).filter_by(id=church_id).first()
-                    if church:
-                        to_email = church.email
-                        recipient_name = church.get_name()
-                        current_app.logger.debug(f"Found church: {recipient_name}, email: {to_email}")
+                if person_id and person:
+                    to_email = person.email
+                    current_app.logger.debug(f"Person email: {to_email}")
+                elif church_id and church:
+                    to_email = church.email
+                    current_app.logger.debug(f"Church email: {to_email}")
 
                 if not to_email:
                     current_app.logger.warning(f"No email found for selected recipient")
@@ -613,7 +695,7 @@ def send_communication_route():
                     }), 400
 
             # Log the communication
-            current_app.logger.info(f"Logging communication in database")
+            current_app.logger.info(f"Logging communication in database - Type: {comm_type}, Date: {date_sent}")
             new_communication = Communication(
                 type=comm_type,
                 message=message,
@@ -624,14 +706,22 @@ def send_communication_route():
                 user_id=user_id
             )
             session.add(new_communication)
+            session.flush()  # Flush to get the ID without committing
+            comm_id = new_communication.id  # Store the ID before committing
             session.commit()
-            current_app.logger.info(f"Communication logged successfully with ID: {new_communication.id}")
+            current_app.logger.info(f"Communication logged successfully with ID: {comm_id}, Type: {comm_type}")
             
             # If we're handling a JSON request, return a JSON response
             if request.is_json:
+                if comm_type == 'Email':
+                    success_message = f'Email sent successfully to {recipient_name}'
+                else:
+                    success_message = f'Communication recorded successfully with {recipient_name}'
+                
+                current_app.logger.info(f"Returning success response: {success_message}")
                 return jsonify({
                     'success': True,
-                    'message': f'Communication sent successfully to {recipient_name}'
+                    'message': success_message
                 })
             # Otherwise, redirect to the communications page
             return redirect(url_for('communications_bp.communications_route'))
@@ -735,6 +825,9 @@ def search_communications():
         
         # Execute the query
         results = query.all()
+        
+        # Filter out None values
+        results = [comm for comm in results if comm is not None]
         
         # Filter out duplicates based on gmail_message_id
         unique_communications = {}
@@ -856,7 +949,7 @@ def reply_to_communication(comm_id):
         recipient_person_id = None
         recipient_church_id = None
         to_email = None
-        recipient_name = None
+        recipient_name = "Unknown"
         
         if original.email_status == 'received':
             # If we received it, reply to the original person/church
@@ -867,12 +960,18 @@ def reply_to_communication(comm_id):
                 person = session.query(Person).filter_by(id=recipient_person_id).first()
                 if person and person.email:
                     to_email = person.email
-                    recipient_name = person.get_name()
+                    if hasattr(person, 'get_name'):
+                        recipient_name = person.get_name()
+                    else:
+                        recipient_name = f"{person.first_name} {person.last_name}"
             elif recipient_church_id:
                 church = session.query(Church).filter_by(id=recipient_church_id).first()
                 if church and church.email:
                     to_email = church.email
-                    recipient_name = church.get_name()
+                    if hasattr(church, 'get_name'):
+                        recipient_name = church.get_name()
+                    else:
+                        recipient_name = church.church_name
         else:
             # If we sent it, reply to the same recipient
             recipient_person_id = original.person_id
@@ -882,12 +981,18 @@ def reply_to_communication(comm_id):
                 person = session.query(Person).filter_by(id=recipient_person_id).first()
                 if person and person.email:
                     to_email = person.email
-                    recipient_name = person.get_name()
+                    if hasattr(person, 'get_name'):
+                        recipient_name = person.get_name()
+                    else:
+                        recipient_name = f"{person.first_name} {person.last_name}"
             elif recipient_church_id:
                 church = session.query(Church).filter_by(id=recipient_church_id).first()
                 if church and church.email:
                     to_email = church.email
-                    recipient_name = church.get_name()
+                    if hasattr(church, 'get_name'):
+                        recipient_name = church.get_name()
+                    else:
+                        recipient_name = church.church_name
         
         if not to_email:
             return jsonify({

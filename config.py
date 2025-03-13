@@ -87,8 +87,8 @@ class BaseConfig:
 class DevelopmentConfig(BaseConfig):
     """Development environment configuration"""
     DEBUG = True
-    # Use absolute path to ensure SQLite database is found
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///mobilize_crm.db'
+    # Use absolute path to instance folder to ensure consistency
+    SQLALCHEMY_DATABASE_URI = f'sqlite:///{os.path.abspath(os.path.join(os.path.dirname(__file__), "instance", "mobilize_crm.db"))}'
     # Enable more detailed logging for development
     LOG_LEVEL = 'DEBUG'
     # Enable SQLAlchemy echo for query debugging
@@ -114,7 +114,7 @@ class ProductionConfig(BaseConfig):
             SQLALCHEMY_DATABASE_URI = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
         else:
             # Fallback to SQLite if no PostgreSQL configuration is provided
-            SQLALCHEMY_DATABASE_URI = 'sqlite:///mobilize_crm.db'
+            SQLALCHEMY_DATABASE_URI = 'sqlite:///instance/mobilize_crm.db'
     
     # Production-specific settings
     LOG_TO_STDOUT = True

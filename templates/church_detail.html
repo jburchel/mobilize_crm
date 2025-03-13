@@ -672,9 +672,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Fetch default signature when email type is selected
                     fetchDefaultSignature();
                 }
+                // Change button text for email
+                if (sendBtn) {
+                    sendBtn.textContent = 'Send Communication';
+                }
             } else {
                 if (emailFields) {
                     emailFields.style.display = 'none';
+                }
+                // Change button text for non-email
+                if (sendBtn) {
+                    sendBtn.textContent = 'Record Communication';
                 }
             }
         });
@@ -683,6 +691,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (typeSelect.value === 'Email' && emailFields) {
             emailFields.style.display = 'block';
             fetchDefaultSignature();
+            // Set initial button text
+            if (sendBtn) {
+                sendBtn.textContent = 'Send Communication';
+            }
+        } else {
+            // Set initial button text for non-email
+            if (sendBtn) {
+                sendBtn.textContent = 'Record Communication';
+            }
         }
     }
     
@@ -714,18 +731,40 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Handle form submission
-    if (sendBtn && form) {
-        sendBtn.addEventListener('click', function(e) {
+    if (form && sendBtn) {
+        form.addEventListener('submit', function(e) {
             e.preventDefault();
+            
+            // Get communication type
+            const commType = typeSelect.value;
+            const isEmail = commType === 'Email';
             
             // Show loading state
             sendBtn.disabled = true;
-            sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
+            if (isEmail) {
+                sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
+            } else {
+                sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Recording...';
+            }
+            
+            // Clear previous status messages
+            statusMessage.style.display = 'none';
+            
+            // Validate form
+            const message = document.getElementById('message').value;
+            
+            if (!commType) {
+                showError('Please select a communication type');
+                return;
+            }
+            
+            if (!message) {
+                showError('Please enter a message');
+                return;
+            }
             
             // Get form data
             const formData = new FormData(form);
-            
-            // Convert FormData to JSON
             const jsonData = {};
             formData.forEach((value, key) => {
                 jsonData[key] = value;
@@ -744,7 +783,11 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 // Reset button state
                 sendBtn.disabled = false;
-                sendBtn.innerHTML = 'Send Communication';
+                if (isEmail) {
+                    sendBtn.innerHTML = 'Send Communication';
+                } else {
+                    sendBtn.innerHTML = 'Record Communication';
+                }
                 
                 // Show status message
                 statusMessage.style.display = 'block';
@@ -772,7 +815,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     // Error message
                     statusMessage.className = 'alert alert-danger';
-                    statusMessage.textContent = data.message || 'An error occurred while sending the communication.';
+                    statusMessage.textContent = data.message || (isEmail ? 'An error occurred while sending the communication.' : 'An error occurred while recording the communication.');
                 }
             })
             .catch(error => {
@@ -780,14 +823,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Reset button state
                 sendBtn.disabled = false;
-                sendBtn.innerHTML = 'Send Communication';
+                if (isEmail) {
+                    sendBtn.innerHTML = 'Send Communication';
+                } else {
+                    sendBtn.innerHTML = 'Record Communication';
+                }
                 
                 // Show error message
                 statusMessage.style.display = 'block';
                 statusMessage.className = 'alert alert-danger';
-                statusMessage.textContent = 'An error occurred while sending the communication.';
+                statusMessage.textContent = isEmail ? 'An error occurred while sending the communication. Please try again.' : 'An error occurred while recording the communication. Please try again.';
             });
         });
+    }
+    
+    function showError(message) {
+        statusMessage.style.display = 'block';
+        statusMessage.className = 'alert alert-danger';
+        statusMessage.textContent = message;
+        
+        // Reset button state
+        sendBtn.disabled = false;
+        const commType = typeSelect.value;
+        if (commType === 'Email') {
+            sendBtn.innerHTML = 'Send Communication';
+        } else {
+            sendBtn.innerHTML = 'Record Communication';
+        }
     }
 
     // Fetch default signature when page loads

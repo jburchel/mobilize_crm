@@ -109,7 +109,7 @@ def main():
         environment = "PRODUCTION"
     else:
         # Local database
-        db_uri = 'sqlite:///mobilize_crm.db'
+        db_uri = 'sqlite:///instance/mobilize_crm.db'
         base_url = 'http://localhost:8000'
         environment = "LOCAL"
     

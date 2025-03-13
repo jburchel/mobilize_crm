@@ -207,6 +207,12 @@
                         <!-- Hidden input for default signature -->
                         <input type="hidden" id="signature_id" name="signature_id" value="">
                     </div>
+                    
+                    <div class="mb-3" id="non-email-fields" style="display: none;">
+                        <label for="custom_date" class="form-label">Date and Time</label>
+                        <input type="datetime-local" class="form-control" id="custom_date" name="custom_date">
+                        <small class="form-text text-muted">Leave blank to use current date and time</small>
+                    </div>
 
                     <div class="mb-3">
                         <label for="person_id" class="form-label">Person</label>
@@ -346,13 +352,25 @@
         function toggleEmailFields() {
             const commType = document.getElementById('type').value;
             const emailFields = document.getElementById('email-fields');
+            const nonEmailFields = document.getElementById('non-email-fields');
+            const sendButton = document.getElementById('sendCommunicationBtn');
             
             if (commType === 'Email') {
                 emailFields.style.display = 'block';
+                nonEmailFields.style.display = 'none';
                 // Fetch default signature when email type is selected
                 fetchDefaultSignature();
+                // Change button text for email
+                if (sendButton) {
+                    sendButton.textContent = 'Send Communication';
+                }
             } else {
                 emailFields.style.display = 'none';
+                nonEmailFields.style.display = 'block';
+                // Change button text for non-email
+                if (sendButton) {
+                    sendButton.textContent = 'Record Communication';
+                }
             }
         }
         
@@ -459,7 +477,15 @@
         sendButton.addEventListener('click', function() {
             // Show loading state
             const originalButtonText = sendButton.innerHTML;
-            sendButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
+            const commType = document.getElementById('type').value;
+            const isEmail = commType === 'Email';
+            
+            // Set appropriate loading text
+            if (isEmail) {
+                sendButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
+            } else {
+                sendButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Recording...';
+            }
             sendButton.disabled = true;
             
             // Clear previous status messages
@@ -487,24 +513,11 @@
                 return;
             }
             
-            if (type === 'Email') {
-                const subject = document.getElementById('subject').value;
-                if (!subject) {
-                    showError('Please enter an email subject');
-                    return;
-                }
-            }
-            
             // Get form data
             const formData = new FormData(form);
             const jsonData = {};
             formData.forEach((value, key) => {
-                // Convert empty strings to null for IDs
-                if ((key === 'person_id' || key === 'church_id') && value === '') {
-                    jsonData[key] = null;
-                } else {
-                    jsonData[key] = value;
-                }
+                jsonData[key] = value;
             });
             
             // Send AJAX request
@@ -517,30 +530,16 @@
                 body: JSON.stringify(jsonData)
             })
             .then(response => {
-                // Check if the response is JSON
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    return response.json().then(data => {
-                        return {
-                            status: response.status,
-                            ok: response.ok,
-                            data: data
-                        };
-                    });
-                } else {
-                    // Handle non-JSON response (like a redirect)
-                    if (response.ok) {
-                        // If it's a successful redirect, reload the page
-                        window.location.reload();
-                        return null;
-                    } else {
-                        return {
-                            status: response.status,
-                            ok: false,
-                            data: { message: 'Server returned a non-JSON response' }
-                        };
-                    }
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    return null;
                 }
+                return response.json().then(data => {
+                    return {
+                        ok: response.ok,
+                        data: data
+                    };
+                });
             })
             .then(result => {
                 if (!result) return; // Page is already reloading
@@ -549,7 +548,7 @@
                     // Display success message
                     statusMessage.style.display = 'block';
                     statusMessage.className = 'alert alert-success mt-3';
-                    statusMessage.innerHTML = result.data.message || 'Communication sent successfully';
+                    statusMessage.innerHTML = result.data.message || (isEmail ? 'Communication sent successfully' : 'Communication recorded successfully');
                     
                     // Reset form
                     form.reset();
@@ -561,11 +560,12 @@
                     }, 2000);
                 } else {
                     // Display error message
-                    showError(result.data.message || 'An error occurred while sending the communication');
+                    showError(result.data.message || (isEmail ? 'An error occurred while sending the communication' : 'An error occurred while recording the communication'));
                 }
             })
             .catch(error => {
-                showError('An error occurred while sending the communication. Please try again.');
+                console.error('Error:', error);
+                showError(isEmail ? 'An error occurred while sending the communication. Please try again.' : 'An error occurred while recording the communication. Please try again.');
             })
             .finally(() => {
                 // Reset button state
@@ -580,7 +580,12 @@
             statusMessage.innerHTML = message;
             
             // Reset button state
-            sendButton.innerHTML = 'Send Communication';
+            const commType = document.getElementById('type').value;
+            if (commType === 'Email') {
+                sendButton.innerHTML = 'Send Communication';
+            } else {
+                sendButton.innerHTML = 'Record Communication';
+            }
             sendButton.disabled = false;
         }
     });
@@ -741,6 +746,29 @@
                 tableBody.appendChild(row);
             });
         }
+    });
+
+    // Initialize the modal when it's shown
+    $('#newCommunicationModal').on('shown.bs.modal', function () {
+        // Reset form
+        document.getElementById('communicationForm').reset();
+        
+        // Set current date and time for the custom date field
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const formattedDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+        
+        const customDateField = document.getElementById('custom_date');
+        if (customDateField) {
+            customDateField.value = formattedDateTime;
+        }
+        
+        // Initialize email fields
+        toggleEmailFields();
     });
 </script>
 {% endblock %} 
