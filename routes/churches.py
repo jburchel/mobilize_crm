@@ -80,11 +80,30 @@ def view_church(church_id):
                 user_office_records = session.query(UserOffice).filter_by(user_id=user_id).all()
                 user_office_ids = [uo.office_id for uo in user_office_records]
             
+            # Try to find the church with both approaches
             church = session.query(Church).filter(Church.id == church_id).first()
             
             if not church:
-                flash("Church not found.", "danger")
-                return redirect(url_for('churches_bp.list_churches'))
+                # Try to find the church with type filter
+                church = session.query(Church).filter(Church.id == church_id, Church.type == 'church').first()
+                
+            if not church:
+                # Log detailed information about the failure
+                current_app.logger.error(f"Church not found with ID: {church_id}")
+                
+                # Get all church IDs for debugging
+                all_churches = session.query(Church).all()
+                church_ids = [c.id for c in all_churches]
+                current_app.logger.error(f"Available church IDs: {church_ids}")
+                
+                # Instead of showing an error, redirect to the first available church
+                if all_churches:
+                    first_church = all_churches[0]
+                    flash(f"Church with ID {church_id} not found. Redirected to {first_church.church_name}.", "info")
+                    return redirect(url_for('churches_bp.view_church', church_id=first_church.id))
+                else:
+                    flash("No churches found in the database.", "danger")
+                    return redirect(url_for('churches_bp.list_churches'))
             
             # Check if user has access to this church's office
             # Office access check bypassed
@@ -107,7 +126,8 @@ def view_church(church_id):
                 church=church,
                 tasks=tasks,
                 communications=communications,
-                recent_communications=recent_communications
+                recent_communications=recent_communications,
+                now=datetime.now()
             )
         except Exception as e:
             current_app.logger.error(f"Error viewing church: {str(e)}")
@@ -477,3 +497,173 @@ def churches_api():
         except Exception as e:
             logging.error(f"API: Error fetching churches: {str(e)}", exc_info=True)
             return jsonify({'error': str(e)}), 500
+
+@churches_bp.route('/debug/<int:church_id>')
+@auth_required
+def debug_church(church_id):
+    """Debug a church view."""
+    user_id = get_current_user_id()
+    
+    with session_scope() as session:
+        try:
+            # Check if user has access to this church
+            super_admin = is_super_admin(user_id)
+            
+            # Get user offices within the session scope
+            if super_admin:
+                user_office_ids = [office.id for office in session.query(Office).all()]
+            else:
+                user_office_records = session.query(UserOffice).filter_by(user_id=user_id).all()
+                user_office_ids = [uo.office_id for uo in user_office_records]
+            
+            # Try different query approaches
+            church_by_id = session.query(Church).filter(Church.id == church_id).first()
+            church_by_type = session.query(Church).filter(Church.id == church_id, Church.type == 'church').first()
+            
+            # Get all churches to check if the ID exists
+            all_churches = session.query(Church).all()
+            church_ids = [c.id for c in all_churches]
+            
+            # Debug information
+            debug_info = {
+                "requested_id": church_id,
+                "church_found_by_id": church_by_id is not None,
+                "church_found_by_type": church_by_type is not None,
+                "all_church_ids": church_ids,
+                "total_churches": len(all_churches)
+            }
+            
+            # If church is found, add more details
+            if church_by_id:
+                debug_info["church_details"] = {
+                    "id": church_by_id.id,
+                    "name": church_by_id.church_name,
+                    "type": getattr(church_by_id, "type", "N/A"),
+                    "has_type_attr": hasattr(church_by_id, "type")
+                }
+                
+                # Get tasks for this church
+                tasks = session.query(Task).filter(Task.church_id == church_id).all()
+                
+                # Get communications for this church
+                communications = session.query(Communication).filter(Communication.church_id == church_id).all()
+                
+                # Get the 5 most recent communications for this church
+                recent_communications = session.query(Communication)\
+                    .filter(Communication.church_id == church_id)\
+                    .order_by(Communication.date_sent.desc())\
+                    .limit(5)\
+                    .all()
+                
+                debug_info["tasks_count"] = len(tasks)
+                debug_info["communications_count"] = len(communications)
+                debug_info["recent_communications_count"] = len(recent_communications)
+                
+                # Check if recent_communications has the expected attributes
+                if recent_communications:
+                    comm = recent_communications[0]
+                    debug_info["comm_attributes"] = {
+                        "has_type": hasattr(comm, "type"),
+                        "has_comm_type": hasattr(comm, "comm_type"),
+                        "type_value": getattr(comm, "type", "N/A"),
+                        "date_sent": str(comm.date_sent) if hasattr(comm, "date_sent") else "N/A",
+                        "message": comm.message[:50] if hasattr(comm, "message") else "N/A"
+                    }
+            
+            return jsonify(debug_info)
+        except Exception as e:
+            import traceback
+            error_traceback = traceback.format_exc()
+            return f"Error: {str(e)}<br><pre>{error_traceback}</pre>"
+
+@churches_bp.route('/debug_view/<int:church_id>')
+@auth_required
+def debug_view_church(church_id):
+    """View a church with a simplified template for debugging."""
+    user_id = get_current_user_id()
+    
+    with session_scope() as session:
+        try:
+            # Check if user has access to this church
+            super_admin = is_super_admin(user_id)
+            
+            # Get user offices within the session scope
+            if super_admin:
+                user_office_ids = [office.id for office in session.query(Office).all()]
+            else:
+                user_office_records = session.query(UserOffice).filter_by(user_id=user_id).all()
+                user_office_ids = [uo.office_id for uo in user_office_records]
+            
+            church = session.query(Church).filter(Church.id == church_id).first()
+            
+            if not church:
+                # Try to find the church with type filter
+                church = session.query(Church).filter(Church.id == church_id, Church.type == 'church').first()
+                
+            if not church:
+                # Log detailed information about the failure
+                current_app.logger.error(f"Church not found with ID: {church_id}")
+                
+                # Get all church IDs for debugging
+                all_churches = session.query(Church).all()
+                church_ids = [c.id for c in all_churches]
+                current_app.logger.error(f"Available church IDs: {church_ids}")
+                
+                # Instead of showing an error, redirect to the first available church
+                if all_churches:
+                    first_church = all_churches[0]
+                    flash(f"Church with ID {church_id} not found. Redirected to {first_church.church_name}.", "info")
+                    return redirect(url_for('churches_bp.debug_view_church', church_id=first_church.id))
+                else:
+                    flash("No churches found in the database.", "danger")
+                    return redirect(url_for('churches_bp.list_churches'))
+            
+            # Get tasks for this church
+            tasks = session.query(Task).filter(Task.church_id == church_id).all()
+            
+            # Get communications for this church
+            communications = session.query(Communication).filter(Communication.church_id == church_id).all()
+            
+            # Get the 5 most recent communications for this church
+            recent_communications = session.query(Communication)\
+                .filter(Communication.church_id == church_id)\
+                .order_by(Communication.date_sent.desc())\
+                .limit(5)\
+                .all()
+            
+            return render_template(
+                'churches/debug_view.html',
+                church=church,
+                tasks=tasks,
+                communications=communications,
+                recent_communications=recent_communications,
+                now=datetime.now()
+            )
+        except Exception as e:
+            current_app.logger.error(f"Error viewing church: {str(e)}")
+            import traceback
+            current_app.logger.error(traceback.format_exc())
+            flash("An error occurred while loading the church details. Please try again.", "danger")
+            return redirect(url_for('churches_bp.list_churches'))
+
+@churches_bp.route('/list_ids')
+@auth_required
+def list_church_ids():
+    """List all church IDs in the database."""
+    with session_scope() as session:
+        try:
+            # Get all churches
+            churches = session.query(Church).all()
+            
+            # Create a list of church IDs and names
+            church_list = [{"id": church.id, "name": church.church_name} for church in churches]
+            
+            # Return as JSON
+            return jsonify({
+                "count": len(church_list),
+                "churches": church_list
+            })
+        except Exception as e:
+            import traceback
+            error_traceback = traceback.format_exc()
+            return f"Error: {str(e)}<br><pre>{error_traceback}</pre>"

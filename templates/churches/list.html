@@ -47,6 +47,9 @@
             <div class="row align-items-center">
                 <div class="col">
                     <h5 class="mb-0">Churches</h5>
+                    {% if churches %}
+                    <small class="text-muted">Available church IDs range from {{ churches[0].id }} to {{ churches[-1].id }}</small>
+                    {% endif %}
                 </div>
                 <div class="col-auto">
                     <span class="badge bg-primary">{{ churches|length }} churches</span>

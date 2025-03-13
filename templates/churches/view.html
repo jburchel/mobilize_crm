@@ -4,25 +4,101 @@
 
 {% block content %}
 <div class="container mt-4">
-    <div class="row mb-4">
-        <div class="col">
-            <h1>{{ church.church_name }}</h1>
-            <p class="lead">{{ church.location }}</p>
-        </div>
-        <div class="col-auto">
-            <a href="{{ url_for('churches_bp.edit_church', church_id=church.id) }}" class="btn btn-primary">
-                <i class="fas fa-edit"></i> Edit Church
+    <!-- Header Section -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">{{ church.church_name }}</h1>
+        <div>
+            <button class="btn btn-primary me-2" onclick="location.href='{{ url_for('churches_bp.edit_church', church_id=church.id) }}'">
+                <i class="bi bi-pencil"></i> Edit
+            </button>
+            <button type="button" class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#communicationModal">
+                <i class="bi bi-chat-dots"></i> Communication
+            </button>
+            <a href="{{ url_for('churches_bp.list_churches') }}" class="btn btn-outline-secondary">
+                Back to Churches
             </a>
         </div>
     </div>
 
+    <!-- Pipeline Progress Section -->
+    <div class="card mb-4 pipeline-card">
+        <div class="card-header bg-gradient">
+            <h5 class="mb-0 text-white"><i class="bi bi-diagram-3 me-2"></i>Church Pipeline Progress</h5>
+        </div>
+        <div class="card-body">
+            <div class="pipeline-progress-container">
+                <div class="pipeline-progress-fill" style="width: 
+                    {% if church.church_pipeline == 'PROMOTION' %}16.6%
+                    {% elif church.church_pipeline == 'INFORMATION' %}33.3%
+                    {% elif church.church_pipeline == 'INVITATION' %}50%
+                    {% elif church.church_pipeline == 'CONFIRMATION' %}66.6%
+                    {% elif church.church_pipeline == 'AUTOMATION' %}83.3%
+                    {% elif church.church_pipeline == 'EN42' %}100%
+                    {% else %}0%{% endif %}">
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between mb-3">
+                <div class="text-center pipeline-step {% if church.church_pipeline == 'PROMOTION' %}active{% elif church.church_pipeline in ['INFORMATION', 'INVITATION', 'CONFIRMATION', 'AUTOMATION', 'EN42'] %}completed{% endif %}">
+                    <div class="pipeline-marker {% if church.church_pipeline == 'PROMOTION' %}active{% elif church.church_pipeline in ['INFORMATION', 'INVITATION', 'CONFIRMATION', 'AUTOMATION', 'EN42'] %}completed{% endif %}">1</div>
+                    <div>Promotion</div>
+                </div>
+                <div class="text-center pipeline-step {% if church.church_pipeline == 'INFORMATION' %}active{% elif church.church_pipeline in ['INVITATION', 'CONFIRMATION', 'AUTOMATION', 'EN42'] %}completed{% endif %}">
+                    <div class="pipeline-marker {% if church.church_pipeline == 'INFORMATION' %}active{% elif church.church_pipeline in ['INVITATION', 'CONFIRMATION', 'AUTOMATION', 'EN42'] %}completed{% endif %}">2</div>
+                    <div>Information</div>
+                </div>
+                <div class="text-center pipeline-step {% if church.church_pipeline == 'INVITATION' %}active{% elif church.church_pipeline in ['CONFIRMATION', 'AUTOMATION', 'EN42'] %}completed{% endif %}">
+                    <div class="pipeline-marker {% if church.church_pipeline == 'INVITATION' %}active{% elif church.church_pipeline in ['CONFIRMATION', 'AUTOMATION', 'EN42'] %}completed{% endif %}">3</div>
+                    <div>Invitation</div>
+                </div>
+                <div class="text-center pipeline-step {% if church.church_pipeline == 'CONFIRMATION' %}active{% elif church.church_pipeline in ['AUTOMATION', 'EN42'] %}completed{% endif %}">
+                    <div class="pipeline-marker {% if church.church_pipeline == 'CONFIRMATION' %}active{% elif church.church_pipeline in ['AUTOMATION', 'EN42'] %}completed{% endif %}">4</div>
+                    <div>Confirmation</div>
+                </div>
+                <div class="text-center pipeline-step {% if church.church_pipeline == 'AUTOMATION' %}active{% elif church.church_pipeline in ['EN42'] %}completed{% endif %}">
+                    <div class="pipeline-marker {% if church.church_pipeline == 'AUTOMATION' %}active{% elif church.church_pipeline in ['EN42'] %}completed{% endif %}">5</div>
+                    <div>Automation</div>
+                </div>
+                <div class="text-center pipeline-step {% if church.church_pipeline == 'EN42' %}active{% endif %}">
+                    <div class="pipeline-marker {% if church.church_pipeline == 'EN42' %}active{% endif %}">6</div>
+                    <div>EN42</div>
+                </div>
+            </div>
+            
+            <div class="d-flex align-items-center">
+                <label for="pipelineSelect" class="me-2 fw-bold">Update Pipeline:</label>
+                <select class="form-select me-2" id="pipelineSelect" style="max-width: 200px;">
+                    <option value="">Select Pipeline Stage</option>
+                    <option value="PROMOTION" {% if church.church_pipeline == 'PROMOTION' %}selected{% endif %}>Promotion</option>
+                    <option value="INFORMATION" {% if church.church_pipeline == 'INFORMATION' %}selected{% endif %}>Information</option>
+                    <option value="INVITATION" {% if church.church_pipeline == 'INVITATION' %}selected{% endif %}>Invitation</option>
+                    <option value="CONFIRMATION" {% if church.church_pipeline == 'CONFIRMATION' %}selected{% endif %}>Confirmation</option>
+                    <option value="AUTOMATION" {% if church.church_pipeline == 'AUTOMATION' %}selected{% endif %}>Automation</option>
+                    <option value="EN42" {% if church.church_pipeline == 'EN42' %}selected{% endif %}>EN42</option>
+                </select>
+                <button class="btn btn-primary" id="updatePipelineBtn">Update</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rest of the content remains the same -->
     <div class="row">
+        <!-- Left Column -->
         <div class="col-md-8">
+            <!-- Church Information Card -->
             <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">Church Information</h5>
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-building me-2"></i>Church Information</h5>
                 </div>
                 <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Church Name:</div>
+                        <div class="col-md-8">{{ church.church_name }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Location:</div>
+                        <div class="col-md-8">{{ church.location or 'Not specified' }}</div>
+                    </div>
                     <div class="row mb-3">
                         <div class="col-md-4 fw-bold">Denomination:</div>
                         <div class="col-md-8">{{ church.denomination or 'Not specified' }}</div>
@@ -39,9 +115,9 @@
                         <div class="col-md-4 fw-bold">Website:</div>
                         <div class="col-md-8">
                             {% if church.website %}
-                            <a href="{{ church.website }}" target="_blank">{{ church.website }}</a>
+                                <a href="{{ church.website }}" target="_blank">{{ church.website }}</a>
                             {% else %}
-                            Not specified
+                                Not specified
                             {% endif %}
                         </div>
                     </div>
@@ -49,64 +125,454 @@
                         <div class="col-md-4 fw-bold">Office:</div>
                         <div class="col-md-8">
                             {% if church.office %}
-                            {{ church.office.name }}
+                                {{ church.office.name }}
                             {% else %}
-                            Not assigned
+                                Not assigned
                             {% endif %}
                         </div>
                     </div>
                 </div>
             </div>
 
+            <!-- Contact Information Card -->
             <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">Contact Information</h5>
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-envelope me-2"></i>Contact Information</h5>
                 </div>
                 <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Email:</div>
+                        <div class="col-md-8">
+                            {% if church.email %}
+                                <a href="mailto:{{ church.email }}">{{ church.email }}</a>
+                            {% else %}
+                                Not specified
+                            {% endif %}
+                        </div>
+                    </div>
                     <div class="row mb-3">
                         <div class="col-md-4 fw-bold">Phone:</div>
                         <div class="col-md-8">
                             {% if church.phone %}
-                            <a href="tel:{{ church.phone }}">{{ church.phone }}</a>
+                                <a href="tel:{{ church.phone }}">{{ church.phone }}</a>
                             {% else %}
-                            Not specified
+                                Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Preferred Contact:</div>
+                        <div class="col-md-8">{{ church.preferred_contact_method or 'Not specified' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Address:</div>
+                        <div class="col-md-8">
+                            {% if church.street_address %}
+                                {{ church.street_address }}<br>
+                                {% if church.city or church.state or church.zip_code %}
+                                    {{ church.city or '' }}{% if church.city and church.state %}, {% endif %}
+                                    {{ church.state or '' }} {{ church.zip_code or '' }}
+                                {% endif %}
+                            {% else %}
+                                Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leadership Information Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-people me-2"></i>Leadership Information</h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="mb-3">Senior Pastor</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Name:</div>
+                        <div class="col-md-8">
+                            {% if church.senior_pastor_first_name or church.senior_pastor_last_name %}
+                                {{ church.senior_pastor_first_name or '' }} {{ church.senior_pastor_last_name or '' }}
+                            {% else %}
+                                Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Phone:</div>
+                        <div class="col-md-8">
+                            {% if church.senior_pastor_phone %}
+                                <a href="tel:{{ church.senior_pastor_phone }}">{{ church.senior_pastor_phone }}</a>
+                            {% else %}
+                                Not specified
                             {% endif %}
                         </div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-4 fw-bold">Email:</div>
                         <div class="col-md-8">
-                            {% if church.email %}
-                            <a href="mailto:{{ church.email }}">{{ church.email }}</a>
+                            {% if church.senior_pastor_email %}
+                                <a href="mailto:{{ church.senior_pastor_email }}">{{ church.senior_pastor_email }}</a>
                             {% else %}
-                            Not specified
+                                Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h6 class="mb-3">Missions Pastor</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Name:</div>
+                        <div class="col-md-8">
+                            {% if church.missions_pastor_first_name or church.missions_pastor_last_name %}
+                                {{ church.missions_pastor_first_name or '' }} {{ church.missions_pastor_last_name or '' }}
+                            {% else %}
+                                Not specified
                             {% endif %}
                         </div>
                     </div>
                     <div class="row mb-3">
-                        <div class="col-md-4 fw-bold">Address:</div>
+                        <div class="col-md-4 fw-bold">Phone:</div>
                         <div class="col-md-8">
-                            {% if church.street_address %}
-                            {{ church.street_address }}<br>
-                            {% if church.city or church.state or church.zip_code %}
-                            {{ church.city or '' }}{% if church.city and (church.state or church.zip_code) %}, {% endif %}
-                            {{ church.state or '' }}{% if church.state and church.zip_code %} {% endif %}
-                            {{ church.zip_code or '' }}
-                            {% endif %}
+                            {% if church.mission_pastor_phone %}
+                                <a href="tel:{{ church.mission_pastor_phone }}">{{ church.mission_pastor_phone }}</a>
                             {% else %}
-                            Not specified
+                                Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Email:</div>
+                        <div class="col-md-8">
+                            {% if church.mission_pastor_email %}
+                                <a href="mailto:{{ church.mission_pastor_email }}">{{ church.mission_pastor_email }}</a>
+                            {% else %}
+                                Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h6 class="mb-3">Primary Contact</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Name:</div>
+                        <div class="col-md-8">
+                            {% if church.primary_contact_first_name or church.primary_contact_last_name %}
+                                {{ church.primary_contact_first_name or '' }} {{ church.primary_contact_last_name or '' }}
+                            {% else %}
+                                Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Phone:</div>
+                        <div class="col-md-8">
+                            {% if church.primary_contact_phone %}
+                                <a href="tel:{{ church.primary_contact_phone }}">{{ church.primary_contact_phone }}</a>
+                            {% else %}
+                                Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Email:</div>
+                        <div class="col-md-8">
+                            {% if church.primary_contact_email %}
+                                <a href="mailto:{{ church.primary_contact_email }}">{{ church.primary_contact_email }}</a>
+                            {% else %}
+                                Not specified
                             {% endif %}
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Rest of the template remains unchanged -->
+            <!-- Notes Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-journal-text me-2"></i>Notes</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Info Given</h6>
+                    <p>{{ church.info_given or 'No information provided' }}</p>
+                    
+                    <h6>Initial Notes</h6>
+                    <p>{{ church.initial_notes or 'No notes available' }}</p>
+                </div>
+            </div>
         </div>
 
+        <!-- Right Column -->
         <div class="col-md-4">
-            <!-- Sidebar sections remain unchanged -->
+            <!-- Administrative Details Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-gear me-2"></i>Administrative Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-5 fw-bold">Pipeline Stage:</div>
+                        <div class="col-7">{{ church.church_pipeline or 'Not specified' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-5 fw-bold">Priority:</div>
+                        <div class="col-7">{{ church.priority or 'Not specified' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-5 fw-bold">Assigned To:</div>
+                        <div class="col-7">{{ church.assigned_to or 'Unassigned' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-5 fw-bold">Source:</div>
+                        <div class="col-7">{{ church.source or 'Not specified' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-5 fw-bold">Referred By:</div>
+                        <div class="col-7">{{ church.referred_by or 'Not specified' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-5 fw-bold">Virtuous:</div>
+                        <div class="col-7">{{ 'Yes' if church.virtuous else 'No' }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tasks Card -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-check2-square me-2"></i>Tasks</h5>
+                    <a href="{{ url_for('tasks_bp.add_task', church_id=church.id) }}" class="btn btn-sm btn-primary">
+                        <i class="bi bi-plus"></i> Add Task
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if tasks %}
+                    <div class="list-group">
+                        {% for task in tasks %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ task.title }}</h6>
+                                <small>{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else 'No due date' }}</small>
+                            </div>
+                            <p class="mb-1">{{ task.priority }} priority</p>
+                            <div class="d-flex justify-content-between">
+                                <small>Status: {{ task.status }}</small>
+                                <a href="{{ url_for('tasks_bp.edit_task', task_id=task.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-center my-3">No tasks for this church.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Communications Card -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-chat-dots me-2"></i>Recent Communications</h5>
+                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#communicationModal">
+                        <i class="bi bi-plus"></i> Add
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if recent_communications %}
+                    <div class="list-group">
+                        {% for comm in recent_communications %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ comm.type }}</h6>
+                                <small>{{ comm.date_sent.strftime('%Y-%m-%d') }}</small>
+                            </div>
+                            <p class="mb-1">{{ comm.message|truncate(100) }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-center my-3">No recent communications.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- People from this Church Card -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-people me-2"></i>People</h5>
+                    <a href="{{ url_for('people_bp.list_people') }}?church_id={{ church.id }}" class="btn btn-sm btn-primary">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if church.people %}
+                    <div class="list-group">
+                        {% for person in church.people[:5] %}
+                        <a href="{{ url_for('people_bp.person_detail', person_id=person.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ person.first_name }} {{ person.last_name }}</h6>
+                                <small>{{ person.church_role or '' }}</small>
+                            </div>
+                            <small>{{ person.email or 'No email' }}</small>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-center my-3">No people associated with this church.</p>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 </div>
-{% endblock %} 
+
+<!-- Communication Modal -->
+<div class="modal fade" id="communicationModal" tabindex="-1" aria-labelledby="communicationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="communicationModalLabel">Add Communication</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Communication form will be loaded here -->
+                <form id="communicationForm" method="post" action="{{ url_for('communications_bp.send_communication_route') }}">
+                    <input type="hidden" name="church_id" value="{{ church.id }}">
+                    <div class="mb-3">
+                        <label for="type" class="form-label">Communication Type</label>
+                        <select class="form-select" id="type" name="type" required>
+                            <option value="">Select Type</option>
+                            <option value="Email">Email</option>
+                            <option value="SMS">Text Message</option>
+                            <option value="Phone">Phone Call</option>
+                            <option value="In-Person">In-Person Meeting</option>
+                            <option value="Video">Video Call</option>
+                            <option value="Letter">Letter</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Message/Notes</label>
+                        <textarea class="form-control" id="message" name="message" rows="5" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="date_sent" class="form-label">Date</label>
+                        <input type="date" class="form-control" id="date_sent" name="date_sent" value="{{ now.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Communication</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Pipeline update
+    document.addEventListener('DOMContentLoaded', function() {
+        const updatePipelineBtn = document.getElementById('updatePipelineBtn');
+        if (updatePipelineBtn) {
+            updatePipelineBtn.addEventListener('click', function() {
+                const pipelineValue = document.getElementById('pipelineSelect').value;
+                if (pipelineValue) {
+                    // Create form data
+                    const formData = new FormData();
+                    formData.append('church_pipeline', pipelineValue);
+                    
+                    // Send POST request
+                    fetch('/churches/update_church_pipeline/{{ church.id }}', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            window.location.reload();
+                        } else {
+                            alert('Failed to update pipeline. Please try again.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while updating the pipeline.');
+                    });
+                }
+            });
+        }
+    });
+</script>
+
+<style>
+    .pipeline-card {
+        border: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .pipeline-card .card-header {
+        background: linear-gradient(90deg, #0f4c81 0%, #0f4c81 50%, #0f4c81 100%);
+    }
+    
+    .pipeline-step {
+        position: relative;
+        width: 16%;
+    }
+    
+    .pipeline-step.active {
+        font-weight: bold;
+    }
+    
+    .pipeline-step.completed {
+        color: #198754;
+    }
+    
+    .pipeline-marker {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background-color: #e9ecef;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 8px;
+        font-weight: bold;
+        border: 2px solid #dee2e6;
+        transition: all 0.3s ease;
+    }
+    
+    .pipeline-marker.active {
+        background-color: #0f4c81;
+        color: white;
+        border-color: #0f4c81;
+        transform: scale(1.1);
+        box-shadow: 0 0 10px rgba(15, 76, 129, 0.5);
+    }
+    
+    .pipeline-marker.completed {
+        background-color: #198754;
+        color: white;
+        border-color: #198754;
+    }
+    
+    .progress-bar {
+        background: linear-gradient(90deg, #0f4c81 0%, #0f4c81 50%, #198754 100%);
+    }
+    
+    /* Custom pipeline progress styling */
+    .pipeline-progress-container {
+        position: relative;
+        height: 15px;
+        background-color: #e9ecef;
+        border-radius: 0.25rem;
+        margin-bottom: 1rem;
+        overflow: hidden;
+    }
+    
+    .pipeline-progress-fill {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        background: linear-gradient(90deg, #0f4c81 0%, #198754 100%);
+        transition: width 0.5s ease;
+    }
+</style>
+{% endblock %}

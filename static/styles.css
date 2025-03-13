@@ -22,6 +22,11 @@
     --sidebar-width: 260px;
 }
 
+/* Gradient background for card headers */
+.bg-gradient {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+}
+
 /* Base styles */
 * {
     box-sizing: border-box;
@@ -697,6 +702,22 @@ body.sidebar-collapsed .main-content {
     margin: 2rem 0 3rem;
 }
 
+.pipeline-progress-container {
+    width: 100%;
+    height: 10px;
+    background-color: #e9ecef;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.pipeline-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    border-radius: 5px;
+    transition: width 0.5s ease;
+}
+
 .pipeline-progress::before {
     content: '';
     position: absolute;
@@ -709,46 +730,53 @@ body.sidebar-collapsed .main-content {
     z-index: 1;
 }
 
-.pipeline-progress-bar {
-    position: absolute;
-    top: 50%;
-    left: 0;
-    height: 4px;
-    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-    transform: translateY(-50%);
-    z-index: 2;
-    transition: width 0.5s ease;
-}
-
 .pipeline-step {
+    flex: 1;
+    text-align: center;
     position: relative;
     z-index: 3;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 20%;
 }
 
-/* Special styling for 6-step pipeline */
 .pipeline-progress.six-steps .pipeline-step {
     width: 16.66%;
 }
 
-.pipeline-step-marker {
-    width: 24px;
-    height: 24px;
+.pipeline-marker {
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
-    background-color: #e0e0e0;
-    border: 2px solid #fff;
-    box-shadow: 0 0 0 2px #e0e0e0;
-    margin-bottom: 0.75rem;
-    transition: all 0.3s ease;
+    background-color: #e9ecef;
+    color: #495057;
     display: flex;
-    justify-content: center;
     align-items: center;
-    color: #fff;
+    justify-content: center;
+    margin: 0 auto 8px;
     font-weight: bold;
-    font-size: 0.75rem;
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.pipeline-marker.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(24, 57, 99, 0.3);
+}
+
+.pipeline-marker.completed {
+    background-color: var(--secondary-color);
+    color: white;
+    border-color: var(--secondary-color);
+}
+
+.pipeline-step.active {
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+.pipeline-step.completed {
+    color: var(--secondary-color);
+    font-weight: bold;
 }
 
 .pipeline-step-label {
