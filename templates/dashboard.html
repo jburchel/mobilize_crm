@@ -134,9 +134,9 @@
                         {% for task in pending_tasks %}
                         <tr>
                             <td>
-                                <a href="{{ url_for('tasks_bp.get_task', task_id=task.id) }}">
+                                <div class="task-item" onclick="window.location.href='{{ url_for('tasks_bp.get_task', task_id=task.id) }}'">
                                     {{ task.title }}
-                                </a>
+                                </div>
                             </td>
                             <td>
                                 {% if task.due_date %}

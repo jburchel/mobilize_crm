@@ -167,7 +167,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="communicationForm" action="{{ url_for('communications_bp.send_communication_route') }}" method="post">
+                <form id="communicationForm" action="{{ url_for('communications_bp.communications_route') }}" method="post">
                     <div class="mb-3">
                         <label for="type" class="form-label">Communication Type</label>
                         <select class="form-select" id="type" name="type" required onchange="toggleEmailFields()">
