@@ -12,7 +12,7 @@ from routes.google_auth import get_current_user_id
 # Create blueprint
 import_csv_bp = Blueprint('import_csv_bp', __name__)
 
-@import_csv_bp.route('/import-csv', methods=['GET', 'POST'])
+@import_csv_bp.route('/csv', methods=['GET', 'POST'])
 @auth_required
 def import_csv():
     user_id = get_current_user_id()

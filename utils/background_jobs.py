@@ -237,7 +237,7 @@ def is_job_running(job_id):
             # Get the interval in seconds and convert to minutes
             interval_seconds = job.trigger.interval.total_seconds()
             interval_minutes = interval_seconds / 60
-            last_run = job.next_run_time - timedelta(minutes=interval_minutes)
+            last_run = job.next_run_time - timedelta(seconds=interval_minutes * 60)
             # If it was supposed to run within the last 5 minutes, consider it running
             return (now - last_run).total_seconds() < 300  # 5 minutes in seconds
             

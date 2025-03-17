@@ -86,14 +86,18 @@ def view_church(church_id):
                 flash("Church not found.", "danger")
                 return redirect(url_for('churches_bp.list_churches'))
             
+            current_app.logger.info(f"Church found: {church.church_name}")
+            
             # Check if user has access to this church's office
             # Office access check bypassed
             
             # Get tasks for this church
             tasks = session.query(Task).filter(Task.church_id == church_id).all()
+            current_app.logger.info(f"Tasks for church: {len(tasks)}")
             
             # Get communications for this church
             communications = session.query(Communication).filter(Communication.church_id == church_id).all()
+            current_app.logger.info(f"Communications for church: {len(communications)}")
             
             # Get the 5 most recent communications for this church
             recent_communications = session.query(Communication)\
@@ -101,6 +105,12 @@ def view_church(church_id):
                 .order_by(Communication.date_sent.desc())\
                 .limit(5)\
                 .all()
+            current_app.logger.info(f"Recent communications for church: {len(recent_communications)}")
+            
+            # Log church attributes to help troubleshoot template issues
+            current_app.logger.info(f"Church pipeline: {church.church_pipeline}")
+            current_app.logger.info(f"Church email: {church.email}")
+            current_app.logger.info(f"Church phone: {church.phone}")
             
             return render_template(
                 'churches/view.html',
@@ -113,7 +123,7 @@ def view_church(church_id):
             current_app.logger.error(f"Error viewing church: {str(e)}")
             import traceback
             current_app.logger.error(traceback.format_exc())
-            flash("An error occurred while loading the church details. Please try again.", "danger")
+            flash(f"An error occurred while loading the church details: {str(e)}", "danger")
             return redirect(url_for('churches_bp.list_churches'))
 
 @churches_bp.route('/new', methods=['GET', 'POST'])

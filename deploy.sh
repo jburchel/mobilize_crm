@@ -18,6 +18,90 @@ NC='\033[0m' # No Color
 
 echo -e "${YELLOW}Starting deployment process...${NC}"
 
+# Check current branch
+CURRENT_BRANCH=$(git branch --show-current)
+
+# If on stable-working-version, offer to merge to main
+if [ "$CURRENT_BRANCH" = "stable-working-version" ]; then
+    echo -e "${YELLOW}You are on the 'stable-working-version' branch.${NC}"
+    read -p "Do you want to merge 'stable-working-version' into 'main' before deploying? (Y/n): " merge_branch
+    
+    if [[ ! "$merge_branch" =~ ^[Nn]$ ]]; then
+        # Check for uncommitted changes
+        if ! git diff-index --quiet HEAD --; then
+            echo -e "${RED}You have uncommitted changes. Please commit or stash them before merging.${NC}"
+            exit 1
+        fi
+        
+        echo -e "${YELLOW}Switching to 'main' branch...${NC}"
+        git checkout main
+        
+        # Make sure main is up to date
+        echo -e "${YELLOW}Pulling latest changes from remote main...${NC}"
+        git pull origin main
+        
+        echo -e "${YELLOW}Merging 'stable-working-version' into 'main'...${NC}"
+        if git merge stable-working-version -m "Merge stable-working-version for deployment"; then
+            echo -e "${GREEN}Successfully merged 'stable-working-version' into 'main'.${NC}"
+            
+            echo -e "${YELLOW}Pushing changes to remote 'main'...${NC}"
+            git push origin main
+            echo -e "${GREEN}Successfully pushed to remote 'main'.${NC}"
+        else
+            echo -e "${RED}Merge conflict occurred. Please resolve conflicts manually and try again.${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${YELLOW}Switching to 'main' branch without merging...${NC}"
+        
+        # Check for uncommitted changes
+        if ! git diff-index --quiet HEAD --; then
+            echo -e "${RED}You have uncommitted changes. Please commit or stash them before switching branches.${NC}"
+            exit 1
+        fi
+        
+        git checkout main
+        echo -e "${GREEN}Switched to 'main' branch.${NC}"
+    fi
+# If not on main, offer to switch
+elif [ "$CURRENT_BRANCH" != "main" ]; then
+    echo -e "${YELLOW}Currently on branch '$CURRENT_BRANCH'. Deployment should be done from 'main' branch.${NC}"
+    read -p "Do you want to switch to 'main' branch? (Y/n): " switch_branch
+    if [[ "$switch_branch" =~ ^[Nn]$ ]]; then
+        echo -e "${RED}Deployment aborted. Please switch to 'main' branch manually and try again.${NC}"
+        exit 1
+    fi
+    
+    # Check for uncommitted changes
+    if ! git diff-index --quiet HEAD --; then
+        echo -e "${RED}You have uncommitted changes. Please commit or stash them before switching branches.${NC}"
+        exit 1
+    fi
+    
+    echo -e "${YELLOW}Switching to 'main' branch...${NC}"
+    git checkout main
+    echo -e "${GREEN}Switched to 'main' branch.${NC}"
+fi
+
+# Verify main branch is up to date
+echo -e "${YELLOW}Verifying 'main' branch is up to date with remote...${NC}"
+git fetch origin
+LOCAL=$(git rev-parse main)
+REMOTE=$(git rev-parse origin/main)
+
+if [ "$LOCAL" != "$REMOTE" ]; then
+    echo -e "${YELLOW}Local 'main' branch is not in sync with remote.${NC}"
+    read -p "Do you want to pull the latest changes? (Y/n): " pull_changes
+    if [[ "$pull_changes" =~ ^[Nn]$ ]]; then
+        echo -e "${RED}Deployment aborted. Please update your 'main' branch and try again.${NC}"
+        exit 1
+    fi
+    
+    echo -e "${YELLOW}Pulling latest changes from remote...${NC}"
+    git pull origin main
+    echo -e "${GREEN}Successfully updated 'main' branch.${NC}"
+fi
+
 # Run pre-deployment checks
 echo -e "${YELLOW}Running pre-deployment checks...${NC}"
 
@@ -111,3 +195,9 @@ gcloud beta run domain-mappings describe \
   --domain mobilize-crm.org \
   --region ${REGION} \
   --platform managed
+
+# Add a tag to the deployment
+DEPLOY_DATE=$(date +"%Y-%m-%d_%H-%M-%S")
+git tag "deployment_${DEPLOY_DATE}"
+git push origin "deployment_${DEPLOY_DATE}"
+echo -e "${GREEN}Created deployment tag: deployment_${DEPLOY_DATE}${NC}"

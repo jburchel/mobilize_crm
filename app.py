@@ -103,19 +103,19 @@ try:
     from utils.background_jobs import start_background_jobs
 
     # Register blueprints
-    app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
+    app.register_blueprint(dashboard_bp, url_prefix='/')
     app.register_blueprint(people_bp, url_prefix='/people')
     app.register_blueprint(churches_bp, url_prefix='/churches')
     app.register_blueprint(tasks_bp, url_prefix='/tasks')
-    app.register_blueprint(communications_bp)
-    app.register_blueprint(health_bp)
-    app.register_blueprint(contacts_api)
-    app.register_blueprint(contacts_bp)
-    app.register_blueprint(auth_api)
-    app.register_blueprint(google_auth_bp)
-    app.register_blueprint(calendar_api)
-    app.register_blueprint(gmail_api)
-    app.register_blueprint(import_csv_bp)
+    app.register_blueprint(communications_bp, url_prefix='/communications')
+    app.register_blueprint(health_bp, url_prefix='/api')
+    app.register_blueprint(contacts_api, url_prefix='/api/contacts')
+    app.register_blueprint(contacts_bp, url_prefix='/contacts')
+    app.register_blueprint(auth_api, url_prefix='/api/auth')
+    app.register_blueprint(google_auth_bp, url_prefix='/google')
+    app.register_blueprint(calendar_api, url_prefix='/api/calendar')
+    app.register_blueprint(gmail_api, url_prefix='/api/gmail')
+    app.register_blueprint(import_csv_bp, url_prefix='/import')
     app.register_blueprint(offices_admin_bp, url_prefix='/admin')
 
     # Initialize Flask-Migrate
@@ -132,6 +132,13 @@ try:
     @app.template_filter('now')
     def now_filter(format_string='%Y-%m-%d'):
         return datetime.now().strftime(format_string)
+
+    # Add nl2br filter to convert newlines to <br> tags
+    @app.template_filter('nl2br')
+    def nl2br_filter(text):
+        if text:
+            return text.replace('\n', '<br>')
+        return text
 
     # Add template global for current date
     @app.context_processor

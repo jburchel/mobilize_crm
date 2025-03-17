@@ -21,7 +21,7 @@ import json
 calendar_api = Blueprint('calendar_api', __name__)
 logger = logging.getLogger(__name__)
 
-@calendar_api.route('/api/calendar/sync-task/<int:task_id>', methods=['POST'])
+@calendar_api.route('/sync-task/<int:task_id>', methods=['POST'])
 @auth_required
 def sync_task_to_calendar(task_id):
     """Sync a specific task to Google Calendar"""
@@ -143,7 +143,7 @@ def sync_task_to_calendar(task_id):
             'message': f'Error syncing task to Google Calendar: {str(e)}'
         }), 500
 
-@calendar_api.route('/api/calendar/unsync-task/<int:task_id>', methods=['POST'])
+@calendar_api.route('/unsync-task/<int:task_id>', methods=['POST'])
 @auth_required
 def unsync_task_from_calendar(task_id):
     """Remove a task from Google Calendar and disable sync"""
@@ -195,7 +195,7 @@ def unsync_task_from_calendar(task_id):
             'message': f'Error unsyncing task from Google Calendar: {str(e)}'
         }), 500
 
-@calendar_api.route('/api/calendar/toggle-sync/<int:task_id>', methods=['POST'])
+@calendar_api.route('/toggle-sync/<int:task_id>', methods=['POST'])
 @auth_required
 def toggle_sync_status(task_id):
     """Toggle the sync status for a task"""
@@ -235,7 +235,7 @@ def toggle_sync_status(task_id):
             'message': f'Error updating sync status: {str(e)}'
         }), 500
 
-@calendar_api.route('/api/calendar/upcoming-events', methods=['GET'])
+@calendar_api.route('/upcoming-events', methods=['GET'])
 @auth_required
 def get_upcoming_events():
     """Get upcoming events from Google Calendar and CRM tasks"""

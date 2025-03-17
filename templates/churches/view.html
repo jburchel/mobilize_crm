@@ -10,22 +10,45 @@
             <p class="lead">{{ church.location }}</p>
         </div>
         <div class="col-auto">
-            <a href="{{ url_for('churches_bp.edit_church', church_id=church.id) }}" class="btn btn-primary">
-                <i class="fas fa-edit"></i> Edit Church
-            </a>
+            <div class="btn-group">
+                <a href="{{ url_for('churches_bp.edit_church', church_id=church.id) }}" class="btn btn-primary">
+                    <i class="fas fa-edit"></i> Edit Church
+                </a>
+                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#communicationModal">
+                    <i class="fas fa-comment"></i> Communication
+                </button>
+                <a href="{{ url_for('churches_bp.list_churches') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Churches
+                </a>
+            </div>
         </div>
     </div>
 
     <div class="row">
         <div class="col-md-8">
+            <!-- Basic Church Information -->
             <div class="card mb-4">
                 <div class="card-header bg-light">
-                    <h5 class="mb-0">Church Information</h5>
+                    <h5 class="mb-0">Basic Information</h5>
                 </div>
                 <div class="card-body">
                     <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Church Name:</div>
+                        <div class="col-md-8">{{ church.church_name }}</div>
+                    </div>
+                    <div class="row mb-3">
                         <div class="col-md-4 fw-bold">Denomination:</div>
                         <div class="col-md-8">{{ church.denomination or 'Not specified' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Office:</div>
+                        <div class="col-md-8">
+                            {% if church.office %}
+                            {{ church.office.name }}
+                            {% else %}
+                            Not assigned
+                            {% endif %}
+                        </div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-4 fw-bold">Congregation Size:</div>
@@ -45,19 +68,10 @@
                             {% endif %}
                         </div>
                     </div>
-                    <div class="row mb-3">
-                        <div class="col-md-4 fw-bold">Office:</div>
-                        <div class="col-md-8">
-                            {% if church.office %}
-                            {{ church.office.name }}
-                            {% else %}
-                            Not assigned
-                            {% endif %}
-                        </div>
-                    </div>
                 </div>
             </div>
 
+            <!-- Contact Information -->
             <div class="card mb-4">
                 <div class="card-header bg-light">
                     <h5 class="mb-0">Contact Information</h5>
@@ -83,16 +97,99 @@
                             {% endif %}
                         </div>
                     </div>
+                    {% if church.preferred_contact_method %}
                     <div class="row mb-3">
-                        <div class="col-md-4 fw-bold">Address:</div>
+                        <div class="col-md-4 fw-bold">Preferred Contact:</div>
+                        <div class="col-md-8">{{ church.preferred_contact_method }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Primary Contact Information -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Primary Contact Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Name:</div>
                         <div class="col-md-8">
-                            {% if church.street_address %}
-                            {{ church.street_address }}<br>
-                            {% if church.city or church.state or church.zip_code %}
-                            {{ church.city or '' }}{% if church.city and (church.state or church.zip_code) %}, {% endif %}
-                            {{ church.state or '' }}{% if church.state and church.zip_code %} {% endif %}
-                            {{ church.zip_code or '' }}
+                            {% if church.primary_contact_first_name or church.primary_contact_last_name %}
+                            {{ church.primary_contact_first_name or '' }} {{ church.primary_contact_last_name or '' }}
+                            {% else %}
+                            Not specified
                             {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Phone:</div>
+                        <div class="col-md-8">
+                            {% if church.primary_contact_phone %}
+                            <a href="tel:{{ church.primary_contact_phone }}">{{ church.primary_contact_phone }}</a>
+                            {% else %}
+                            Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Email:</div>
+                        <div class="col-md-8">
+                            {% if church.primary_contact_email %}
+                            <a href="mailto:{{ church.primary_contact_email }}">{{ church.primary_contact_email }}</a>
+                            {% else %}
+                            Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if church.main_contact_id %}
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Main Contact:</div>
+                        <div class="col-md-8">
+                            {% if church.main_contact %}
+                            <a href="{{ url_for('people_bp.view_person', person_id=church.main_contact.id) }}">
+                                {{ church.main_contact.first_name }} {{ church.main_contact.last_name }}
+                            </a>
+                            {% else %}
+                            Contact ID: {{ church.main_contact_id }} (not found)
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Senior Pastor Information -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Senior Pastor Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Name:</div>
+                        <div class="col-md-8">
+                            {% if church.senior_pastor_first_name or church.senior_pastor_last_name %}
+                            {{ church.senior_pastor_first_name or '' }} {{ church.senior_pastor_last_name or '' }}
+                            {% else %}
+                            Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Phone:</div>
+                        <div class="col-md-8">
+                            {% if church.senior_pastor_phone %}
+                            <a href="tel:{{ church.senior_pastor_phone }}">{{ church.senior_pastor_phone }}</a>
+                            {% else %}
+                            Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Email:</div>
+                        <div class="col-md-8">
+                            {% if church.senior_pastor_email %}
+                            <a href="mailto:{{ church.senior_pastor_email }}">{{ church.senior_pastor_email }}</a>
                             {% else %}
                             Not specified
                             {% endif %}
@@ -101,11 +198,407 @@
                 </div>
             </div>
 
-            <!-- Rest of the template remains unchanged -->
+            <!-- Missions Pastor Information -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Missions Pastor Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Name:</div>
+                        <div class="col-md-8">
+                            {% if church.missions_pastor_first_name or church.missions_pastor_last_name %}
+                            {{ church.missions_pastor_first_name or '' }} {{ church.missions_pastor_last_name or '' }}
+                            {% else %}
+                            Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Phone:</div>
+                        <div class="col-md-8">
+                            {% if church.mission_pastor_phone %}
+                            <a href="tel:{{ church.mission_pastor_phone }}">{{ church.mission_pastor_phone }}</a>
+                            {% else %}
+                            Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Email:</div>
+                        <div class="col-md-8">
+                            {% if church.mission_pastor_email %}
+                            <a href="mailto:{{ church.mission_pastor_email }}">{{ church.mission_pastor_email }}</a>
+                            {% else %}
+                            Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Address Information -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Address Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Street Address:</div>
+                        <div class="col-md-8">{{ church.street_address or 'Not specified' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">City:</div>
+                        <div class="col-md-8">{{ church.city or 'Not specified' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">State:</div>
+                        <div class="col-md-8">{{ church.state or 'Not specified' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">ZIP Code:</div>
+                        <div class="col-md-8">{{ church.zip_code or 'Not specified' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Location:</div>
+                        <div class="col-md-8">{{ church.location or 'Not specified' }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pipeline and Status Information -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Pipeline and Status</h5>
+                </div>
+                <div class="card-body">
+                    {% if church.church_pipeline and church.church_pipeline != 'UNKNOWN' %}
+                    <div class="progress mb-3" style="height: 25px;">
+                        {% set pipeline_percent = 0 %}
+                        {% if church.church_pipeline == 'PROMOTION' %}
+                            {% set pipeline_percent = 20 %}
+                        {% elif church.church_pipeline == 'INFORMATION' %}
+                            {% set pipeline_percent = 40 %}
+                        {% elif church.church_pipeline == 'INVITATION' %}
+                            {% set pipeline_percent = 60 %}
+                        {% elif church.church_pipeline == 'CONFIRMATION' %}
+                            {% set pipeline_percent = 80 %}
+                        {% elif church.church_pipeline == 'EN42' or church.church_pipeline == 'AUTOMATION' %}
+                            {% set pipeline_percent = 100 %}
+                        {% endif %}
+                        
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ pipeline_percent }}%;" 
+                            aria-valuenow="{{ pipeline_percent }}" aria-valuemin="0" aria-valuemax="100">
+                            {% if pipeline_percent > 0 %}{{ church.church_pipeline }}{% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mb-3">
+                        <div class="text-center">
+                            <div class="pipeline-step-marker {% if church.church_pipeline == 'PROMOTION' %}bg-primary{% elif pipeline_percent >= 20 %}bg-success{% else %}bg-light{% endif %}">1</div>
+                            <div>Promotion</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="pipeline-step-marker {% if church.church_pipeline == 'INFORMATION' %}bg-primary{% elif pipeline_percent >= 40 %}bg-success{% else %}bg-light{% endif %}">2</div>
+                            <div>Information</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="pipeline-step-marker {% if church.church_pipeline == 'INVITATION' %}bg-primary{% elif pipeline_percent >= 60 %}bg-success{% else %}bg-light{% endif %}">3</div>
+                            <div>Invitation</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="pipeline-step-marker {% if church.church_pipeline == 'CONFIRMATION' %}bg-primary{% elif pipeline_percent >= 80 %}bg-success{% else %}bg-light{% endif %}">4</div>
+                            <div>Confirmation</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="pipeline-step-marker {% if church.church_pipeline == 'EN42' or church.church_pipeline == 'AUTOMATION' %}bg-primary{% elif pipeline_percent >= 100 %}bg-success{% else %}bg-light{% endif %}">5</div>
+                            <div>EN42/Auto</div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Pipeline Stage:</div>
+                        <div class="col-md-8">{{ church.church_pipeline or 'Not specified' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Priority:</div>
+                        <div class="col-md-8">
+                            {% if church.priority %}
+                            <span class="badge 
+                                {% if church.priority == 'URGENT' %}bg-danger
+                                {% elif church.priority == 'HIGH' %}bg-warning
+                                {% elif church.priority == 'MEDIUM' %}bg-info
+                                {% elif church.priority == 'LOW' %}bg-success
+                                {% else %}bg-light text-dark{% endif %}">
+                                {{ church.priority }}
+                            </span>
+                            {% else %}
+                            Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Assigned To:</div>
+                        <div class="col-md-8">{{ church.assigned_to or 'Not assigned' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Source:</div>
+                        <div class="col-md-8">{{ church.source or 'Not specified' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Referred By:</div>
+                        <div class="col-md-8">{{ church.referred_by or 'Not specified' }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Virtuous:</div>
+                        <div class="col-md-8">
+                            {% if church.virtuous %}
+                            <span class="badge bg-success">Yes</span>
+                            {% else %}
+                            <span class="badge bg-secondary">No</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Information -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Additional Information</h5>
+                </div>
+                <div class="card-body">
+                    {% if church.info_given %}
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Info Given:</div>
+                        <div class="col-md-8">
+                            <div class="notes-content">{{ church.info_given|nl2br }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if church.reason_closed %}
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Reason Closed:</div>
+                        <div class="col-md-8">{{ church.reason_closed }}</div>
+                    </div>
+                    {% endif %}
+                    {% if church.date_closed %}
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Date Closed:</div>
+                        <div class="col-md-8">{{ church.date_closed.strftime('%Y-%m-%d') }}</div>
+                    </div>
+                    {% endif %}
+                    {% if church.initial_notes %}
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Notes:</div>
+                        <div class="col-md-8">
+                            <div class="notes-content">{{ church.initial_notes|nl2br }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if church.date_created %}
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Date Created:</div>
+                        <div class="col-md-8">{{ church.date_created.strftime('%Y-%m-%d') }}</div>
+                    </div>
+                    {% endif %}
+                    {% if church.date_modified %}
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Date Modified:</div>
+                        <div class="col-md-8">{{ church.date_modified.strftime('%Y-%m-%d') }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
 
         <div class="col-md-4">
-            <!-- Sidebar sections remain unchanged -->
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('churches_bp.edit_church', church_id=church.id) }}" class="btn btn-primary">
+                            <i class="fas fa-edit"></i> Edit Church
+                        </a>
+                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#communicationModal">
+                            <i class="fas fa-comment"></i> Add Communication
+                        </button>
+                        <a href="{{ url_for('tasks_bp.tasks', church_id=church.id) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-tasks"></i> View Tasks
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tasks -->
+            <div class="card mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Tasks</h5>
+                    <a href="{{ url_for('tasks_bp.tasks', church_id=church.id) }}" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for task in tasks %}
+                        <div class="task-item" onclick="window.location.href='{{ url_for('tasks_bp.get_task', task_id=task.id) }}'">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">
+                                    <a href="{{ url_for('tasks_bp.get_task', task_id=task.id) }}">{{ task.title }}</a>
+                                </h6>
+                                <small>
+                                    {% if task.due_date %}
+                                    {{ task.due_date.strftime('%m/%d/%Y') }}
+                                    {% else %}
+                                    No due date
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <p class="mb-1 text-truncate">{{ task.description }}</p>
+                            <div>
+                                {% if task.status == 'Not Started' %}
+                                <span class="badge bg-secondary">Not Started</span>
+                                {% elif task.status == 'In Progress' %}
+                                <span class="badge bg-primary">In Progress</span>
+                                {% else %}
+                                <span class="badge bg-success">Completed</span>
+                                {% endif %}
+                                
+                                {% if task.priority == 'High' %}
+                                <span class="badge bg-danger">High</span>
+                                {% elif task.priority == 'Medium' %}
+                                <span class="badge bg-warning">Medium</span>
+                                {% else %}
+                                <span class="badge bg-info">Low</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="list-group-item text-center py-4">
+                            <p class="text-muted mb-0">No tasks found.</p>
+                            <a href="{{ url_for('tasks_bp.tasks', church_id=church.id) }}" class="btn btn-primary mt-2">
+                                <i class="fas fa-plus"></i> Add Task
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Communications -->
+            <div class="card mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Communications</h5>
+                    <a href="{{ url_for('communications_bp.communications_route') }}" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Subject</th>
+                                    <th>Message</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for comm in recent_communications %}
+                                <tr>
+                                    <td>{{ comm.date_sent.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        {% if comm.type == 'Email' %}
+                                        <span class="badge bg-primary">Email</span>
+                                        {% elif comm.type == 'Phone Call' %}
+                                        <span class="badge bg-success">Phone</span>
+                                        {% elif comm.type == 'Text Message' %}
+                                        <span class="badge bg-info">SMS</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ comm.type }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if comm.type == 'Email' %}
+                                        <a href="{{ url_for('communications_bp.view_communication', comm_id=comm.id) }}">
+                                            {{ comm.subject or 'No Subject' }}
+                                        </a>
+                                        {% else %}
+                                        {{ comm.subject or 'N/A' }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="text-truncate" style="max-width: 300px;">
+                                            {{ comm.message or 'No message content' }}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <p class="text-muted mb-0">No communications found.</p>
+                                        <button type="button" class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#communicationModal">
+                                            <i class="fas fa-plus"></i> Add Communication
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Communication modal -->
+<div class="modal fade" id="communicationModal" tabindex="-1" aria-labelledby="communicationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="communicationModalLabel">Add Communication for {{ church.church_name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{{ url_for('communications_bp.send_communication_route') }}" method="POST">
+                    <input type="hidden" name="church_id" value="{{ church.id }}">
+                    <div class="mb-3">
+                        <label for="type" class="form-label">Communication Type</label>
+                        <select class="form-select" id="type" name="type" required>
+                            <option value="Email">Email</option>
+                            <option value="Phone Call">Phone Call</option>
+                            <option value="Text Message">Text Message</option>
+                            <option value="Letter">Letter</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="direction" class="form-label">Direction</label>
+                        <select class="form-select" id="direction" name="direction" required>
+                            <option value="outbound">Outbound (You to Contact)</option>
+                            <option value="inbound">Inbound (Contact to You)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="subject" class="form-label">Subject (for emails)</label>
+                        <input type="text" class="form-control" id="subject" name="subject">
+                    </div>
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Message</label>
+                        <textarea class="form-control" id="message" name="message" rows="5" required></textarea>
+                    </div>
+                    <div class="d-flex justify-content-end">
+                        <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Communication</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>

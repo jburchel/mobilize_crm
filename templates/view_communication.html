@@ -257,7 +257,7 @@
         showStatus('Sending...', 'info');
         
         // Send request
-        fetch('/communications/reply/{{ communication.id }}', {
+        fetch('/reply/{{ communication.id }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

@@ -633,7 +633,7 @@
             document.getElementById('searchSpinner').classList.remove('d-none');
             
             // Build the API URL
-            let apiUrl = `/api/communications/search?q=${encodeURIComponent(searchTerm)}&page=${page}`;
+            let apiUrl = `/api/search?q=${encodeURIComponent(searchTerm)}&page=${page}`;
             if (personId) apiUrl += `&person_id=${personId}`;
             if (churchId) apiUrl += `&church_id=${churchId}`;
             

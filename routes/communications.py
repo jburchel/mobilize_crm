@@ -14,7 +14,7 @@ from utils.gmail_integration import build_gmail_service, create_message, send_me
 
 communications_bp = Blueprint('communications_bp', __name__)
 
-@communications_bp.route('/communications')
+@communications_bp.route('/')
 def communications_route():
     # Get the current user ID
     user_id = get_current_user_id()
@@ -154,7 +154,7 @@ def communications_route():
                              max=builtins.max,
                              min=builtins.min)
 
-@communications_bp.route('/communications/all-communications')
+@communications_bp.route('/all')
 def all_communications_route():
     # Get the current user ID
     user_id = get_current_user_id()
@@ -345,7 +345,7 @@ def all_communications_route():
                              max=builtins.max,
                              min=builtins.min)
 
-@communications_bp.route('/communications/send', methods=['POST'])
+@communications_bp.route('/send', methods=['POST'])
 def send_communication_route():
     """Handle sending a new communication"""
     # Get the current user ID
@@ -734,129 +734,91 @@ def send_communication_route():
                 'message': f'An error occurred: {str(e)}'
             }), 500
 
-@communications_bp.route('/communications/api/people')
-def get_people_api():
-    with session_scope() as session:
-        people_list = session.query(Person).all()
-        people_data = [{'id': person.id, 'first_name': person.first_name, 'last_name': person.last_name} for person in people_list]
-        return jsonify(people_data)
-
-@communications_bp.route('/communications/api/churches')
-def api_get_churches():
-    with session_scope() as session:
-        churches = session.query(Church).all()
-        churches_data = []
-        for church in churches:
-            if hasattr(church, 'get_name'):
-                name = church.get_name()
-            else:
-                name = church.church_name
-            churches_data.append({'id': church.id, 'name': name})
-        return jsonify({
-            'success': True,
-            'churches': churches_data
-        })
-
-@communications_bp.route('/api/communications/search')
-def search_communications():
+@communications_bp.route('/api/people')
+def get_people():
+    """Get list of people for communication form."""
     user_id = get_current_user_id()
     if not user_id:
-        return jsonify({'error': 'Not authenticated'}), 401
-        
-    search_term = request.args.get('q', '').lower()
+        return jsonify([])
+
+    with session_scope() as session:
+        people = session.query(Person).all()
+        return jsonify([{
+            'id': person.id,
+            'first_name': person.first_name,
+            'last_name': person.last_name
+        } for person in people])
+
+@communications_bp.route('/api/churches')
+def get_churches():
+    """Get list of churches for communication form."""
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify([])
+
+    with session_scope() as session:
+        churches = session.query(Church).all()
+        return jsonify([{
+            'id': church.id,
+            'church_name': church.church_name
+        } for church in churches])
+
+@communications_bp.route('/api/search')
+def search_communications():
+    """Search communications."""
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({
+            'communications': [],
+            'pagination': {
+                'page': 1,
+                'per_page': 10,
+                'total_count': 0,
+                'total_pages': 0
+            }
+        })
+
+    # Get search parameters
+    search_term = request.args.get('q', '')
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 10))
     person_id = request.args.get('person_id')
     church_id = request.args.get('church_id')
-    page = request.args.get('page', 1, type=int)
-    per_page = 50  # Limit results per page
-    
-    current_app.logger.debug(f"Searching communications with term: {search_term}, person_id: {person_id}, church_id: {church_id}, page: {page}")
-    
+
     with session_scope() as session:
-        # Start with a base query with eager loading
-        query = session.query(Communication).options(
-            db.joinedload(Communication.person),
-            db.joinedload(Communication.church)
-        )
-        
+        # Base query
+        query = session.query(Communication)
+
         # Apply filters
-        if person_id:
-            try:
-                person_id_int = int(person_id)
-                query = query.filter(Communication.person_id == person_id_int)
-            except ValueError:
-                current_app.logger.error(f"Invalid person_id: {person_id}")
-            
-        if church_id:
-            try:
-                church_id_int = int(church_id)
-                query = query.filter(Communication.church_id == church_id_int)
-            except ValueError:
-                current_app.logger.error(f"Invalid church_id: {church_id}")
-        
-        # Filter by user_id
-        query = query.filter(Communication.user_id == user_id)
-        
-        # Apply search term if provided
         if search_term:
-            # Join with Person and Church to search in their fields too
-            query = query.outerjoin(Person, Communication.person_id == Person.id)
-            query = query.outerjoin(Church, Communication.church_id == Church.id)
-            
-            # Search in multiple fields
-            search_filter = (
-                func.lower(Communication.message).contains(search_term) |
-                func.lower(Communication.subject).contains(search_term) |
-                func.lower(Person.first_name).contains(search_term) |
-                func.lower(Person.last_name).contains(search_term) |
-                func.lower(Person.email).contains(search_term) |
-                func.lower(Church.church_name).contains(search_term) |
-                func.lower(Church.email).contains(search_term)
+            query = query.filter(
+                (Communication.message.ilike(f'%{search_term}%')) |
+                (Communication.subject.ilike(f'%{search_term}%'))
             )
-            query = query.filter(search_filter)
-        
-        # Order by date_sent
-        query = query.order_by(func.coalesce(Communication.date_sent, datetime(1900, 1, 1)).desc())
-        
-        # Get total count for pagination info
+        if person_id:
+            query = query.filter(Communication.person_id == person_id)
+        if church_id:
+            query = query.filter(Communication.church_id == church_id)
+
+        # Get total count
         total_count = query.count()
-        
+
         # Apply pagination
-        query = query.limit(per_page).offset((page - 1) * per_page)
-        
-        # Execute the query
-        results = query.all()
-        
-        # Filter out None values
-        results = [comm for comm in results if comm is not None]
-        
-        # Filter out duplicates based on gmail_message_id
-        unique_communications = {}
-        for comm in results:
-            if comm.gmail_message_id:
-                if comm.gmail_message_id not in unique_communications:
-                    unique_communications[comm.gmail_message_id] = comm
-            else:
-                # For communications without gmail_message_id, use the id as key
-                unique_communications[f"id_{comm.id}"] = comm
-        
-        # Convert to a list
-        filtered_communications = list(unique_communications.values())
-        
-        # Prepare the response data
+        query = query.order_by(Communication.date_sent.desc())
+        query = query.offset((page - 1) * per_page).limit(per_page)
+
+        # Execute query
+        communications = query.all()
+
+        # Format results
         communications_data = []
-        for comm in filtered_communications:
+        for comm in communications:
             recipient_name = "N/A"
             if comm.person:
-                if hasattr(comm.person, 'get_name'):
-                    recipient_name = comm.person.get_name()
-                else:
-                    recipient_name = f"{comm.person.first_name} {comm.person.last_name}"
+                recipient_name = f"{comm.person.first_name} {comm.person.last_name}"
             elif comm.church:
-                if hasattr(comm.church, 'get_name'):
-                    recipient_name = comm.church.get_name()
-                else:
-                    recipient_name = comm.church.church_name
-                
+                recipient_name = comm.church.church_name
+
             communications_data.append({
                 'id': comm.id,
                 'date_sent': comm.date_sent.strftime('%Y-%m-%d %H:%M') if comm.date_sent else 'N/A',
@@ -867,9 +829,8 @@ def search_communications():
                 'email_status': comm.email_status or 'N/A',
                 'view_url': url_for('communications_bp.view_communication', comm_id=comm.id) if comm.type == 'Email' else None
             })
-        
-        # Add pagination info to the response
-        response = {
+
+        return jsonify({
             'communications': communications_data,
             'pagination': {
                 'page': page,
@@ -877,11 +838,9 @@ def search_communications():
                 'total_count': total_count,
                 'total_pages': (total_count + per_page - 1) // per_page
             }
-        }
-        
-        return jsonify(response)
+        })
 
-@communications_bp.route('/communications/<int:comm_id>')
+@communications_bp.route('/<int:comm_id>')
 def view_communication(comm_id):
     """View a single communication with reply/forward options"""
     with session_scope() as session:
@@ -909,7 +868,7 @@ def view_communication(comm_id):
                               people=people,
                               churches=churches)
 
-@communications_bp.route('/communications/reply/<int:comm_id>', methods=['POST'])
+@communications_bp.route('/reply/<int:comm_id>', methods=['POST'])
 def reply_to_communication(comm_id):
     # Get the current user ID
     user_id = get_current_user_id()
