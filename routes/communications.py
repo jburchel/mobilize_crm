@@ -749,7 +749,7 @@ def get_people():
             'last_name': person.last_name
         } for person in people])
 
-@communications_bp.route('/api/churches')
+@communications_bp.route('/api/communication-churches')
 def get_churches():
     """Get list of churches for communication form."""
     user_id = get_current_user_id()
