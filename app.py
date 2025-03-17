@@ -108,7 +108,7 @@ try:
     app.register_blueprint(churches_bp, url_prefix='/churches')
     app.register_blueprint(tasks_bp, url_prefix='/tasks')
     app.register_blueprint(communications_bp, url_prefix='/communications')
-    app.register_blueprint(health_bp, url_prefix='/api')
+    app.register_blueprint(health_bp, url_prefix='/api/health')
     app.register_blueprint(contacts_api, url_prefix='/api/contacts')
     app.register_blueprint(contacts_bp, url_prefix='/contacts')
     app.register_blueprint(auth_api, url_prefix='/api/auth')

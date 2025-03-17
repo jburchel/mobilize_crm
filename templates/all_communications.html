@@ -445,7 +445,7 @@
         toggleEmailFields();
         
         // Fetch people and churches for the dropdown
-        fetch('/api/people')
+        fetch('/api/communication-people')
             .then(response => response.json())
             .then(data => {
                 const personSelect = document.getElementById('person_id');

@@ -734,7 +734,7 @@ def send_communication_route():
                 'message': f'An error occurred: {str(e)}'
             }), 500
 
-@communications_bp.route('/api/people')
+@communications_bp.route('/api/communication-people')
 def get_people():
     """Get list of people for communication form."""
     user_id = get_current_user_id()
