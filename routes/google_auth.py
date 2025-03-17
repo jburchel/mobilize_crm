@@ -185,11 +185,11 @@ def get_access_token_from_header():
     
     # Try to get tokens from database as a last resort
     try:
-        conn = sqlite3.connect('mobilize_crm.db')
+        conn = sqlite3.connect('instance/mobilize_crm.db')
         cursor = conn.cursor()
         cursor.execute("""
             SELECT token FROM google_tokens 
-            ORDER BY last_used DESC LIMIT 1
+            ORDER BY updated_at DESC LIMIT 1
         """)
         result = cursor.fetchone()
         conn.close()
@@ -228,7 +228,7 @@ def get_user_tokens():
             
         # Connect to the database
         current_app.logger.debug("Attempting to retrieve Google tokens from database")
-        conn = sqlite3.connect('mobilize_crm.db')
+        conn = sqlite3.connect('instance/mobilize_crm.db')
         cursor = conn.cursor()
         
         # Create the table if it doesn't exist
@@ -254,7 +254,7 @@ def get_user_tokens():
         
         # Query for the most recently used token
         cursor.execute("""
-            SELECT access_token, refresh_token, token_uri, client_id, client_secret, scopes
+            SELECT token, refresh_token, token_uri, client_id, client_secret, scopes
             FROM google_tokens
             ORDER BY updated_at DESC
             LIMIT 1
@@ -270,7 +270,7 @@ def get_user_tokens():
             
         # Format the result as a dictionary
         token_data = {
-            'token': result[0],  # This is the access_token column
+            'token': result[0],  # This is the token column
             'refresh_token': result[1],
             'token_uri': result[2],
             'client_id': result[3],
@@ -317,7 +317,7 @@ def save_user_tokens(token_data):
         current_app.logger.info(f"Saving tokens for user_id: {user_id}, email: {user_email}")
         
         # Connect to the database
-        conn = sqlite3.connect('mobilize_crm.db')
+        conn = sqlite3.connect('instance/mobilize_crm.db')
         cursor = conn.cursor()
         
         # Create the table if it doesn't exist
@@ -347,7 +347,7 @@ def save_user_tokens(token_data):
         # Insert or update the token
         cursor.execute("""
             INSERT INTO google_tokens 
-            (user_id, user_email, access_token, refresh_token, token_uri, client_id, client_secret, scopes, updated_at)
+            (user_id, user_email, token, refresh_token, token_uri, client_id, client_secret, scopes, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             user_id,
@@ -364,7 +364,7 @@ def save_user_tokens(token_data):
         conn.commit()
         
         # Verify the token was saved
-        cursor.execute("SELECT id FROM google_tokens WHERE access_token = ? ORDER BY updated_at DESC LIMIT 1", 
+        cursor.execute("SELECT id FROM google_tokens WHERE token = ? ORDER BY updated_at DESC LIMIT 1", 
                       (token_data['token'],))
         result = cursor.fetchone()
         if result:
@@ -380,9 +380,35 @@ def save_user_tokens(token_data):
 
 def build_credentials(token):
     """Build Google credentials object from access token"""
+    # Try to get refresh token from the database
+    refresh_token = None
+    user_id = get_current_user_id()
+    
+    if user_id:
+        try:
+            conn = sqlite3.connect('instance/mobilize_crm.db')
+            cursor = conn.cursor()
+            
+            # Query for refresh token
+            cursor.execute("""
+                SELECT refresh_token FROM google_tokens 
+                WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1
+            """, (user_id,))
+            
+            result = cursor.fetchone()
+            if result and result[0]:
+                refresh_token = result[0]
+                current_app.logger.info(f"Found refresh token for user {user_id}")
+            else:
+                current_app.logger.warning(f"No refresh token found for user {user_id}")
+                
+            conn.close()
+        except Exception as e:
+            current_app.logger.error(f"Error retrieving refresh token: {e}")
+    
     return Credentials(
         token=token,
-        refresh_token=None,
+        refresh_token=refresh_token,
         token_uri="https://oauth2.googleapis.com/token",
         client_id=current_app.config['GOOGLE_CLIENT_ID'],
         client_secret=current_app.config['GOOGLE_CLIENT_SECRET'],
@@ -581,9 +607,9 @@ def get_all_user_tokens():
         
         # Query for all tokens
         cursor.execute("""
-            SELECT user_id, user_email, access_token, refresh_token, token_uri, client_id, client_secret, scopes
+            SELECT user_id, user_email, token, refresh_token, token_uri, client_id, client_secret, scopes
             FROM google_tokens
-            WHERE access_token IS NOT NULL
+            WHERE token IS NOT NULL
             GROUP BY user_id
             HAVING MAX(updated_at)
         """)
@@ -596,7 +622,7 @@ def get_all_user_tokens():
             user_id = row[0] or 'default'
             tokens[user_id] = {
                 'user_email': row[1],
-                'access_token': row[2],
+                'token': row[2],
                 'refresh_token': row[3],
                 'token_uri': row[4],
                 'client_id': row[5],

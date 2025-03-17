@@ -212,6 +212,7 @@ class CommunicationSchema(Schema):
     person_id = fields.Int(allow_none=True)
     church_id = fields.Int(allow_none=True)
     user_id = fields.Str(allow_none=True)
+    direction = fields.Str(required=True, validate=validate.OneOf(['inbound', 'outbound']), default='outbound')
 
 # New schemas for admin features
 class PermissionSchema(Schema):
@@ -402,9 +403,11 @@ class Communication(Base):
     type = Column(String)
     message = Column(String)
     date_sent = Column(DateTime, default=datetime.now)
+    date = Column(DateTime, nullable=False, default=datetime.now)  # Required by the database schema
     person_id = Column(Integer, ForeignKey('people.id'))
     church_id = Column(Integer, ForeignKey('churches.id'))
     user_id = Column(String(128), nullable=True)
+    direction = Column(String(50), nullable=False, default='outbound')  # 'inbound' or 'outbound'
     # Gmail integration fields
     gmail_message_id = Column(String, nullable=True)
     gmail_thread_id = Column(String, nullable=True)

@@ -726,8 +726,13 @@ def _sync_emails_impl():
             token_dict = {
                 'token': access_token
             }
-            credentials = Credentials(token=access_token)
-            service = build('gmail', 'v1', credentials=credentials)
+            service = build_gmail_service(access_token)
+            if not service:
+                current_app.logger.error("Failed to build Gmail service")
+                return jsonify({
+                    'success': False,
+                    'message': 'Failed to build Gmail service. Please check your Google account permissions and try again.'
+                }), 500
 
             # Check if we should include historical emails
             include_history = request.headers.get('X-Include-History', '').lower() == 'true'
@@ -786,33 +791,43 @@ def _sync_emails_impl():
                     current_app.logger.debug(f"Skipping message - not involving any contact: {sender_email} -> {recipient_email}")
                     continue
                 
-                # Create new communication record
+                # Create a new communication record
                 communication = Communication(
                     type='Email',
                     message=message_data.get('body', ''),
                     date_sent=datetime.now(),  # Will be overridden below if date available
+                    date=datetime.now(),  # Will be overridden below if date available
                     subject=message_data.get('subject', ''),
                     gmail_message_id=msg_id,
                     gmail_thread_id=message_data.get('threadId'),
-                    user_id=user_id  # Ensure user_id is set
+                    user_id=user_id,  # Ensure user_id is set
+                    direction='inbound' if contact_is_sender else 'outbound'  # Set direction based on sender
                 )
                 
                 # Parse date if available
                 if message_data.get('date'):
                     try:
                         # Try parsing ISO format first
-                        communication.date_sent = datetime.fromisoformat(message_data.get('date').replace('Z', '+00:00'))
+                        parsed_date = datetime.fromisoformat(message_data.get('date').replace('Z', '+00:00'))
+                        communication.date_sent = parsed_date
+                        communication.date = parsed_date
                     except ValueError:
                         try:
                             # Try parsing email format
                             from email.utils import parsedate_to_datetime
-                            communication.date_sent = parsedate_to_datetime(message_data.get('date'))
+                            parsed_date = parsedate_to_datetime(message_data.get('date'))
+                            communication.date_sent = parsed_date
+                            communication.date = parsed_date
                         except Exception as e:
                             # Default to current date if parsing fails
                             current_app.logger.error(f"Error parsing date {message_data.get('date')}: {e}")
-                            communication.date_sent = datetime.now()
+                            now = datetime.now()
+                            communication.date_sent = now
+                            communication.date = now
                 else:
-                    communication.date_sent = datetime.now()
+                    now = datetime.now()
+                    communication.date_sent = now
+                    communication.date = now
                     
                 # Link to person/church if sender/recipient matches
                 if contact_is_sender:

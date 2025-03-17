@@ -67,14 +67,25 @@ def build_gmail_service(token):
         # Create credentials object
         try:
             logger.debug("Creating credentials object")
-            credentials = Credentials(
-                token=token,
-                refresh_token=refresh_token,
-                token_uri="https://oauth2.googleapis.com/token",
-                client_id=client_id,
-                client_secret=client_secret,
-                scopes=scopes
-            )
+            
+            # If we don't have a refresh token, we can still create credentials with just the access token
+            # This won't allow token refresh, but it will work for the current session
+            if not refresh_token:
+                logger.warning("No refresh token available. Creating credentials with access token only.")
+                credentials = Credentials(
+                    token=token,
+                    scopes=scopes
+                )
+            else:
+                # Create full credentials with refresh capability
+                credentials = Credentials(
+                    token=token,
+                    refresh_token=refresh_token,
+                    token_uri="https://oauth2.googleapis.com/token",
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    scopes=scopes
+                )
             logger.debug("Credentials object created successfully")
         except Exception as e:
             logger.error(f"Error creating credentials object: {str(e)}")
