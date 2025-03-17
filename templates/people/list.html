@@ -10,8 +10,11 @@
             <p class="lead">Manage your contacts and relationships</p>
         </div>
         <div class="col-auto">
+            <a href="{{ url_for('people_bp.list_people') }}" class="btn btn-outline-primary">
+                <i class="fas fa-users"></i> View All People
+            </a>
             <a href="{{ url_for('people_bp.new_person') }}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Add New Person
+                <i class="fas fa-user-plus"></i> Add Person
             </a>
         </div>
     </div>
@@ -185,7 +188,7 @@
                                     <a href="{{ url_for('people_bp.person_detail', person_id=person.id) }}" class="btn btn-sm btn-outline-primary">
                                         <i class="fas fa-eye"></i> View
                                     </a>
-                                    <a href="{{ url_for('people_bp.edit_person', person_id=person.id) }}" class="btn btn-sm btn-outline-secondary">
+                                    <a href="{{ url_for('people_bp.edit_person', person_id=person.id) }}" class="btn btn-outline-primary">
                                         <i class="fas fa-edit"></i> Edit
                                     </a>
                                 </div>

@@ -15,13 +15,13 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="list-group list-group-flush">
-                        <a href="#email-signatures" class="list-group-item list-group-item-action d-flex align-items-center">
+                        <a href="{{ url_for('dashboard_bp.email_signatures') }}" class="list-group-item list-group-item-action d-flex align-items-center">
                             <i class="bi bi-envelope me-2"></i> Email Signatures
                         </a>
-                        <a href="#google-settings" class="list-group-item list-group-item-action d-flex align-items-center">
+                        <a href="{{ url_for('dashboard_bp.google_settings') }}" class="list-group-item list-group-item-action d-flex align-items-center">
                             <i class="bi bi-gear me-2"></i> Google Settings
                         </a>
-                        <a href="#import-csv" class="list-group-item list-group-item-action d-flex align-items-center">
+                        <a href="{{ url_for('import_csv_bp.import_csv') }}" class="list-group-item list-group-item-action d-flex align-items-center">
                             <i class="bi bi-file-earmark-arrow-up me-2"></i> Import CSV
                         </a>
                     </div>
