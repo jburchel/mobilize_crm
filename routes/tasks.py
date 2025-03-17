@@ -495,3 +495,32 @@ def delete_task(task_id):
         current_app.logger.error(f'Error deleting task {task_id}: {str(e)}', exc_info=True)
         flash(f'An error occurred while deleting the task: {str(e)}', 'error')
         return redirect(url_for('tasks_bp.tasks'))
+
+@tasks_bp.route('/view/<int:task_id>', methods=['GET'])
+def view_task(task_id):
+    """View a single task"""
+    try:
+        # Get the current user ID
+        user_id = get_current_user_id()
+        if not user_id:
+            current_app.logger.warning("No user ID found in session, cannot view task")
+            flash('You must be logged in to view tasks', 'error')
+            return redirect(url_for('dashboard_bp.dashboard'))
+            
+        with session_scope() as session:
+            task = session.query(Task).get(task_id)
+            if not task:
+                flash('Task not found', 'error')
+                return redirect(url_for('tasks_bp.tasks'))
+                
+            # Verify that the user owns this task
+            if task.user_id != user_id:
+                current_app.logger.warning(f"User {user_id} attempted to view task {task_id} owned by {task.user_id}")
+                flash('You do not have permission to view this task', 'error')
+                return redirect(url_for('tasks_bp.tasks'))
+                
+            return render_template('tasks/view.html', task=task)
+    except Exception as e:
+        current_app.logger.error(f'Error viewing task {task_id}: {str(e)}', exc_info=True)
+        flash('An error occurred while viewing the task. Please try again.', 'error')
+        return redirect(url_for('tasks_bp.tasks'))

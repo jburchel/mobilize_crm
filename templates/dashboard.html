@@ -134,7 +134,7 @@
                         {% for task in pending_tasks %}
                         <tr>
                             <td>
-                                <div class="task-item" onclick="window.location.href='{{ url_for('tasks_bp.get_task', task_id=task.id) }}'">
+                                <div class="task-item" onclick="window.location.href='{{ url_for('tasks_bp.view_task', task_id=task.id) }}'">
                                     {{ task.title }}
                                 </div>
                             </td>
@@ -196,7 +196,7 @@
         </div>
         <div class="card-footer bg-light">
             <a href="{{ url_for('tasks_bp.tasks') }}" class="btn btn-outline-primary">
-                <i class="fas fa-tasks"></i> View All Tasks
+                <i class="fas fa-tasks"></i> View Tasks
             </a>
         </div>
     </div>

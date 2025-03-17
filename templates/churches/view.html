@@ -445,10 +445,10 @@
                 <div class="card-body p-0">
                     <div class="list-group list-group-flush">
                         {% for task in tasks %}
-                        <div class="task-item" onclick="window.location.href='{{ url_for('tasks_bp.get_task', task_id=task.id) }}'">
+                        <div class="task-item" onclick="window.location.href='{{ url_for('tasks_bp.view_task', task_id=task.id) }}'">
                             <div class="d-flex w-100 justify-content-between">
                                 <h6 class="mb-1">
-                                    <a href="{{ url_for('tasks_bp.get_task', task_id=task.id) }}">{{ task.title }}</a>
+                                    <a href="{{ url_for('tasks_bp.view_task', task_id=task.id) }}">{{ task.title }}</a>
                                 </h6>
                                 <small>
                                     {% if task.due_date %}
